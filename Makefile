@@ -1,0 +1,60 @@
+# Atajos del proyecto. `make` sin argumentos muestra la ayuda.
+.DEFAULT_GOAL := help
+.PHONY: help install env test lint format typecheck check run crawl spiders silver gold serve ui clean
+
+SPIDERS ?=
+SPIDER ?=
+PERSONA ?=
+CRON ?= 0 6 * * 1
+
+help: ## Muestra esta ayuda
+	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+
+install: ## Instala dependencias y Chromium para Playwright
+	uv sync
+	uv run playwright install chromium
+
+env: ## Crea .env desde .env.example (no pisa uno existente)
+	@test -f .env && echo ".env ya existe" || cp .env.example .env
+
+test: ## Corre los tests (fixtures, sin red)
+	uv run pytest
+
+lint: ## ruff check + verificación de formato
+	uv run ruff check
+	uv run ruff format --check
+
+format: ## Corrige lint y formatea
+	uv run ruff check --fix
+	uv run ruff format
+
+typecheck: ## ty sobre src
+	uv run ty check src
+
+check: lint typecheck test ## lint + tipos + tests (lo que se pide antes de un PR)
+
+run: ## Pipeline completo; SPIDERS=a,b para solo algunos
+	uv run daii run $(if $(SPIDERS),--spiders $(SPIDERS))
+
+crawl: ## Un spider suelto: make crawl SPIDER=orcid [PERSONA=slug]
+	@test -n "$(SPIDER)" || { echo "Uso: make crawl SPIDER=<spider> [PERSONA=<slug>]"; exit 1; }
+	uv run scrapy crawl $(SPIDER) $(if $(PERSONA),-a persona=$(PERSONA))
+
+spiders: ## Lista los spiders
+	uv run daii spiders
+
+silver: ## Reconstruye silver desde bronze
+	uv run daii silver
+
+gold: ## Reconstruye gold desde silver
+	uv run daii gold
+
+serve: ## Deployment programado en Prefect (CRON="0 6 * * 1")
+	uv run daii serve --cron "$(CRON)"
+
+ui: ## UI de Prefect en http://127.0.0.1:4200
+	uv run prefect server start
+
+clean: ## Borra cachés (no toca data/)
+	rm -rf .pytest_cache .ruff_cache
+	find . -path ./.venv -prune -o -name __pycache__ -type d -exec rm -rf {} +

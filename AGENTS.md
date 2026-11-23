@@ -10,6 +10,8 @@ El modelo conceptual está en `docs/modelo_datos.md`.
 
 ## Comandos
 
+`make help` lista atajos para todo lo de abajo (`make install`, `make check`, `make run`, `make crawl SPIDER=… PERSONA=…`).
+
 ```bash
 uv sync                                   # instalar
 uv run playwright install chromium        # una vez, para spiders con Playwright

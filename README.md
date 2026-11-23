@@ -17,7 +17,7 @@ cp .env.example .env          # SMTP para alertas, API key OpenAlex (opcionales)
 uv run daii run               # todos los spiders → data/gold/daii.sqlite
 ```
 
-Otros comandos:
+Otros comandos (`make help` muestra los atajos equivalentes):
 
 ```bash
 uv run daii spiders                         # lista de spiders
