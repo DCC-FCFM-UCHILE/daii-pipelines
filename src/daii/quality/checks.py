@@ -1,14 +1,15 @@
-"""Checks de calidad por run de spider. Resultado en raw/<spider>/<run_id>/quality.json.
+"""Checks de calidad por run de spider. Resultado en bronze/<spider>/<run_id>/quality.json.
 
 fail → el run no se usa en silver (se mantiene el último bueno) y el flow termina en Failed.
 warn → el run se usa, pero se reporta.
 """
 
+import contextlib
 import json
 from collections import Counter
 from pathlib import Path
 
-from daii.config import RAW
+from daii.config import BRONZE
 
 DROP_WARN = 0.5  # caída relativa vs. el último run bueno que dispara warn
 DROP_MIN_BASE = 5  # no comparar tipos con menos ítems que esto en el run anterior
@@ -16,7 +17,7 @@ DROP_MIN_BASE = 5  # no comparar tipos con menos ítems que esto en el run anter
 
 def runs(spider: str) -> list[Path]:
     """Runs de un spider, del más reciente al más antiguo."""
-    d = RAW / spider
+    d = BRONZE / spider
     return sorted((p for p in d.iterdir() if p.is_dir()), reverse=True) if d.exists() else []
 
 
@@ -34,10 +35,15 @@ def last_good(spider: str, before: Path | None = None) -> Path | None:
 
 def counts(run: Path) -> Counter:
     f = run / "items.jsonl"
-    return Counter(json.loads(line)["tipo"] for line in f.open()) if f.exists() else Counter()
+    c: Counter = Counter()
+    for line in f.open() if f.exists() else []:
+        with contextlib.suppress(json.JSONDecodeError):  # última línea a medio escribir (proceso matado)
+            c[json.loads(line)["tipo"]] += 1
+    return c
 
 
 def check(spider: str, run: Path) -> dict:
+    run.mkdir(parents=True, exist_ok=True)  # si Scrapy murió antes de crear el run, igual queda su quality.json
     fails, warns = [], []
     stats_f = run / "stats.json"
     stats = json.loads(stats_f.read_text()) if stats_f.exists() else {}

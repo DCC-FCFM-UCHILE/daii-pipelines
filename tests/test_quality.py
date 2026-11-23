@@ -12,7 +12,7 @@ def _run(root, name, items, stats):
 
 
 def test_check_statuses(tmp_path, monkeypatch):
-    monkeypatch.setattr(checks, "RAW", tmp_path)
+    monkeypatch.setattr(checks, "BRONZE", tmp_path)
     ok = {"finish_reason": "finished", "expect": {"publicacion": 2}}
     r1 = _run(tmp_path, "20260101T000000Z", ["publicacion"] * 10, ok)
     assert checks.check("spi", r1)["status"] == "ok"

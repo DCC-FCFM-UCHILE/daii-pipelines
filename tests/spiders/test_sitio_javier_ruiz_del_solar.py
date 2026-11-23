@@ -1,6 +1,8 @@
+import asyncio
+
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.javier_ruiz_del_solar import JavierRuizDelSolarSpider
+from daii.bronze.spiders.sites.javier_ruiz_del_solar import JavierRuizDelSolarSpider
 
 SITIO = "https://www.cec.uchile.cl/~jruizd/"
 P = "javier-ruiz-del-solar"
@@ -65,6 +67,7 @@ def test_cv():
     for a in out["actividad"]:
         tipos[a["tipo_actividad"]] = tipos.get(a["tipo_actividad"], 0) + 1
     assert tipos["comite_programa"] >= 60 and tipos["revisor"] >= 30 and tipos["editorial"] == 3
+    assert tipos["comite"] >= 1 and tipos["charla"] >= 1 and tipos["tutorial"] >= 1
     ed = next(a for a in out["actividad"] if a["tipo_actividad"] == "editorial")
     assert (
         ed["titulo"].startswith("International Journal of Hybrid Intelligent Systems") and ed["fecha"] == "2004 – 2006"
@@ -73,8 +76,20 @@ def test_cv():
     assert not any("8.323.448" in str(v) for items in out.values() for i in items for v in i.values())
 
 
+def test_cv_no_se_guarda():
+    async def reqs():
+        return [r async for r in JavierRuizDelSolarSpider().start()]
+
+    cv = next(r for r in asyncio.run(reqs()) if r.url.endswith("curriculum.html"))
+    assert cv.meta["guardar"] is False
+
+
 def test_publications():
     out = parse("ruizdelsolar_publications.html", "publications.html", "parse_publications")
+    assert all(p["titulo"] for p in out["publicacion"])  # libros editados: la itálica es el título
+    assert {"titulo": "RoboCup 2010: Robot Soccer World Cup XIV", "venue": None}.items() <= next(
+        p for p in out["publicacion"] if p["titulo"].startswith("RoboCup 2010")
+    ).items()
     pubs = out["publicacion"]
     assert len(pubs) >= 230
     p = pubs[0]

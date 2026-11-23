@@ -19,11 +19,15 @@ def send(subject: str, body: str) -> bool:
         log.warning("SMTP_HOST no configurado; alerta no enviada:\n%s", body)
         return False
     msg = EmailMessage()
-    msg["Subject"], msg["From"], msg["To"] = subject, os.environ["ALERT_FROM"], os.environ["ALERT_TO"]
+    msg["Subject"], msg["From"], msg["To"] = subject, os.environ.get("ALERT_FROM", ""), os.environ.get("ALERT_TO", "")
     msg.set_content(body)
-    with smtplib.SMTP(host, int(os.environ.get("SMTP_PORT", "587"))) as s:
-        s.starttls()
-        if user := os.environ.get("SMTP_USER"):
-            s.login(user, os.environ["SMTP_PASSWORD"])
-        s.send_message(msg)
+    try:
+        with smtplib.SMTP(host, int(os.environ.get("SMTP_PORT", "587"))) as s:
+            s.starttls()
+            if user := os.environ.get("SMTP_USER"):
+                s.login(user, os.environ["SMTP_PASSWORD"])
+            s.send_message(msg)
+    except Exception:  # un SMTP caído no debe tapar el error original ni fallar un pipeline sano
+        log.exception("no se pudo enviar la alerta por email:\n%s", body)
+        return False
     return True

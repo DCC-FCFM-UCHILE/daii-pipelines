@@ -1,7 +1,7 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import Response
 
-from daii.raw.spiders.sites.sebastian_ferrada import SebastianFerradaSpider
+from daii.bronze.spiders.sites.sebastian_ferrada import SebastianFerradaSpider
 
 URL = "https://sferrada.com/"
 P = "sebastian-ferrada"

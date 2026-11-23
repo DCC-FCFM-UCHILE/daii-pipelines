@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.cr2 import Cr2Spider
+from daii.bronze.spiders.cr2 import Cr2Spider
 
 URL = "https://www.cr2.cl/roberto-rondanelli/"
 

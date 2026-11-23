@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.claudia_lopez import ClaudiaLopezSpider
+from daii.bronze.spiders.sites.claudia_lopez import ClaudiaLopezSpider
 
 URL = "https://claudialopezmoncada.com/"
 P = "claudia-lopez"
@@ -44,7 +44,9 @@ def test_bio():
     assert len(out["afiliacion"]) >= 6
     assert any(d["nombre"] == "Fulbright Ph.D. Scholarship" and d["anio"] == 2010 for d in out["distincion"])
     tipos = {a["tipo_actividad"] for a in out["actividad"]}
-    assert {"politica_publica", "revisor", "comite_programa"} <= tipos
+    assert {"politica_publica", "revisor", "comite_programa", "servicio", "charla"} <= tipos
+    charla = next(a for a in out["actividad"] if a["descripcion"] == "Invited event participation")
+    assert charla["tipo_actividad"] == "charla"
 
 
 def test_publications():
@@ -84,7 +86,12 @@ def test_teaching_outreach_research():
     out = parse("lopez_outreach.html", "outreach/", "parse_outreach")
     acts = out["actividad"]
     assert len(acts) >= 150
-    assert {"asesoria", "prensa", "divulgacion", "charla_invitada"} <= {a["tipo_actividad"] for a in acts}
+    assert {"asesoria", "prensa", "divulgacion", "charla"} <= {a["tipo_actividad"] for a in acts}
+    assert {a["descripcion"] for a in acts if a["tipo_actividad"] == "charla"} == {
+        "Invited academic talks",
+        "Invited academic panels",
+        "Guest lectures",
+    }
     assert acts[0]["fecha"] == "2026" and acts[0]["titulo"].startswith("Invited expert to the Technical workshop")
 
     out = parse("lopez_research.html", "research/", "parse_research")

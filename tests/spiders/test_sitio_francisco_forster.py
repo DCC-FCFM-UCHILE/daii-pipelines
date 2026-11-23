@@ -1,7 +1,7 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import Response
 
-from daii.raw.spiders.sites.francisco_forster import CV, HOME, FranciscoForsterSpider
+from daii.bronze.spiders.sites.francisco_forster import CV, HOME, FranciscoForsterSpider
 
 P = "francisco-forster"
 
@@ -62,7 +62,7 @@ def test_cv():
     assert (fondecyt["anio_inicio"], fondecyt["anio_fin"]) == (2013, 2017)
 
     act = out["actividad"]
-    assert sum(a["tipo_actividad"] == "charla_invitada" for a in act) == 15
+    assert sum(a["tipo_actividad"] == "charla" for a in act) == 15
     assert sum(a["tipo_actividad"] == "organizacion_evento" for a in act) == 4
 
     astro = [d for d in out["dictacion"] if d["nombre_curso"] == "Astroinformatics, U. Chile"]
@@ -72,6 +72,7 @@ def test_cv():
     assert len(tesis) >= 50
     pena = next(t for t in tesis if t["estudiante"] == "José Peña")
     assert (pena["nivel"], pena["rol"], pena["programa"]) == ("Ph.D.", "co-supervisor", "Astronomy")
+    assert all(t["titulo"] is None for t in tesis)  # el CV no trae títulos: no se inventan
 
     assert any(d["nombre"].startswith("Beca Irma Salas") and d["anio"] == 1998 for d in out["distincion"])
     assert out["producto"][0]["nombre"] == "Flair"

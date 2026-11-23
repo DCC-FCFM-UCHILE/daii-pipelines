@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.hector_ramirez import (
+from daii.bronze.spiders.sites.hector_ramirez import (
     HOME,
     PROJECTS,
     PUBLICATIONS,

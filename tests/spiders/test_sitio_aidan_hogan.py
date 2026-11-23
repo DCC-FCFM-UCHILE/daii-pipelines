@@ -1,7 +1,7 @@
 import pytest
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.aidan_hogan import AidanHoganSpider
+from daii.bronze.spiders.sites.aidan_hogan import AidanHoganSpider
 
 
 @pytest.fixture(scope="module")
@@ -26,8 +26,9 @@ def test_persona_afiliaciones(out):
     (phd,) = out["formacion"]
     assert phd == phd | {"grado": "PhD", "anio": 2011, "institucion": "National University of Ireland, Galway"}
     assert phd["titulo_tesis"].startswith("Exploiting RDFS and OWL")
-    orcid = next(x for x in out["perfil"] if x["plataforma"] == "Orcid")
-    assert orcid["identificador"] == "0000-0001-9482-1982" and len(out["perfil"]) == 6
+    perfiles = {x["plataforma"]: x for x in out["perfil"]}
+    assert perfiles["orcid"]["identificador"] == "0000-0001-9482-1982" and len(perfiles) == 6
+    assert {"dblp", "scholar", "researcherid", "semanticscholar"} <= perfiles.keys()
 
 
 def test_publicaciones(out):
@@ -47,7 +48,7 @@ def test_actividades(out):
     acts = out["actividad"]
     assert len(acts) >= 80
     por_tipo = {t: [a for a in acts if a["tipo_actividad"] == t] for t in {a["tipo_actividad"] for a in acts}}
-    assert len(por_tipo["keynote"]) == 7 and len(por_tipo["prensa"]) >= 2
+    assert len(por_tipo["keynote"]) == 7 and len(por_tipo["prensa"]) >= 2 and len(por_tipo["revisor"]) >= 1
     k = por_tipo["keynote"][0]
     assert k["titulo"] == "Wikidata: A Nucleus for a Web of Open Data" and k["fecha"] == "2024"
     assert k["evento"] == "Distributed Knowledge Graphs Plenary Meeting (COST CA19134 2024)"
@@ -68,6 +69,8 @@ def test_docencia_tesis_premios(out):
     assert len(tesis) >= 60
     moya = {"estudiante": "Alberto Moya", "nivel": "PhD in Computer Science", "estado": "Current"}
     assert tesis[0] == tesis[0] | moya
+    assert all(t["titulo"] is None for t in tesis)  # la fuente no trae títulos: no se usa el nivel como título
+    assert len({(t["estudiante"], t["nivel"]) for t in tesis}) >= 60
     sf = next(t for t in tesis if t["estudiante"] == "Sebastián Ferrada" and t["nivel"].startswith("PhD"))
     assert sf["rol"] == "co-supervised with Benjamín Bustos" and sf["estado"] == "Alumni"
     dist = out["distincion"]

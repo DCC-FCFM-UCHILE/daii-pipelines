@@ -1,9 +1,11 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import Response
 
-from daii.raw.spiders.sites.gonzalo_navarro import CV, EN_CURSO, HOME, REALIZADAS, SOFTWARE, GonzaloNavarroSpider
+from daii.bronze.spiders.sites.gonzalo_navarro import EN_CURSO, HOME, REALIZADAS, SOFTWARE, GonzaloNavarroSpider
+from daii.config import academico
 
 P = "gonzalo-navarro"
+CV = academico(P)["perfiles"]["cv"]
 
 
 def test_home():
@@ -25,9 +27,9 @@ def test_home():
 
     acts = out["actividad"]
     charla = next(a for a in acts if a["titulo"] == "ACDA 2025")
-    assert charla["tipo_actividad"] == "charla_invitada" and charla["fecha"] == "2025"
+    assert charla["tipo_actividad"] == "charla" and charla["fecha"] == "2025"
     assert charla["descripcion"] == "Montreal, Canadá, 30 de Julio al 1 de Agosto"
-    assert sum(a["tipo_actividad"] == "charla_invitada" for a in acts) == 9
+    assert sum(a["tipo_actividad"] == "charla" for a in acts) == 9
     assert next(a for a in acts if a["tipo_actividad"] == "editorial")["titulo"] == "ACM Transactions on Algorithms"
     dag = next(a for a in acts if a["titulo"] == "Dagstuhl Seminar 24472, 2024")
     assert dag["tipo_actividad"] == "organizacion_evento" and dag["rol"] == "coorganizador"
@@ -102,4 +104,6 @@ def test_cv():
     jea = next(a for a in acts if a["rol"] == "Editor en Jefe")
     assert jea["tipo_actividad"] == "editorial" and jea["fecha"] == "2016-2023"
     assert not any(a["titulo"].startswith("Participación") for a in acts)
+    tut = next(a for a in acts if a["titulo"] == "Self-Indexing XML")
+    assert tut["tipo_actividad"] == "tutorial" and tut["fecha"] == "2010"
     assert len(acts) >= 70

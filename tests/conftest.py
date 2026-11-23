@@ -1,10 +1,9 @@
 from pathlib import Path
 
-import pytest
 from scrapy import Request
 from scrapy.http import HtmlResponse, Response, TextResponse
 
-from daii.raw.items import raw_item
+from daii.bronze.items import bronze_item
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -17,15 +16,10 @@ def fixture_response(name: str, url: str, persona: str, cls: type[Response] = Ht
 
 
 def run_parse(gen) -> dict[str, list[dict]]:
-    """Ejecuta un callback, valida cada ítem contra el contrato raw y los agrupa por tipo (ignora Requests)."""
+    """Ejecuta un callback, valida cada ítem contra el contrato bronze y los agrupa por tipo (ignora Requests)."""
     out: dict[str, list[dict]] = {}
     for x in gen:
         if isinstance(x, dict):
-            item = raw_item.validate_python(x).model_dump()
+            item = bronze_item.validate_python(x).model_dump()
             out.setdefault(item["tipo"], []).append(item)
     return out
-
-
-@pytest.fixture
-def parsed():
-    return run_parse
