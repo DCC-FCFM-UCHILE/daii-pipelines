@@ -11,14 +11,12 @@
   la sección "Personal" no se lee. Su ficha DCC la cubre `ucurriculum`.
 """
 
-import io
 import re
 from collections.abc import Iterator
 
-from pypdf import PdfReader
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, autores, clean, texts
+from daii.bronze.spiders.base import ANIO, AcademicSpider, autores, clean, pdf_texto, texts
 from daii.config import academico
 
 PERSONA = "ivan-sipiran"
@@ -28,7 +26,6 @@ PUBLICATIONS = BASE + "publications.html"
 LINKS = BASE + "links.html"
 MAIN = "#page"
 
-ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
 # home: "I am Assistant Professor in the Department ..." / "I held a Post-doc position at the University of Konstanz"
 CARGO = re.compile(r"\bI (?:am|was|held|spent [\w ]+? as) (?:an? )?(.+?)(?: position)? (?:in|at) (?:the )?(.+)$")
 GRADO = re.compile(
@@ -114,15 +111,16 @@ class IvanSipiranSpider(AcademicSpider):
         yield self.page(RESEARCH, self.parse_research, PERSONA)
         yield self.page(PUBLICATIONS, self.parse_publications, PERSONA)
         yield self.page(LINKS, self.parse_links, PERSONA)
-        yield self.page(academico(PERSONA)["perfiles"]["cv"], self.parse_cv, PERSONA)
+        # sección "Personal" del CV (nombre completo, dirección): no se guarda el PDF en pages/
+        yield self.page(academico(PERSONA)["perfiles"]["cv"], self.parse_cv, PERSONA, guardar=False)
 
     def parse(self, response: Response) -> Iterator:
         intro, news = response.css(f"{MAIN} #latest-post")[:2]
         yield self.item(
             "persona",
             response,
-            nombre=clean(response.css("#logo h1 ::text").get()) or "Ivan Sipiran",
-            foto_url=response.urljoin(intro.css("img::attr(src)").get() or "") or None,
+            nombre=clean(response.css("#logo h1 ::text").get()),
+            foto_url=intro.css("img::attr(src)").get(),
         )
         for p in intro.css("p"):
             # "... University of Chile . I was ..." → frases; "Dr. Benjamin Bustos" no corta
@@ -169,7 +167,7 @@ class IvanSipiranSpider(AcademicSpider):
                     response,
                     tipo_producto="software",
                     nombre=titulo,
-                    url_destino=response.urljoin(page),
+                    url_destino=page,
                     descripcion=clean(cuerpo.split(". ")[0]),
                 )
         yield from self.related(response, region=MAIN)
@@ -197,7 +195,7 @@ class IvanSipiranSpider(AcademicSpider):
                     tipo_publicacion="preprint" if grupo == "Preprints" else None,
                     venue=None if arxiv else venue,
                     estado="To appear" if re.search(r"to appear", t, re.IGNORECASE) else None,
-                    url_destino=response.urljoin(url) if (url := li.css("a::attr(href)").get()) else None,
+                    url_destino=li.css("a::attr(href)").get(),
                     ids={"arxiv": arxiv.group(1)} if arxiv else {},
                 )
         yield from self.related(response, region=MAIN)
@@ -207,7 +205,7 @@ class IvanSipiranSpider(AcademicSpider):
         yield from self.related(response, region=MAIN)
 
     def parse_cv(self, response: Response) -> Iterator:
-        s = secciones_cv("\n".join(p.extract_text() for p in PdfReader(io.BytesIO(response.body)).pages))
+        s = secciones_cv(pdf_texto(response))
 
         partes = FECHA.split(" ".join(s.get("experiencia", [])))
         for fecha, texto in zip(partes[1::2], partes[2::2], strict=True):

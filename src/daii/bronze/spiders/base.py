@@ -136,9 +136,9 @@ class AcademicSpider(scrapy.Spider):
         self.logger.info("link relacionado falló: %s (%s)", failure.request.url, failure.value)
 
     def item(self, tipo: str, response: Response, **fields: Any) -> dict:
-        for k in URL_FIELDS:  # hrefs relativos → absolutos, en un solo lugar
-            if fields.get(k):
-                fields[k] = response.urljoin(fields[k])
+        for k in URL_FIELDS:  # hrefs relativos → absolutos y vacíos → None, en un solo lugar
+            if k in fields:
+                fields[k] = abs_url(response, fields[k])
         return {
             "tipo": tipo,
             "persona": response.meta["persona"],

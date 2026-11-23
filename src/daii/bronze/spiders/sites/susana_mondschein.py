@@ -7,22 +7,19 @@
   Playwright. Solo se toman hechos (trayectoria, gestión, prensa); el programa y los testimonios no.
 """
 
-import io
 import re
 from collections.abc import Iterator
 
-from pypdf import PdfReader
 from scrapy.http import Response
 from scrapy_playwright.page import PageMethod
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, anio, anios, autores, clean, pdf_texto, texts
+from daii.config import academico
 
 PERSONA = "susana-mondschein"
 SITIO = "https://www.dii.uchile.cl/~smondsch/"
-CV = SITIO + "cvsusanamondschein.pdf"
 CAMPANIA = "https://susanamondschein.cl/"
 
-ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
 # "Associate Professor, University of Chile, August 2020 – present." → fechas al final
 FECHAS = re.compile(r",?\s*((?:[A-Za-zé]+\.? )?\d{4}\s*[-–]+\s*(?:[A-Za-zé]+ )?(?:\d{4}|present|presente)|\d{4})\.?$")
 GRADO = re.compile(r"(Industrial Engineer|master’s degree in [^,.]+?|Ph\.D\. in [^,.]+?)(?= and | from |\.)")
@@ -39,10 +36,6 @@ SECCIONES_CV = (
     "RESEARCH AND DEVELOPMENT PROJECTS",
     "PROFESSIONAL SERVICES",
 )
-
-
-def anios(text: str) -> list[int]:
-    return [int(y) for y in ANIO.findall(text)]
 
 
 def fechas(text: str) -> tuple[str, str | None, str | None]:
@@ -92,7 +85,8 @@ class SusanaMondscheinSpider(AcademicSpider):
         if self.only and self.only != PERSONA:
             return
         yield self.page(SITIO, self.parse, PERSONA)
-        yield self.page(CV, self.parse_cv, PERSONA)
+        # la cabecera del CV trae dirección particular y celular: no se guarda el PDF en pages/
+        yield self.page(academico(PERSONA)["perfiles"]["cv"], self.parse_cv, PERSONA, guardar=False)
         yield self.page(
             CAMPANIA,
             self.parse_campania,
@@ -111,9 +105,7 @@ class SusanaMondscheinSpider(AcademicSpider):
             for p in response.xpath("//h1[contains(normalize-space(.), 'ABOUT ME')]/following::p[position() < 5]")
             if (t := texts(p))
         ]
-        yield self.item(
-            "persona", response, nombre=texts(response.css("h1.header")) or "Susana Mondschein", bio=" ".join(bio)
-        )
+        yield self.item("persona", response, nombre=texts(response.css("h1.header")), bio=" ".join(bio))
         if bio:
             for m in GRADO.finditer(bio[0]):
                 inst = re.search(r"from (?:the )?(.+?)(?: and |\.$|$)", bio[0][m.end() :])
@@ -146,7 +138,7 @@ class SusanaMondscheinSpider(AcademicSpider):
                     "publicacion",
                     response,
                     titulo=q.group(1).strip(" ,."),
-                    autores=re.split(r",\s*(?:and\s+)?|\s+and\s+", con.group(1).strip(" ,")) if con else [],
+                    autores=autores(con.group(1)) if con else [],
                     venue=None if not venue or venue.isdigit() else venue,
                     anio=ys[0] if ys else None,
                     tipo_publicacion=tipo,
@@ -180,8 +172,7 @@ class SusanaMondscheinSpider(AcademicSpider):
                 )
 
     def parse_cv(self, response: Response) -> Iterator:
-        reader = PdfReader(io.BytesIO(response.body))
-        s = cv_secciones("\n".join(p.extract_text() for p in reader.pages))
+        s = cv_secciones(pdf_texto(response))
         for t in s.get("ACADEMIC POSITIONS", []):  # "Associate Professor, University of Chile, August 2020 – present."
             cuerpo, desde, hasta = fechas(t)
             rol, _, org = cuerpo.partition(", ")
@@ -191,18 +182,16 @@ class SusanaMondscheinSpider(AcademicSpider):
         for t in s.get(
             "ACADEMIC DEGREES", []
         ):  # "Ph.D. in Operations Research, Massachusetts Institute ... (MIT), 1993."
-            cuerpo, _, anio = t.rstrip(".").rpartition(", ")
+            cuerpo, _, year = t.rstrip(".").rpartition(", ")
             grado, _, inst = cuerpo.partition(", ")
-            yield self.item("formacion", response, grado=grado, institucion=inst or None, anio=anio)
+            yield self.item("formacion", response, grado=grado, institucion=inst or None, anio=year)
         for t in s.get("RESEARCH FIELDS", []):
             yield self.item("area", response, nombre=t.rstrip("."))
         for t in s.get("TEACHING", []):  # "Stochastic Processes, University of Chile and Adolfo Ibañez University."
             curso, _, inst = t.rstrip(".").rpartition(", ")
             yield self.item("dictacion", response, nombre_curso=curso or inst, institucion=inst if curso else None)
         for t in s.get("HONORS, AWARDS AND GRANTS", []):
-            yield self.item(
-                "distincion", response, nombre=re.split(r"\.\s|,\s", t, maxsplit=1)[0], anio=(anios(t) or [None])[0]
-            )
+            yield self.item("distincion", response, nombre=re.split(r"\.\s|,\s", t, maxsplit=1)[0], anio=anio(t))
         for t in s.get("ACADEMIC ADMINISTRATION", []):
             cuerpo, desde, hasta = fechas(t)
             rol, _, org = cuerpo.partition(", ")
@@ -243,7 +232,7 @@ class SusanaMondscheinSpider(AcademicSpider):
                     response,
                     grado=grado.strip(),
                     institucion=clean(inst),
-                    anio=(anios(hasta) or [None])[0],
+                    anio=anio(hasta),
                 )
             else:
                 rol, _, org = re.split(r"(, | de la )", t, maxsplit=1) if re.search(r", | de la ", t) else (t, "", t)

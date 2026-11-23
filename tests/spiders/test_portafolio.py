@@ -28,3 +28,10 @@ def test_portafolio_mcphee_pagina_1():
     assert out["actividad"][0]["rol"] == "Colaborador(a)"
     # página 1 de cada tabla: 10 por tabla paginada
     assert len(out["dictacion"]) == 10 and len(out["publicacion"]) >= 10
+
+
+def test_portafolio_meruane_pestania_bio_opcional():
+    url = "https://portafolio-academico.uchile.cl/perfil/61060-Viviana-Isabel-Meruane-Naranjo"
+    out = run_parse(PortafolioSpider().parse_static(fixture_response("portafolio_meruane_rendered.html", url, "x")))
+    assert out["persona"][0]["bio"].startswith("Soy Viviana Meruane, Profesora Titular")
+    assert len(out["dictacion"]) == 10 and len(out["tesis"]) == 10  # página 1 de cada tabla

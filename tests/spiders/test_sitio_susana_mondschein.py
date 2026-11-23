@@ -1,9 +1,11 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import Response
 
-from daii.bronze.spiders.sites.susana_mondschein import CAMPANIA, CV, SITIO, SusanaMondscheinSpider
+from daii.bronze.spiders.sites.susana_mondschein import CAMPANIA, SITIO, SusanaMondscheinSpider
+from daii.config import academico
 
 P = "susana-mondschein"
+CV = academico(P)["perfiles"]["cv"]
 
 
 def test_dii():

@@ -9,21 +9,18 @@ Fuentes:
   Sus publicaciones no se leen (el sitio y DBLP/ORCID las cubren).
 """
 
-import io
 import re
 import unicodedata
 from collections.abc import Iterator
 from urllib.parse import urlparse
 
-from pypdf import PdfReader
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, anio, clean, pdf_texto, plain, texts
 
 PERSONA = "sebastian-ferrada"
 SITIO = "https://sferrada.com/"
 CV = SITIO + "uploads/resume.pdf"
-ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
 # "an Assistant Professor at the X and the Y at Universidad de Chile, where ..." / "a Junior Researcher at the Z (IMFD)"
 CARGO = re.compile(r"\ban? ((?:[A-Z][\w-]* )+)at the (.+?)(?=, where| and a |\.\s|\.$)")
 PLATAFORMAS = {
@@ -58,22 +55,13 @@ ENTRADA = re.compile(r"^(\d{4}(?:–(?:\d{4}|Now))?|Since \d{4}|[A-Z][a-z]{2}\. 
 COMA = re.compile(r",\s+(?![^()]*\))")  # coma fuera de paréntesis
 
 
-def plain(sel) -> str | None:
-    """Texto de un nodo sin insertar espacios entre hijos ("(<a>IMFD</a>)" → "(IMFD)")."""
-    return clean("".join(sel.css("::text").getall()))
-
-
-def anio(text: str | None) -> str | None:
-    return (ANIO.findall(text or "") or [None])[-1]
-
-
 def filas(response: Response) -> dict[str, str | None]:
     """Filas "Type / Publication / Event / Location" de una página de detalle Wowchemy."""
     return {texts(h) or "": texts(h.xpath("following-sibling::div[1]")) for h in response.css(".pub-row-heading")}
 
 
-def cv_texto(body: bytes) -> str:
-    t = unicodedata.normalize("NFKC", "\n".join(p.extract_text() for p in PdfReader(io.BytesIO(body)).pages))
+def cv_texto(response: Response) -> str:
+    t = unicodedata.normalize("NFKC", pdf_texto(response))
     return re.sub(r"(\w)-\n(\w)", r"\1\2", t)  # deshace el guionado de LaTeX ("CE-\nNIA")
 
 
@@ -143,7 +131,7 @@ class SebastianFerradaSpider(AcademicSpider):
             response,
             nombre=texts(about.css(".portrait-title h2")),
             cargo=texts(about.css(".portrait-title h3:not(:has(a))")),
-            foto_url=response.urljoin(about.css("img.avatar::attr(src)").get("")),
+            foto_url=about.css("img.avatar::attr(src)").get(),
             bio=clean(" ".join(plain(p) or "" for p in bio)),
         )
         for href in about.css(".network-icon a::attr(href)").getall():
@@ -191,8 +179,9 @@ class SebastianFerradaSpider(AcademicSpider):
             venue=f.get("Publication"),
             autores=[a for s in pub.css(".article-metadata > div > span") if (a := texts(s))],
             doi=doi.split("doi.org/", 1)[1] if doi else None,
-            url_destino=response.urljoin(pdf) if pdf else None,
+            url_destino=pdf,
         )
+        yield from self.related(response, region=".pub")
 
     def parse_charlas(self, response: Response) -> Iterator:
         for href in response.css("#talk_list .article-title a::attr(href)").getall():
@@ -201,7 +190,6 @@ class SebastianFerradaSpider(AcademicSpider):
 
     def parse_charla(self, response: Response) -> Iterator:
         f = filas(response)
-        slides = response.xpath("//a[normalize-space(.)='Slides']/@href").get()
         yield self.item(
             "actividad",
             response,
@@ -210,8 +198,9 @@ class SebastianFerradaSpider(AcademicSpider):
             evento=f.get("Event"),
             fecha=f.get("Date"),
             descripcion=f.get("Location"),
-            url_destino=response.urljoin(slides) if slides else None,
+            url_destino=response.xpath("//a[normalize-space(.)='Slides']/@href").get(),
         )
+        yield from self.related(response, region=".pub")
 
     def parse_proyectos(self, response: Response) -> Iterator:
         for card in response.css(".universal-wrapper .card-simple"):
@@ -258,7 +247,7 @@ class SebastianFerradaSpider(AcademicSpider):
         yield from self.related(response, region=".page-body")
 
     def parse_cv(self, response: Response) -> Iterator:
-        s = cv_secciones(cv_texto(response.body))
+        s = cv_secciones(cv_texto(response))
         for _, fecha, t in s.get("formacion", []):
             m = re.match(r"(.+?), ((?:Universidad|University)[^,.]*)", t)
             tesis = re.search(r"Thesis: (.+?)\.(?: Supervisors|$)", t)
@@ -267,7 +256,7 @@ class SebastianFerradaSpider(AcademicSpider):
                 response,
                 grado=m.group(1) if m else t.split(", ")[0],
                 institucion=m.group(2) if m else None,
-                anio=fecha,
+                anio=anio(fecha),
                 titulo_tesis=tesis.group(1) if tesis else None,
             )
         for _, fecha, t in s.get("afiliacion", []):
@@ -293,8 +282,8 @@ class SebastianFerradaSpider(AcademicSpider):
                 else None,
                 codigo=codigo.group(1) if codigo else None,
                 rol=rol.group(1) if rol else sub.removeprefix("As ") or None,
-                anio_inicio=desde,
-                anio_fin=hasta or desde,
+                anio_inicio=anio(desde),
+                anio_fin=None if hasta == "Now" or desde.startswith("Since") else anio(hasta or desde),
                 investigador_responsable=ir.group(1) if ir else None,
             )
         for _, fecha, t in s.get("distincion", []):

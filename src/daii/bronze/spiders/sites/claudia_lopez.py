@@ -10,43 +10,38 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean
+from daii.bronze.spiders.base import AcademicSpider, anio, anios, clean, plain
 
 SITIO = "https://claudialopezmoncada.com/"
 PERSONA = "claudia-lopez"
 CONTENT = ".entry-content"  # excluye header/footer/menús de wordpress.com
-YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 FECHA = re.compile(r"^((?:\w+\.? )?\d{4}(?:\s*[-–]\s*(?:\d{2,4}|ongoing))?)[:.]\s*(.*)$")  # "Mar. 2024: ..."
 ANIO_PAREN = re.compile(r"\((\d{4})[a-z]?(?:, \w+)?\)\.?")  # APA: "López, C. (2017). Título. Venue"
 LINK_LABEL = re.compile(r"\s*\(\s*[a-z]{2,5}\s*\)")  # "(acm)", "(pdf)": etiquetas de links
 INICIALES = re.compile(r"^(?:[A-ZÁÉÍÓÚÑ]\.?\s?-?)+$")
-# Sección de outreach → tipo_actividad (vocabulario de docs/modelo_datos.md); si no calza, el encabezado tal cual
+# Sección (bio/outreach) → tipo_actividad; el encabezado original queda en `descripcion`
 ACTIVIDADES = {
     "Outreach appointments": "asesoria",
     "Podcasts / TV": "prensa",
     "Interviews and quotes in national press": "prensa",
     "Invited outreach presentations and panels": "divulgacion",
-    "Invited academic talks": "charla_invitada",
-    "Invited academic panels": "charla_invitada",
-    "Guest lectures": "charla_invitada",
+    "Invited academic talks": "charla",
+    "Invited academic panels": "charla",
+    "Guest lectures": "charla",
+    "Invited event participation": "charla",
     "Written documents": "divulgacion",
     "Community outreach": "divulgacion",
     "Opportunities to inform public policy on AI": "politica_publica",
 }
 
 
-def plain(sel) -> str:
-    """Texto de un nodo sin insertar espacios entre hijos."""
-    return clean("".join(sel.css("::text").getall())) or ""
-
-
 def secciones(response: Response) -> Iterator[tuple[str, list]]:
     """(encabezado, elementos) por cada h4/p-título seguido de una lista en el contenido WordPress."""
     for lista in response.css(f"{CONTENT} > ol, {CONTENT} > ul"):
-        yield plain(lista.xpath("preceding-sibling::*[self::h4 or self::p][1]")), lista.xpath("./li")
+        yield plain(lista.xpath("preceding-sibling::*[self::h4 or self::p][1]")) or "", lista.xpath("./li")
 
 
-def anios(texto: str) -> list[int]:
+def rango_anios(texto: str) -> list[int]:
     """ "(2016-17, 22-23)" → [2016, 2017, 2022, 2023]; "(2026, Spring)" → [2026]."""
     out: list[int] = []
     for a, b in re.findall(r"(\d{4}|\d{2})(?:\s*-\s*(\d{4}|\d{2}))?", texto):
@@ -96,18 +91,17 @@ class ClaudiaLopezSpider(AcademicSpider):
     }
 
     async def start(self):
-        if self.only and self.only != PERSONA:
-            return
-        yield self.page(SITIO, self.parse_home, PERSONA)
-        for path, cb in [
-            ("bio/", self.parse_bio),
-            ("publications/", self.parse_publications),
-            ("students/", self.parse_students),
-            ("teaching/", self.parse_teaching),
-            ("outreach/", self.parse_outreach),
-            ("research/", self.parse_research),
-        ]:
-            yield self.page(SITIO + path, cb, PERSONA)
+        if self.only in (None, PERSONA):
+            yield self.page(SITIO, self.parse_home, PERSONA)
+            for path, cb in [
+                ("bio/", self.parse_bio),
+                ("publications/", self.parse_publications),
+                ("students/", self.parse_students),
+                ("teaching/", self.parse_teaching),
+                ("outreach/", self.parse_outreach),
+                ("research/", self.parse_research),
+            ]:
+                yield self.page(SITIO + path, cb, PERSONA)
 
     def parse_home(self, response: Response) -> Iterator:
         main = response.css("main")
@@ -117,16 +111,16 @@ class ClaudiaLopezSpider(AcademicSpider):
             "persona",
             response,
             nombre=plain(main.css("h1")),
-            cargo=plain(cargo) or None,
+            cargo=plain(cargo),
             foto_url=main.css("figure img::attr(src)").get(),
-            bio=plain(intro) or None,
+            bio=plain(intro),
         )
         # "Associate Professor, <a>Department of Computer Science</a> & <a>IDIA</a>, <a>University of Chile</a>"
         rol = (cargo.xpath("text()").get() or "").strip(" ,") or None
         for a in cargo.css("a"):
             yield self.item("afiliacion", response, organizacion=plain(a), rol=rol, url_organizacion=a.attrib["href"])
 
-        texto = plain(intro)
+        texto = plain(intro) or ""
         for frase in re.split(r"(?<=[a-z)])\.\s+", texto):
             # "From 2015 to early 2026, I was a faculty member in the Department of Informatics at UTFSM"
             desde = hasta = None
@@ -168,7 +162,7 @@ class ClaudiaLopezSpider(AcademicSpider):
     def parse_bio(self, response: Response) -> Iterator:
         for seccion, items in secciones(response):
             for li in items:
-                m = FECHA.match(plain(li))
+                m = FECHA.match(plain(li) or "")
                 if not m:
                     continue
                 fecha, texto = m.group(1), m.group(2).strip()
@@ -177,8 +171,10 @@ class ClaudiaLopezSpider(AcademicSpider):
                     yield from self._evento_bio(response, fecha, texto, url)
                 elif seccion.startswith("Fellowships"):
                     nombre, _, otorgante = texto.partition(", ")
-                    yield self.item("distincion", response, nombre=nombre, otorgante=otorgante or None, anio=fecha[:4])
-                else:  # política pública / servicio
+                    yield self.item(
+                        "distincion", response, nombre=nombre, otorgante=otorgante or None, anio=anio(fecha)
+                    )
+                else:  # política pública / servicio / participación en eventos
                     tipo = ACTIVIDADES.get(seccion)
                     if not tipo:
                         tipo = (
@@ -188,10 +184,16 @@ class ClaudiaLopezSpider(AcademicSpider):
                             if "Program" in texto
                             else "organizacion_evento"
                             if "chair" in texto
-                            else seccion
+                            else "servicio"
                         )
                     yield self.item(
-                        "actividad", response, tipo_actividad=tipo, titulo=texto, fecha=fecha, url_destino=url
+                        "actividad",
+                        response,
+                        tipo_actividad=tipo,
+                        titulo=texto,
+                        descripcion=seccion,
+                        fecha=fecha,
+                        url_destino=url,
                     )
         yield from self.related(response, region=CONTENT)
 
@@ -202,7 +204,7 @@ class ClaudiaLopezSpider(AcademicSpider):
             if texto.startswith("Started"):  # "Started a Ph.D. in ..., U. of Pittsburgh": año de inicio, no de grado
                 yield self.item("formacion", response, grado=grado, institucion=inst)
             else:
-                yield self.item("formacion", response, grado=grado, institucion=inst, anio=fecha[-4:])
+                yield self.item("formacion", response, grado=grado, institucion=inst, anio=(anios(fecha) or [None])[-1])
             return
         m = re.search(
             r"(?:I am|I was promoted to|I joined as|Joined, as) (?:an? )?([\w ]+?),? (?:at|of|the) "
@@ -230,12 +232,12 @@ class ClaudiaLopezSpider(AcademicSpider):
                 if "“" in t:  # C. López, P. Brusilovsky. “Título.” Venue, 2012.
                     antes, _, resto = t.partition("“")
                     titulo, _, venue = resto.partition("”")
-                    anio = YEAR.findall(venue)
+                    ys = anios(venue)
                     if m := ANIO_PAREN.search(antes):  # López, C. (2014). “Título.” Venue
-                        antes, anio = antes[: m.start()], [m.group(1)]
+                        antes, ys = antes[: m.start()], [int(m.group(1))]
                     pub = {
                         "titulo": titulo.strip(" .,"),
-                        "anio": anio[-1] if anio else None,
+                        "anio": ys[-1] if ys else None,
                         "venue": clean(LINK_LABEL.sub("", venue).strip(" .,")),
                         "autores": autores(antes),
                     }
@@ -264,22 +266,23 @@ class ClaudiaLopezSpider(AcademicSpider):
     def parse_students(self, response: Response) -> Iterator:
         for seccion, items in secciones(response):
             for li in items:
-                t = plain(li)
+                t = plain(li) or ""
                 if "“" not in t and not li.css("em"):
                     continue  # estudiantes en curso: sin título de tesis
                 antes, _, resto = t.partition("“")
                 if not resto:  # título solo en <em>
-                    antes, resto = t.split(plain(li.css("em")))[0], plain(li.css("em"))
+                    em = plain(li.css("em")) or ""
+                    antes, resto = t.split(em)[0], em
                 cierre = resto.rfind("”")
                 titulo = resto[:cierre] if cierre > 0 else resto.rsplit("(", 1)[0]
-                anio = re.findall(r"\([^()]*?(\d{4})\)", t)
-                estudiante, _, programa = re.split(r"\s+[–-]\s+|,\s*", antes.strip(" ,"), maxsplit=1)[0], None, None
+                ys = re.findall(r"\([^()]*?(\d{4})\)", t)
+                estudiante = re.split(r"\s+[–-]\s+|,\s*", antes.strip(" ,"), maxsplit=1)[0]
                 programa = clean(antes.strip(" ,").removeprefix(estudiante).strip(" ,–-"))
                 yield self.item(
                     "tesis",
                     response,
                     titulo=titulo.strip(" “”\"'.,"),
-                    anio=anio[-1] if anio else None,
+                    anio=ys[-1] if ys else None,
                     estudiante=estudiante,
                     rol=seccion,
                     programa=programa,
@@ -291,16 +294,16 @@ class ClaudiaLopezSpider(AcademicSpider):
         # "<em>Human-centered AI</em>, DCC & IDIA, U. de Chile (2026, Spring)"
         for seccion, items in secciones(response):
             for li in items:
-                t = plain(li)
+                t = plain(li) or ""
                 nombre = plain(li.css("em")) or t.split(",")[0]
                 paren = re.findall(r"\(([^()]*)\)\s*$", t)
                 sem = re.search(r"(Spring|Fall|Summer|Winter)", paren[0]) if paren else None
-                for anio in anios(paren[0]) if paren else [None]:
+                for y in rango_anios(paren[0]) if paren else [None]:
                     yield self.item(
                         "dictacion",
                         response,
                         nombre_curso=nombre,
-                        anio=anio,
+                        anio=y,
                         semestre=sem.group(1) if sem else None,
                         rol=seccion or None,
                     )
@@ -309,13 +312,14 @@ class ClaudiaLopezSpider(AcademicSpider):
     def parse_outreach(self, response: Response) -> Iterator:
         for seccion, items in secciones(response):
             for li in items:
-                m = FECHA.match(plain(li))
+                m = FECHA.match(plain(li) or "")
                 if not m:
                     continue
                 yield self.item(
                     "actividad",
                     response,
-                    tipo_actividad=ACTIVIDADES.get(seccion, seccion),
+                    tipo_actividad=ACTIVIDADES.get(seccion, "otro"),
+                    descripcion=seccion,
                     titulo=m.group(2).strip(),
                     fecha=m.group(1),
                     url_destino=li.css("a::attr(href)").get(),
@@ -326,7 +330,7 @@ class ClaudiaLopezSpider(AcademicSpider):
         for h4 in response.css(f"{CONTENT} > h4"):
             yield self.item("area", response, nombre=plain(h4))
         for li in response.css(f"{CONTENT} > ul > li"):
-            yield self._proyecto(response, plain(li))
+            yield self._proyecto(response, plain(li) or "")
         yield from self.related(response, region=CONTENT)
 
     def _proyecto(self, response: Response, t: str) -> dict:

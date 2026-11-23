@@ -11,12 +11,11 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, autores, clean
+from daii.bronze.spiders.base import AcademicSpider, anio, anios, autores, clean, plain
 
 SITIO = "https://www.morchard.cl/"
 PERSONA = "marcos-orchard"
 MAIN = "#main-content"
-YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 YEARS_END = re.compile(
     r"\((?:[^()]*?,\s*)?(\d{4})(?:\s*[-–]\s*(\d{4}))?\)\.?$"
 )  # "(2025-2028)." / "(U.Ch., 2012-2015)."
@@ -40,11 +39,6 @@ ACTIVIDADES = {
 }
 
 
-def plain(sel) -> str:
-    """Texto sin espacios entre hijos: el editor parte palabras y años en <span> ("(20</span><span>25")."""
-    return clean("".join(sel.css("::text").getall())) or ""
-
-
 class MarcosOrchardSpider(AcademicSpider):
     name = "sitio_marcos_orchard"
     expect = {
@@ -60,24 +54,23 @@ class MarcosOrchardSpider(AcademicSpider):
     }
 
     async def start(self):
-        if self.only and self.only != PERSONA:
-            return
-        yield self.page(SITIO, self.parse, PERSONA)
-        for slug, cb in [
-            ("about-me", self.parse_about),
-            ("research-experience", self.parse_research),
-            ("awards-distinctions", self.parse_awards),
-            ("journal-publications", self.parse_publications),
-            ("conference-articles", self.parse_publications),
-            ("books-books-chapters", self.parse_publications),
-            ("teaching", self.parse_teaching),
-            ("dissemination-and-transfer", self.parse_dissemination),
-        ]:
-            yield self.page(f"{SITIO}{slug}/", cb, PERSONA)
+        if self.only in (None, PERSONA):
+            yield self.page(SITIO, self.parse, PERSONA)
+            for slug, cb in [
+                ("about-me", self.parse_about),
+                ("research-experience", self.parse_research),
+                ("awards-distinctions", self.parse_awards),
+                ("journal-publications", self.parse_publications),
+                ("conference-articles", self.parse_publications),
+                ("books-books-chapters", self.parse_publications),
+                ("teaching", self.parse_teaching),
+                ("dissemination-and-transfer", self.parse_dissemination),
+            ]:
+                yield self.page(f"{SITIO}{slug}/", cb, PERSONA)
 
     def parse(self, response: Response) -> Iterator:
         main = response.css(MAIN)
-        head = [plain(p) for p in main.css(".et_pb_text_0 p")]
+        head = [plain(p) or "" for p in main.css(".et_pb_text_0 p")]
         email = next((h.removeprefix("Email:").strip() for h in head if h.startswith("Email:")), None)
         yield self.item(
             "persona",
@@ -86,12 +79,12 @@ class MarcosOrchardSpider(AcademicSpider):
             cargo=head[1] if len(head) > 1 else None,
             email=email.replace(" [@] ", "@") if email else None,
             foto_url=main.css(".et_pb_image img::attr(src)").get(),
-            bio=clean(" ".join(plain(p) for p in main.css(".et_pb_text_1 p"))),
+            bio=clean(" ".join(plain(p) or "" for p in main.css(".et_pb_text_1 p"))),
         )
         if len(head) > 2:  # "Professor" / "Department of Electrical Engineering, ..., University of Chile"
             yield self.item("afiliacion", response, organizacion=head[2], rol=head[1])
         for a in main.css(".et_pb_text_0 a"):
-            rid = re.search(r"ResearcherID:\s*(\S+)", plain(a))
+            rid = re.search(r"ResearcherID:\s*(\S+)", plain(a) or "")
             yield self.item(
                 "perfil",
                 response,
@@ -102,7 +95,7 @@ class MarcosOrchardSpider(AcademicSpider):
 
         # Bloques "rol / organización / lugar"
         for blurb in main.css(".et_pb_blurb_description"):
-            ps = [plain(p) for p in blurb.css("p")]
+            ps = [plain(p) or "" for p in blurb.css("p")]
             if len(ps) < 2:
                 continue
             url = blurb.css("a::attr(href)").get()
@@ -127,21 +120,20 @@ class MarcosOrchardSpider(AcademicSpider):
                     yield self.item("area", response, nombre=plain(li))
             elif title == "EDUCATION":
                 # <ul><li>2003 – 2007</li></ul> <p>institución</p> <p>grado</p> [<p>grado</p>]
-                anio = inst = None
+                egreso = inst = None
                 for el in block.xpath("./*[position() > 1]"):
                     t = plain(el)
                     if el.root.tag == "ul":
-                        years = YEAR.findall(t)
-                        anio, inst = (years[-1] if years else None), None
+                        egreso, inst = (anios(t) or [None])[-1], None
                     elif t and inst is None:
                         inst = t
                     elif t:
-                        yield self.item("formacion", response, grado=t, institucion=inst, anio=anio)
+                        yield self.item("formacion", response, grado=t, institucion=inst, anio=egreso)
         yield from self.related(response, region=MAIN)
 
     def parse_research(self, response: Response) -> Iterator:
         for li in response.css(f"{MAIN} .et_pb_text_inner li"):
-            t = plain(li)
+            t = plain(li) or ""
             years = YEARS_END.search(t)
             if not years:  # líneas de investigación (repetidas en about-me)
                 continue
@@ -181,28 +173,27 @@ class MarcosOrchardSpider(AcademicSpider):
 
     def parse_awards(self, response: Response) -> Iterator:
         for li in response.css(f"{MAIN} .et_pb_text_inner li"):
-            body = plain(li).split(" DOI:")[0].strip()
+            body = (plain(li) or "").split(" DOI:")[0].strip()
             years = re.search(r"\(([^()]*\d{4}[^()]*)\)$", body)
             if years:
                 body = body[: years.start()].strip()
             # "“Best Paper Award”: Annual Conference ..." / "Fulbright Grant. Graduate Studies. Fulbright-Chile, ..."
             nombre, *otorgante = re.split(r"(?:[.:]”|”[.:]|[.:])\s+", body, maxsplit=1)
-            anio = YEAR.search(years.group(1)) if years else None
             yield self.item(
                 "distincion",
                 response,
                 nombre=nombre.strip("“”") if "”" not in nombre[1:-1] else nombre,
                 otorgante=clean(otorgante[0].strip(" .")) if otorgante else None,
-                anio=anio.group(0) if anio else None,
+                anio=anio(years.group(1)) if years else None,
             )
         yield from self.related(response, region=MAIN)
 
     def parse_publications(self, response: Response) -> Iterator:
-        tipo = plain(response.css(f"{MAIN} .et_pb_text_inner").css("p:first-child")[0]).rstrip(":")
+        tipo = (plain(response.css(f"{MAIN} .et_pb_text_inner").css("p:first-child")[0]) or "").rstrip(":")
         for el in response.css(f"{MAIN} .et_pb_text_inner p, {MAIN} .et_pb_text_inner li"):
             if el.root.tag == "p" and el.xpath("ancestor::li"):
                 continue
-            t = plain(el)
+            t = plain(el) or ""
             q = QUOTED.search(t)
             if not q:
                 continue
@@ -214,7 +205,7 @@ class MarcosOrchardSpider(AcademicSpider):
             else:
                 titulo = q.group(1)
                 venue = VENUE_END.split(pre_doi)[0].removeprefix("Publisher:").strip(" ,.") or None
-            years = YEAR.findall(pre_doi)
+            years = anios(pre_doi)
             doi = el.css("a[href*='doi.org']::attr(href)").get()
             yield self.item(
                 "publicacion",
@@ -232,7 +223,7 @@ class MarcosOrchardSpider(AcademicSpider):
 
     def parse_teaching(self, response: Response) -> Iterator:
         for block in response.css(f"{MAIN} .et_pb_text_inner"):
-            t = plain(block)
+            t = plain(block) or ""
             codes = list(CURSO.finditer(t))
             for i, m in enumerate(codes):
                 seg = t[m.end() : codes[i + 1].start() if i + 1 < len(codes) else len(t)]
@@ -246,7 +237,7 @@ class MarcosOrchardSpider(AcademicSpider):
 
     def parse_dissemination(self, response: Response) -> Iterator:
         for li in response.css(f"{MAIN} .et_pb_text_inner li"):
-            t = plain(li).rstrip(".")
+            t = (plain(li) or "").rstrip(".")
             prefix, _, rest = t.partition(", ")
             if prefix in ACTIVIDADES:
                 yield self.item("actividad", response, tipo_actividad=ACTIVIDADES[prefix], rol=prefix, titulo=rest)

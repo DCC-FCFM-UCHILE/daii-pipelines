@@ -103,7 +103,7 @@ class ParticipacionProyecto(SQLModel, table=True):
 
 class Tesis(SQLModel, table=True):
     id: str = Field(primary_key=True)
-    titulo: str
+    titulo: str | None = None  # varias fuentes listan estudiantes sin título
     anio: int | None = None
     nivel: str | None = None
     estudiante: str | None = None

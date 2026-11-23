@@ -24,4 +24,5 @@ def test_works_paginate():
     out = run_parse(results)
     assert len(out["publicacion"]) == 5
     assert all(p["autores"] and p["ids"]["openalex"].startswith("W") for p in out["publicacion"])
-    assert any(not isinstance(r, dict) for r in results)  # pide la siguiente página (page=2)
+    (req,) = [r for r in results if not isinstance(r, dict)]  # pide exactamente la siguiente página
+    assert "page=2" in req.url

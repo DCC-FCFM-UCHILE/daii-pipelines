@@ -37,3 +37,11 @@ def test_ficha_maass():
 
     # sin menú ni taxonomías del sitio: solo los links de contacto/bio
     assert [x["url_destino"] for x in out["link"]] == ["https://n9.cl/iv56lo"]
+
+
+def test_ficha_ramirez_sin_bio():
+    url = "https://www.cmm.uchile.cl/?persona=hector-ramirez"
+    out = run_parse(CmmSpider().parse(fixture_response("cmm_ramirez.html", url, "hector-ramirez")))
+    p = out["persona"][0]
+    assert p["nombre"] == "Héctor Ramírez" and p["bio"] is None  # su ficha no tiene .cmm-bio
+    assert ("Doctorado en Matemáticas Aplicadas", 2005) in {(f["grado"], f["anio"]) for f in out["formacion"]}

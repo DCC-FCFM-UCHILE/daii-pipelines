@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 
 import polars as pl
 from sqlalchemy import insert
@@ -23,8 +24,11 @@ def _json(col: str) -> pl.Expr:
 
 
 def _read(tipo: str) -> pl.DataFrame:
+    """Silver de un tipo, solo de personas que siguen en config (también para entidades compartidas)."""
     f = SILVER / f"{tipo}.parquet"
-    return pl.read_parquet(f) if f.exists() else pl.DataFrame()
+    if not f.exists():
+        return pl.DataFrame()
+    return pl.read_parquet(f).filter(pl.col("persona").is_in([a["slug"] for a in academicos()]))
 
 
 def _cols(df: pl.DataFrame, **mapping: str | pl.Expr) -> list[dict]:
@@ -64,7 +68,9 @@ def _shared(df: pl.DataFrame, key: pl.Expr, entity: dict, link: dict) -> tuple[l
     """Separa una tabla silver por persona en (entidad compartida, puente persona↔entidad)."""
     if df.is_empty():
         return [], []
-    df = df.with_columns(_key=key, _prio=pl.col("spider").map_elements(_prio, return_dtype=pl.Int64)).sort("_prio")
+    df = df.with_columns(_key=key, _prio=pl.col("spider").map_elements(_prio, return_dtype=pl.Int64)).sort(
+        "_prio", maintain_order=True
+    )
     ent = df.unique("_key", keep="first", maintain_order=True)
     bridge = (
         df.group_by("_key", "persona", maintain_order=True)
@@ -76,12 +82,12 @@ def _shared(df: pl.DataFrame, key: pl.Expr, entity: dict, link: dict) -> tuple[l
 
 def build() -> dict[str, int]:
     GOLD.mkdir(parents=True, exist_ok=True)
-    GOLD_DB.unlink(missing_ok=True)
-    engine = create_engine(f"sqlite:///{GOLD_DB}")
+    # Se construye aparte y se reemplaza al final: el dashboard nunca ve una base vacía o a medias.
+    tmp = GOLD_DB.with_suffix(".tmp")
+    tmp.unlink(missing_ok=True)
+    engine = create_engine(f"sqlite:///{tmp}")
     SQLModel.metadata.create_all(engine)
-    slugs = {a["slug"] for a in academicos()}
     tables: dict[type[SQLModel], list[dict]] = {m.Academico: _academicos()}
-    src = pl.col("spider")
 
     tables[m.PerfilExterno] = _cols(
         _read("perfil"),
@@ -200,8 +206,10 @@ def build() -> dict[str, int]:
 
     tesis = _read("tesis")
     if not tesis.is_empty():
+        # el estudiante entra en la clave: sin título, "nivel|año" no distingue a nadie
         key = pl.concat_str(
             pl.col("titulo").map_elements(norm_text, return_dtype=pl.String),
+            pl.col("estudiante").map_elements(norm_text, return_dtype=pl.String),
             pl.col("anio").cast(pl.String),
             separator="|",
             ignore_nulls=True,
@@ -230,7 +238,10 @@ def build() -> dict[str, int]:
             )
         )
         tables[m.Curso] = _cols(
-            dict_.unique("curso_id", keep="first"), id="curso_id", codigo="codigo_curso", nombre="nombre_curso"
+            dict_.unique("curso_id", keep="first", maintain_order=True),
+            id="curso_id",
+            codigo="codigo_curso",
+            nombre="nombre_curso",
         )
         tables[m.Dictacion] = _cols(
             dict_,
@@ -240,14 +251,14 @@ def build() -> dict[str, int]:
             semestre="semestre",
             rol="rol",
             institucion="institucion",
-            fuente=src,
+            fuente="spider",
         )
 
     prod = _read("producto")
     if not prod.is_empty():
         tables[m.Producto], tables[m.ProductoAcademico] = _shared(
             prod,
-            pl.col("nombre").map_elements(lambda s: norm_text(s), return_dtype=pl.String),
+            pl.col("nombre").map_elements(norm_text, return_dtype=pl.String),
             dict(nombre="nombre", tipo="tipo_producto", descripcion="descripcion", url="url_destino"),
             dict(producto_id="_key", rol="rol"),
         )
@@ -257,17 +268,18 @@ def build() -> dict[str, int]:
     counts = {}
     with Session(engine) as s:
         for model, rows in tables.items():
-            if "academico_id" in model.model_fields:  # ítems de personas que ya no están en config
-                rows = [r for r in rows if r["academico_id"] in slugs]
             if rows:
                 s.connection().execute(insert(model), rows)  # bulk insert (Core)
             counts[str(model.__tablename__)] = len(rows)
         s.commit()
+    engine.dispose()
+    os.replace(tmp, GOLD_DB)
     return counts
 
 
 def _run_row(spider: str) -> dict:
-    last = runs(spider)[0]
+    # el último run evaluado: un `scrapy crawl` manual de depuración no tapa la salud real del spider
+    last = next((r for r in runs(spider) if status(r)), runs(spider)[0])
     q = json.loads((last / "quality.json").read_text()) if (last / "quality.json").exists() else {}
     good = last_good(spider)
     return {

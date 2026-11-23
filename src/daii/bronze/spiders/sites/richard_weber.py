@@ -11,12 +11,11 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, anios, autores, clean, texts
 
 SITIO = "https://richardweber.wixsite.com/home"
 PERSONA = "richard-weber"
 MAIN = "#PAGES_CONTAINER"
-YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 # shortcut: el DOM de Wix no deja asociar cada repeater a su título; se asume el orden visual de la página.
 TIPOS_PUB = ["JOURNAL ARTICLES", "BOOKS", "BOOK CHAPTERS", "CONFERENCE PROCEEDINGS"]
 # "Associate Professor at the Department ..." / "Associate Editor of the journal ..." (frases de la bio)
@@ -46,11 +45,6 @@ def rows(response: Response) -> list[list[list[str]]]:
             filas.append([t for p in ps if (t := clean(" ".join(p.css("::text").getall()).replace("\u200b", "")))])
         out.append(filas)
     return out
-
-
-def autores(s: str) -> list[str]:
-    """ "Gutierrez, J., Parada, V. and Weber, R." → ["Gutierrez, J.", "Parada, V.", "Weber, R."]."""
-    return [a for a in re.split(r"(?<=\.),\s*(?:and\s+)?|\s+and\s+", s.strip(" ,")) if a]
 
 
 class RichardWeberSpider(AcademicSpider):
@@ -152,7 +146,7 @@ class RichardWeberSpider(AcademicSpider):
                 if not cuerpo:
                     continue
                 titulo, *venue = re.split(r"(?<=[.?!])\s+", cuerpo, maxsplit=1)
-                anio = YEAR.findall(aut or "")
+                anio = anios(aut)
                 doi_url = doi.removeprefix("DOI:").strip() if doi else None
                 yield self.item(
                     "publicacion",
@@ -176,7 +170,7 @@ class RichardWeberSpider(AcademicSpider):
             for fila in rep:
                 if len(fila) < 2:
                     continue
-                years = YEAR.findall(fila[0])
+                years = anios(fila[0])
                 fuente = rol = monto = None
                 for parte in (p.strip() for p in " ".join(fila[2:]).split(";")):
                     if "amount:" in parte:

@@ -23,18 +23,25 @@ def all_spiders() -> list[str]:
     return sorted(SpiderLoader.from_settings(s).list())
 
 
+CRAWL_TIMEOUT_S = 4200  # > CLOSESPIDER_TIMEOUT (3600) de bronze/settings.py
+
+
 @task(task_run_name="crawl-{spider}")
 def crawl(spider: str, run_id: str) -> dict:
     """Corre un spider en su propio proceso (el reactor de Twisted no se puede reiniciar) y evalúa el run."""
-    proc = subprocess.run(
-        [sys.executable, "-m", "scrapy", "crawl", spider, "-a", f"run_id={run_id}"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
     log = get_run_logger()
-    if proc.returncode:
-        log.error("scrapy terminó con código %s:\n%s", proc.returncode, proc.stderr[-3000:])
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "scrapy", "crawl", spider, "-a", f"run_id={run_id}"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=CRAWL_TIMEOUT_S,  # respaldo de CLOSESPIDER_TIMEOUT si el proceso se cuelga (p. ej. Chromium)
+        )
+        if proc.returncode:
+            log.error("scrapy terminó con código %s:\n%s", proc.returncode, proc.stderr[-3000:])
+    except subprocess.TimeoutExpired:
+        log.error("scrapy no terminó en %s s; se mató el proceso", CRAWL_TIMEOUT_S)
     result = checks.check(spider, BRONZE / spider / run_id)
     (log.info if result["status"] == "ok" else log.warning)("%s: %s %s", spider, result["status"], result["problems"])
     return result
@@ -50,6 +57,13 @@ def gold() -> dict[str, int]:
     return build_gold()
 
 
+def _result(spider: str, run_id: str, future) -> dict:
+    out = future.result(raise_on_failure=False)
+    if isinstance(out, dict):
+        return out
+    return {"spider": spider, "run_id": run_id, "status": "fail", "problems": [repr(out)], "counts": {}}
+
+
 def _summary(results: list[dict]) -> str:
     rows = ["| spider | estado | ítems | problemas |", "|---|---|---|---|"]
     rows += [
@@ -63,8 +77,9 @@ def _summary(results: list[dict]) -> str:
 def pipeline(spiders: list[str] | None = None) -> dict:
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     try:
-        futures = [crawl.submit(s, run_id) for s in spiders or all_spiders()]
-        results = [f.result() for f in futures]
+        futures = {s: crawl.submit(s, run_id) for s in spiders or all_spiders()}
+        # un spider que revienta (nombre mal escrito, error de import) es un `fail`, no aborta silver/gold
+        results = [_result(s, run_id, f) for s, f in futures.items()]
         counts = {"silver": silver(), "gold": gold()}
     except Exception:
         notify.send("[daii] pipeline con error", traceback.format_exc())

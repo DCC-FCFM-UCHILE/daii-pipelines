@@ -19,20 +19,16 @@ from collections.abc import Iterator
 from pypdf import PdfReader
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import ANIO, AcademicSpider, anio, anios, clean, latex_acentos, texts
+from daii.config import academico
 
 PERSONA = "gonzalo-navarro"
 BASE = "https://users.dcc.uchile.cl/~gnavarro/"
 HOME = BASE + "sindex.html"
-CV = BASE + "curric/curric.pdf"
 REALIZADAS = BASE + "mem/realizadas.html"
 EN_CURSO = BASE + "mem/encurso.html"
 SOFTWARE = BASE + "software/sindex.html"
 
-ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
-# pypdf deja los acentos de LaTeX separados: "Investigaci´on", "Espa˜na", "Saarbr¨ucken".
-ACENTOS = {"´": "́", "˜": "̃", "¨": "̈", "`": "̀", "ˆ": "̂"}
-ACENTO = re.compile(r"([´˜¨`ˆ])\s?([A-Za-zı])")
 ENTRADA = re.compile(r"^\((\d{4}[^)]*)\)\s+(.*)$")  # "(2016-2017, 2019-2022) Profesor guía en ..."
 # Rótulos de sección del CV → clave del parser (None = se ignora, pero corta la sección anterior).
 SECCIONES = {
@@ -65,15 +61,9 @@ ROL_CHAIR = re.compile(r"^(associate chair|special session chair|cochair|chair|c
 
 def unir(lines: list[str]) -> str:
     """Une líneas del PDF: arregla acentos y ligaduras de LaTeX y deshace el guionado ("Struc-\\ntures")."""
-    t = "\n".join(line.strip() for line in lines)
-    t = ACENTO.sub(lambda m: unicodedata.normalize("NFC", m[2].replace("ı", "i") + ACENTOS[m[1]]), t)
-    t = unicodedata.normalize("NFKC", t)
+    t = unicodedata.normalize("NFKC", latex_acentos("\n".join(line.strip() for line in lines)))
     t = re.sub(r"(\w)-\n([a-zà-ÿ])", r"\1\2", t)
     return clean(re.sub(r"-\n", "-", t)) or ""
-
-
-def anios(text: str) -> list[int]:
-    return [int(y) for y in ANIO.findall(text)]
 
 
 def primera_frase(text: str) -> str:
@@ -133,7 +123,8 @@ class GonzaloNavarroSpider(AcademicSpider):
         if self.only and self.only != PERSONA:
             return
         yield self.page(HOME, self.parse, PERSONA)
-        yield self.page(CV, self.parse_cv, PERSONA)
+        # el CV trae año de nacimiento y estado civil: no se guarda el PDF en pages/
+        yield self.page(academico(PERSONA)["perfiles"]["cv"], self.parse_cv, PERSONA, guardar=False)
         yield self.page(REALIZADAS, self.parse_tesis, PERSONA)
         yield self.page(EN_CURSO, self.parse_tesis, PERSONA)
         yield self.page(SOFTWARE, self.parse_software, PERSONA)
@@ -153,7 +144,7 @@ class GonzaloNavarroSpider(AcademicSpider):
             cargo=cargo.group(1) if cargo else None,
             email=response.css("address a[href^=mailto]::text").get(),
             telefono=tel,
-            foto_url=response.urljoin(response.css("img::attr(src)").get("")),
+            foto_url=response.css("img::attr(src)").get(),
         )
         if cargo:
             # "Soy Profesor Titular del <a>DCC</a>, <a>FCFM</a>, <a>Universidad de Chile</a>."
@@ -186,7 +177,7 @@ class GonzaloNavarroSpider(AcademicSpider):
                     response,
                     titulo=texts(a[0]),
                     tipo_publicacion="libro",
-                    url_destino=response.urljoin(a[0].attrib["href"]),
+                    url_destino=a[0].attrib["href"],
                 )
             elif "pizzachili" in li.get():
                 yield self.item(
@@ -204,7 +195,7 @@ class GonzaloNavarroSpider(AcademicSpider):
                     yield self.item(
                         "actividad",
                         response,
-                        tipo_actividad="charla_invitada",
+                        tipo_actividad="charla",
                         titulo=evento,
                         evento=evento,
                         fecha=(ANIO.findall(evento) or [None])[-1],
@@ -268,21 +259,19 @@ class GonzaloNavarroSpider(AcademicSpider):
                     continue
                 if en_curso:  # "Memoria de Ingeniería, 2026-." / "Tesis de Doctorado, 2018-."
                     m = re.search(r"((?:Memoria|Tesis) de [^,]+), ((?:19|20)\d{2})", t)
-                    nivel_li, anio = (m.group(1), m.group(2)) if m else (None, None)
+                    nivel_li, anio_li = (m.group(1), m.group(2)) if m else (None, None)
                 else:
-                    ys = ANIO.findall(t.split(titulo, 1)[-1])
-                    nivel_li, anio = nivel, (ys[0] if ys else None)
-                href = li.css("a::attr(href)").get()
+                    nivel_li, anio_li = nivel, anio(t.split(titulo, 1)[-1])
                 yield self.item(
                     "tesis",
                     response,
                     titulo=titulo.rstrip("."),
                     estudiante=texts(li.css("b")),
                     nivel=nivel_li,
-                    anio=anio,
+                    anio=anio_li,
                     rol="Co-guía" if "Co-guía" in t else "guía",
                     estado="en curso" if en_curso else "terminada",
-                    url_destino=response.urljoin(href) if href else None,
+                    url_destino=li.css("a::attr(href)").get(),
                 )
         yield from self.related(response)
 
@@ -369,10 +358,11 @@ def cv_actividades(s: dict[str, list[tuple[str, str]]]) -> Items:
     for fecha, t in s.get("charla", []):
         titulo = re.search(r"Título: “(.+?)”", t) or re.search(r"“(.+?)”", t)
         evento = re.search(r"\ben (?:el |la |las |los )?(.+?)(?:\.\s+(?=[A-Z])|\.?$)", t)
+        tipo = "tutorial" if t.startswith("Tutorial") else "charla"
         yield (
             "actividad",
             {
-                "tipo_actividad": "keynote" if "plenaria" in t else "charla_invitada",
+                "tipo_actividad": "keynote" if "plenaria" in t else tipo,
                 "titulo": titulo.group(1).strip(" .,") if titulo else primera_frase(t),
                 "evento": evento.group(1) if evento else None,
                 "fecha": fecha,

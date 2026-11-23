@@ -12,6 +12,7 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 2
 DOWNLOAD_DELAY = 1.0
 AUTOTHROTTLE_ENABLED = True
 RETRY_TIMES = 3
+CLOSESPIDER_TIMEOUT = 3600  # un spider colgado termina como closespider_timeout → quality lo marca fail
 DOWNLOAD_TIMEOUT = 30  # hosts académicos caídos no deben bloquear la corrida (default Scrapy: 180s)
 
 # Playwright solo para requests con meta={"playwright": True} (sitios con JS o desafíos anti-bot).

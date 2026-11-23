@@ -362,7 +362,7 @@ erDiagram
 erDiagram
     ACTIVIDAD {
         uuid id PK
-        string tipo "charla_invitada|keynote|editorial|comite_programa|organizacion_evento|revisor|divulgacion|prensa|asesoria|transferencia|politica_publica|consejo_directivo|escuela_verano"
+        string tipo "ver TipoActividad en src/daii/bronze/items.py (charla|keynote|tutorial|editorial|comite_programa|...)"
         string titulo
         text descripcion
         uuid organizacion_id FK "contraparte o evento"

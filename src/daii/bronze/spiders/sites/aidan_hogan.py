@@ -10,11 +10,10 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, anio, anios, autores, clean, email, plain, texts
 
 SITIO = "https://aidanhogan.com/"
 PERSONA = "aidan-hogan"
-YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 QUOTED = re.compile(r'"(.+?)"')
 ORCID = re.compile(r"\d{4}-\d{4}-\d{4}-\d{3}[\dX]")
 # "I'm a Professor in the Department ... at the Universidad de Chile, and an Associate Researcher of the ..."
@@ -27,20 +26,13 @@ SERVICIO = {
     "Editorial Board": "editorial",
 }
 CHARLAS = {"Keynote Speaker": "keynote", "Invited Lectures": "charla", "Invited Talks": "charla"}
-
-
-def plain(sel) -> str:
-    """Texto sin separadores extra entre hijos ("<span>Aidan Hogan</span>, Eva" → "Aidan Hogan, Eva")."""
-    return clean("".join(sel.css("::text").getall())) or ""
+# alt "Aidan on <X>" → slug; el resto queda en minúscula sin espacios (dblp, orcid, researcherid, semanticscholar)
+PLATAFORMAS = {"Google Scholar": "scholar", "Microsoft Academic Search": "microsoftacademic"}
 
 
 def after_at_the(a) -> bool:
     """El <a> del evento es el que sigue a "at the" (antes puede haber coautores enlazados)."""
     return (clean(a.xpath("preceding-sibling::text()[1]").get()) or "").endswith("at the")
-
-
-def autores(s: str) -> list[str]:
-    return [a for a in re.split(r",\s*(?:and\s+)?|\s+and\s+", s.strip(" .,")) if a]
 
 
 class AidanHoganSpider(AcademicSpider):
@@ -78,7 +70,7 @@ class AidanHoganSpider(AcademicSpider):
             elif h2 == "Ph.D. Thesis" and tag == "p":
                 yield from self._formacion(response, intro, plain(el))
             elif h2 == "Organisation and Chairing" and tag == "p":
-                t = plain(el)
+                t = plain(el) or ""
                 rol = t.split(" of the ")[0]
                 yield self.item(
                     "actividad",
@@ -92,7 +84,7 @@ class AidanHoganSpider(AcademicSpider):
                 )
             elif h2 in SERVICIO and tag == "ul":
                 for li in el.css("li"):
-                    t = plain(li)
+                    t = plain(li) or ""
                     yield self.item(
                         "actividad",
                         response,
@@ -105,12 +97,14 @@ class AidanHoganSpider(AcademicSpider):
                         url_destino=li.css("a::attr(href)").get(),
                     )
             elif h2 == "Other Reviewing" and tag == "p":
-                yield self.item("actividad", response, tipo_actividad="revision", rol=h2, titulo=plain(el))
+                yield self.item("actividad", response, tipo_actividad="revisor", rol=h2, titulo=plain(el))
             elif h2 in CHARLAS and tag == "p":
                 yield self._charla(response, el, h2, h3)
             elif h2 == "Tutorials" and tag == "p":
                 t = plain(el)
                 links = el.css("a")
+                if not links:
+                    continue
                 yield self.item(
                     "actividad",
                     response,
@@ -124,22 +118,21 @@ class AidanHoganSpider(AcademicSpider):
             elif h2 == "Teaching" and tag == "ul":
                 for li in el.css("li"):
                     # "La Web de Datos (Web of Data), English, Postgraduate, 2015–2023 (see 2023 content)"
-                    url = li.css("a::attr(href)").get()
                     yield self.item(
                         "dictacion",
                         response,
-                        nombre_curso=plain(li).split(", ")[0],
-                        url_curso=response.urljoin(url) if url else None,
+                        nombre_curso=(plain(li) or "").split(", ")[0],
+                        url_curso=li.css("a::attr(href)").get(),
                     )
             elif h2 == "Supervision" and tag == "ul":
                 for li in el.css("li"):
                     # "Sebastián Ferrada: PhD in Computer Science (co-supervised with Benjamín Bustos)"
-                    estudiante, _, rest = plain(li).partition(": ")
+                    estudiante, _, rest = (plain(li) or "").partition(": ")
                     nivel, _, co = rest.partition(" (")
                     yield self.item(
                         "tesis",
                         response,
-                        titulo=nivel,  # la fuente no da título de tesis, solo el programa
+                        titulo=None,  # la fuente no da título de tesis, solo el programa
                         nivel=nivel,
                         estudiante=estudiante,
                         rol=co.rstrip(")") or None,
@@ -148,32 +141,29 @@ class AidanHoganSpider(AcademicSpider):
             elif h3 == "Awards, distinctions, etc." and tag == "ul":
                 for li in el.css("li"):
                     nombre = plain(li)
-                    anio = YEAR.search(nombre)
-                    yield self.item("distincion", response, nombre=nombre, anio=anio.group(0) if anio else None)
+                    yield self.item("distincion", response, nombre=nombre, anio=anio(nombre))
 
         yield from self._persona(response, intro)
         yield from self.related(response)
 
     def _persona(self, response: Response, intro: list) -> Iterator:
-        roles = ROL_ORG.findall(plain(intro[1])) if len(intro) > 1 else []
-        email = response.css("a[href^='mailto:']::attr(href)").get()
+        roles = ROL_ORG.findall(plain(intro[1]) or "") if len(intro) > 1 else []
         yield self.item(
             "persona",
             response,
             nombre=texts(response.css("h1")),
             cargo=roles[0][0] if roles else None,
-            email=email.removeprefix("mailto:") if email else None,
-            foto_url=response.urljoin(response.css(".portrait img::attr(src)").get() or "") or None,
-            bio=clean(" ".join(plain(p) for p in intro)),
+            email=email(response.css("a[href^='mailto:']::attr(href)").get()),
+            foto_url=response.css(".portrait img::attr(src)").get(),
+            bio=clean(" ".join(plain(p) or "" for p in intro)),
         )
         for rol, org in roles:
-            url = next((a.attrib["href"] for a in intro[1].css("a") if plain(a) in org), None)
+            url = next((a.attrib["href"] for a in intro[1].css("a") if (t := plain(a)) and t in org), None)
             yield self.item("afiliacion", response, organizacion=org, rol=rol, url_organizacion=url)
-        if len(intro) > 2:  # DERI/INSIGHT, Galway
-            p = intro[2]
-            t = plain(p)
+        if len(intro) > 2 and (a := intro[2].css("a")):  # DERI/INSIGHT, Galway
+            t = plain(intro[2]) or ""
             desde, hasta = re.search(r"started there in (\w+ \d{4})", t), re.search(r"left .*? in (\w+ \d{4})", t)
-            deri = p.css("a")[0]
+            deri = a[0]
             for rol in [None, *re.findall(r"did a (PostDoc)", t)]:
                 yield self.item(
                     "afiliacion",
@@ -190,14 +180,16 @@ class AidanHoganSpider(AcademicSpider):
             yield self.item(
                 "perfil",
                 response,
-                plataforma=(a.css("img::attr(alt)").get() or "").removeprefix("Aidan on ") or href,
+                plataforma=PLATAFORMAS.get(alt := (a.css("img::attr(alt)").get() or "").removeprefix("Aidan on "))
+                or alt.lower().replace(" ", "")
+                or href,
                 url_destino=href,
                 identificador=rid.group(rid.lastindex or 0) if rid else None,
             )
 
-    def _formacion(self, response: Response, intro: list, tesis: str) -> Iterator:
+    def _formacion(self, response: Response, intro: list, tesis: str | None) -> Iterator:
         # "... including a PhD which I defended in February 2011" (párrafo DERI, NUI Galway)
-        t = plain(intro[2]) if len(intro) > 2 else ""
+        t = (plain(intro[2]) or "") if len(intro) > 2 else ""
         phd = re.search(r"\b(PhD) which I defended in \w+ (\d{4})", t)
         links = intro[2].css("a") if len(intro) > 2 else []
         yield self.item(
@@ -211,14 +203,14 @@ class AidanHoganSpider(AcademicSpider):
 
     def _publicacion(self, response: Response, p, seccion: str) -> Iterator:
         a = p.css("a")
-        t = plain(p)
+        t = plain(p) or ""
         if not a or '"' not in t:
             return
         pre = t.split('"')[0]
         spans = p.xpath("./span[not(@class='me') and not(@class='sc') and not(@class='hl')]")
         venue = plain(spans[0]) if spans else None
-        years = YEAR.findall(venue or "") or YEAR.findall(t)
-        url = response.urljoin(a[0].attrib["href"])
+        years = anios(venue) or anios(t)
+        url = a[0].attrib["href"]
         if re.search(r"\(inte?r?view\)", pre):  # "Various (inteview)": nota de prensa, no publicación
             yield self.item(
                 "actividad",
@@ -234,7 +226,7 @@ class AidanHoganSpider(AcademicSpider):
             "publicacion",
             response,
             titulo=plain(a[0]),
-            autores=autores(pre),
+            autores=autores(pre.strip(" .")),
             venue=venue,
             anio=years[-1] if years else None,
             tipo_publicacion=seccion,
@@ -243,7 +235,7 @@ class AidanHoganSpider(AcademicSpider):
 
     def _charla(self, response: Response, p, seccion: str, anio: str | None) -> dict:
         # 'Keynote "Título" at the <a>Evento</a>, fecha, lugar.' / 'Invited Talk on "Título", Lugar, fecha.'
-        t = plain(p)
+        t = plain(p) or ""
         q = QUOTED.search(t)
         ev = next((a for a in p.css("a") if after_at_the(a)), None)
         return self.item(

@@ -26,6 +26,21 @@ TIPO_PUB = [
     ("preprint", r"preprint|arxiv|posted-content|informal"),
     ("tesis", r"thesis|tesis|dissertation"),
 ]
+ROL_TESIS = [  # orden importa: "co-guía" antes que "guía"; \b evita leer "co" dentro de "como"
+    ("coguia", r"\bco-?(gu[ií]a|supervis|advis)"),
+    ("guia", r"gu[ií]a|supervis|advis"),
+    ("comision", r"comisi[oó]n|committee"),
+]
+SEMESTRES = {
+    "Primer Semestre": "Otoño",
+    "Segundo Semestre": "Primavera",
+    "Semester 1": "Otoño",
+    "Semester 2": "Primavera",
+    "Autumn": "Otoño",
+    "Fall": "Otoño",
+    "Spring": "Primavera",
+}
+TITULO_MIN_PALABRAS = 4  # bajo esto un título es "genérico" (ver publicaciones())
 NIVEL_FORMACION = [
     ("postdoctorado", r"post-?doc"),
     ("doctorado", r"doct|ph\.? ?d|dr\.|doktor"),
@@ -60,14 +75,17 @@ def _prio(spider: str) -> int:
     return PRIORIDAD.get(spider, 1)
 
 
-def load_raw() -> dict[str, list[dict]]:
+def load_bronze() -> dict[str, list[dict]]:
     """Ítems del último run bueno de cada spider, agrupados por tipo."""
     by_tipo: dict[str, list[dict]] = defaultdict(list)
     for spider_dir in sorted(BRONZE.iterdir()) if BRONZE.exists() else []:
         run = last_good(spider_dir.name)
         if run and (run / "items.jsonl").exists():
             for line in (run / "items.jsonl").open():
-                it = json.loads(line)
+                try:
+                    it = json.loads(line)
+                except json.JSONDecodeError:  # última línea a medio escribir (proceso matado)
+                    continue
                 if "ids" in it:
                     it["ids"] = json.dumps(it["ids"], sort_keys=True)
                 by_tipo[it["tipo"]].append(it)
@@ -76,7 +94,8 @@ def load_raw() -> dict[str, list[dict]]:
 
 def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
     df = df.with_columns(
-        doi=pl.col("doi").str.to_lowercase().str.strip_chars().str.replace(r"^https?://(dx\.)?doi\.org/", ""),
+        # extrae el DOI aunque venga como URL o con basura alrededor ("bar050\n10.1093/database/bar050")
+        doi=pl.col("doi").str.to_lowercase().str.extract(r"(10\.\d{4,9}/\S+)"),
         titulo_norm=pl.col("titulo").map_elements(norm_text, return_dtype=pl.String),
         tipo_publicacion=pl.col("tipo_publicacion").map_elements(
             lambda v: classify(v, TIPO_PUB), return_dtype=pl.String
@@ -84,11 +103,27 @@ def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
         prio=pl.col("spider").map_elements(_prio, return_dtype=pl.Int64),
     )
     # Clave: DOI; si no hay, el DOI que otra fuente asocia al mismo título; si no, el título normalizado.
-    doi_por_titulo = df.filter(pl.col("doi").is_not_null()).group_by("titulo_norm").agg(doi_t=pl.col("doi").first())
-    df = df.join(doi_por_titulo, on="titulo_norm", how="left").with_columns(
-        pub_key=pl.coalesce("doi", "doi_t", pl.lit("t:") + pl.col("titulo_norm"))
+    # Títulos cortos ("Preface", "Editorial", "On the cover") se repiten entre obras distintas: para ellos no se
+    # hereda DOI por título y la clave incluye el año.
+    df = df.filter(pl.col("titulo_norm") != "").with_columns(
+        titulo_largo=pl.col("titulo_norm").str.count_matches(" ") >= TITULO_MIN_PALABRAS - 1
     )
-    df = df.sort("prio")
+    doi_por_titulo = (
+        df.filter(pl.col("doi").is_not_null() & pl.col("titulo_largo"))
+        .group_by("titulo_norm")
+        .agg(doi_t=pl.col("doi").first())
+    )
+    clave_titulo = pl.lit("t:") + pl.col("titulo_norm")
+    df = df.join(doi_por_titulo, on="titulo_norm", how="left").with_columns(
+        pub_key=pl.coalesce(
+            "doi",
+            "doi_t",
+            pl.when(pl.col("titulo_largo"))
+            .then(clave_titulo)
+            .otherwise(clave_titulo + "|" + pl.col("anio").cast(pl.String).fill_null("?")),
+        )
+    )
+    df = df.sort("prio", maintain_order=True)  # estable: misma prioridad → orden de llegada (determinista)
     out = df.group_by("persona", "pub_key", maintain_order=True).agg(
         pl.col("titulo").first(),
         pl.col("anio").drop_nulls().first(),
@@ -122,27 +157,11 @@ TRANSFORMS = {
     ),
     "dictacion": lambda df: df.with_columns(
         codigo_curso=pl.col("codigo_curso").str.to_uppercase(),
-        # Portafolio dice "Primer/Segundo Semestre"; las fichas DCC, "Otoño/Primavera".
-        semestre=pl.col("semestre")
-        .str.to_titlecase()
-        .replace({"Primer Semestre": "Otoño", "Segundo Semestre": "Primavera", "Verano": "Verano"}),
+        # Cada fuente nombra los semestres a su modo; el calendario chileno: 1er semestre = Otoño.
+        semestre=pl.col("semestre").str.to_titlecase().replace(SEMESTRES),
     ),
     "tesis": lambda df: df.with_columns(
-        rol_norm=pl.col("rol")
-        .fill_null("")  # tesis sin rol declarado → "otro"
-        .str.to_lowercase()
-        .map_elements(
-            lambda v: (
-                "coguia"
-                if "co" in v and "gu" in v
-                else "guia"
-                if "gu" in v or "superv" in v
-                else "comision"
-                if "comisi" in v or "committee" in v
-                else "otro"
-            ),
-            return_dtype=pl.String,
-        )
+        rol_norm=pl.col("rol").fill_null("").map_elements(lambda v: classify(v, ROL_TESIS), return_dtype=pl.String)
     ),
 }
 # Campos que definen "la misma fila" para deduplicar (además de persona y tipo).
@@ -152,7 +171,7 @@ DEDUP_IGNORA = {"url", "spider", "run_id", "scraped_at", "tipo"}
 def build() -> dict[str, int]:
     SILVER.mkdir(parents=True, exist_ok=True)
     out = {}
-    for tipo, rows in load_raw().items():
+    for tipo, rows in load_bronze().items():
         df = pl.DataFrame(rows, infer_schema_length=None)
         if tipo != "publicacion":
             df = df.unique(subset=[c for c in df.columns if c not in DEDUP_IGNORA], keep="first", maintain_order=True)

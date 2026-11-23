@@ -1,3 +1,5 @@
+import asyncio
+
 from conftest import fixture_response, run_parse
 
 from daii.bronze.spiders.sites.javier_ruiz_del_solar import JavierRuizDelSolarSpider
@@ -65,12 +67,21 @@ def test_cv():
     for a in out["actividad"]:
         tipos[a["tipo_actividad"]] = tipos.get(a["tipo_actividad"], 0) + 1
     assert tipos["comite_programa"] >= 60 and tipos["revisor"] >= 30 and tipos["editorial"] == 3
+    assert tipos["comite"] >= 1 and tipos["charla"] >= 1 and tipos["tutorial"] >= 1
     ed = next(a for a in out["actividad"] if a["tipo_actividad"] == "editorial")
     assert (
         ed["titulo"].startswith("International Journal of Hybrid Intelligent Systems") and ed["fecha"] == "2004 – 2006"
     )
     # datos personales del CV (RUT, fecha de nacimiento) no se extraen
     assert not any("8.323.448" in str(v) for items in out.values() for i in items for v in i.values())
+
+
+def test_cv_no_se_guarda():
+    async def reqs():
+        return [r async for r in JavierRuizDelSolarSpider().start()]
+
+    cv = next(r for r in asyncio.run(reqs()) if r.url.endswith("curriculum.html"))
+    assert cv.meta["guardar"] is False
 
 
 def test_publications():

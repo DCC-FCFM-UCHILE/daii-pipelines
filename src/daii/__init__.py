@@ -1,22 +1,13 @@
 """CLI: `daii run | serve | silver | gold | spiders`."""
 
 import argparse
-import os
 from pathlib import Path
 
-
-def _load_env() -> None:
-    """Carga .env (KEY=VALUE) sin pisar variables ya definidas."""
-    env = Path(__file__).resolve().parents[2] / ".env"
-    if env.exists():
-        for line in env.read_text().splitlines():
-            k, sep, v = line.partition("=")
-            if sep and not k.strip().startswith("#"):
-                os.environ.setdefault(k.strip(), v.strip())
-
+from dotenv import load_dotenv
 
 # Antes de cualquier import de daii.config: DAII_DATA (y el resto) deben verse igual en el CLI, Prefect y scrapy.
-_load_env()
+# No pisa variables ya definidas en el entorno.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 
 def main() -> None:

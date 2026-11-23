@@ -37,7 +37,16 @@ def test_home():
 
 
 def test_teaching_publicaciones_recursos():
-    cursos = parse("vargas_teaching.html", "pages/teaching.html", "parse_teaching")["dictacion"]
+    out = parse("vargas_teaching.html", "pages/teaching.html", "parse_teaching")
+    cursos = out["dictacion"]
+    tesis = {t["estudiante"]: t for t in out["tesis"]}
+    assert len(tesis) == 4 and "Kevin Blanco" not in tesis  # pasantía, no tesis
+    assert tesis["Isadora Salles"] == tesis["Isadora Salles"] | {
+        "titulo": None,
+        "nivel": "Master's Student in Computer Science",
+        "rol": "Co-Advisor",
+        "anio": 2024,
+    }
     nlp = next(c for c in cursos if c["nombre_curso"] == "Natural Language Processing")
     assert nlp["anio"] == 2026 and nlp["institucion"].endswith("University of Chile")
 

@@ -36,7 +36,7 @@ def test_cv():
     assert (fondecyt["anio_inicio"], fondecyt["anio_fin"]) == (2020, 2023)
     assert any(d["nombre"].startswith("TWAS-LACREP") and d["anio"] == 2022 for d in out["distincion"])
     villena = next(t for t in out["tesis"] if t["estudiante"] == "Fabián Villena")
-    assert villena["nivel"] == "PhD" and villena["anio"] == 2026
+    assert villena["nivel"] == "PhD" and villena["anio"] == 2026 and villena["titulo"] is None
     assert villena["rol"] == "Co-supervised with Jocelyn Dunstan"
     assert len(out["tesis"]) > 40
     tipos = {a["tipo_actividad"] for a in out["actividad"]}

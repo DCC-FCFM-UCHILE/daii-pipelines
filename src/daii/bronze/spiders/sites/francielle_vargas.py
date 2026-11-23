@@ -6,24 +6,21 @@ fragmento: se inyecta `<base href>` antes de parsear para que `urljoin` y `relat
 
 Del CV (`doc/cv.pdf`) se leen formación, trayectoria con fechas y proyectos con código y monto; el resto (charlas,
 servicio, premios, publicaciones) ya está estructurado en el sitio. Las referencias del CV (con emails de terceros)
-no se leen. Los estudiantes de "Teaching & Students" no traen título de tesis, así que no se emiten como `tesis`.
+no se leen ni se guarda el PDF. Los estudiantes de "Teaching & Students" no traen título: `tesis` con titulo=None.
 """
 
-import io
 import re
 import unicodedata
 from collections.abc import Iterator
 
-from pypdf import PdfReader
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import ANIO, AcademicSpider, anio, clean, latex_acentos, pdf_texto, texts
 
 PERSONA = "francielle-vargas"
 SITIO = "https://franciellevargas.github.io/"
 SECCIONES = ("teaching", "publications", "resources", "service", "talks", "press", "awards")
 CV = SITIO + "doc/cv.pdf"
-ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
 PLATAFORMAS = {
     "Google Scholar": "scholar",
     "Semantic Scholar": "semanticscholar",
@@ -35,24 +32,15 @@ PLATAFORMAS = {
 CV_SECCIONES = re.compile(
     r"^(Education|Funded Research|Awards & Honors|Academic Experience|Teaching Experience|Publications)\b ?", re.M
 )
-# Acentos que pypdf deja separados en el CV LaTeX: "S˜ao", "T¨ubingen", "Fabr´ıcio".
-ACENTO = re.compile(r"([´˜¨`ˆ¸])\s?([A-Za-zı])")
-ACENTOS = {"´": "́", "˜": "̃", "¨": "̈", "`": "̀", "ˆ": "̂", "¸": "̧"}
 PERIODO = re.compile(r"^(\d{2}/\d{4})(?:–(\d{2}/\d{4}|Present))? (.+)$")  # "05/2026–Present Assistant Professor"
-
-
-def anio(text: str | None) -> str | None:
-    return (ANIO.findall(text or "") or [None])[0]
 
 
 def con_base(response: Response) -> Response:
     return response.replace(body=f'<base href="{SITIO}">'.encode() + response.body)
 
 
-def cv_texto(body: bytes) -> str:
-    t = "\n".join(p.extract_text() for p in PdfReader(io.BytesIO(body)).pages)
-    t = ACENTO.sub(lambda m: m[2].replace("ı", "i") + ACENTOS[m[1]], t)
-    return unicodedata.normalize("NFKC", t)
+def cv_texto(response: Response) -> str:
+    return unicodedata.normalize("NFKC", latex_acentos(pdf_texto(response)))  # "S˜ao", "T¨ubingen", "Fabr´ıcio"
 
 
 def cv_secciones(text: str) -> dict[str, str]:
@@ -78,6 +66,7 @@ class FrancielleVargasSpider(AcademicSpider):
         "publicacion": 14,
         "producto": 7,
         "dictacion": 2,
+        "tesis": 2,
         "distincion": 6,
         "actividad": 27,
     }
@@ -88,7 +77,7 @@ class FrancielleVargasSpider(AcademicSpider):
         yield self.page(SITIO, self.parse_home, PERSONA)
         for seccion in SECCIONES:
             yield self.page(f"{SITIO}pages/{seccion}.html", getattr(self, f"parse_{seccion}"), PERSONA)
-        yield self.page(CV, self.parse_cv, PERSONA)
+        yield self.page(CV, self.parse_cv, PERSONA, guardar=False)  # referencias con emails de terceros
 
     def parse_home(self, response: Response) -> Iterator:
         header = response.css("header.post-header")
@@ -106,7 +95,7 @@ class FrancielleVargasSpider(AcademicSpider):
             response,
             nombre=texts(header.xpath("./div[1]/div[1]")),
             cargo=tramos[0].split(" at ")[0] if tramos else None,
-            foto_url=response.urljoin(header.css("img::attr(src)").get("")),
+            foto_url=header.css("img::attr(src)").get(),
             bio=bio,
         )
         for a in header.css("a[title]"):
@@ -154,6 +143,20 @@ class FrancielleVargasSpider(AcademicSpider):
                 anio=anio(texts(it.css(".year"))),  # "2026 – Present · Undergraduate Course"
                 institucion=texts(it.css(".institution")),
             )
+        for it in response.css(".student-item"):
+            # "Ph.D. Student in Computer Science (Co-Advisor) · Fluminense Federal University (UFF), Brazil · 2026 –"
+            nivel, _, rol = (texts(it.css(".student-info")) or "").split(" · ")[0].partition(" (")
+            if "Internship" in rol:  # estadía, no tesis
+                continue
+            yield self.item(
+                "tesis",
+                response,
+                titulo=None,
+                estudiante=texts(it.css(".student-name")),
+                nivel=nivel,
+                rol=rol.rstrip(")") or None,
+                anio=anio(texts(it.css(".student-info"))),
+            )
         yield from self.related(response)
 
     def parse_publications(self, response: Response) -> Iterator:
@@ -177,7 +180,7 @@ class FrancielleVargasSpider(AcademicSpider):
                 tipo_publicacion=None if seccion.isdigit() else seccion,
                 venue=venue,
                 autores=[a.strip(" *") for a in (autores or "").split(",") if a.strip(" *")],
-                url_destino=response.urljoin(pdf) if pdf else None,
+                url_destino=pdf,
                 ids=ids,
             )
         yield from self.related(response)
@@ -192,7 +195,7 @@ class FrancielleVargasSpider(AcademicSpider):
                 tipo_producto=texts(li.xpath("ancestor::div[@class='resource-section'][1]/h3")),  # "Benchmark Datasets"
                 nombre=texts(a[:1]),
                 descripcion=clean((texts(li) or "").removeprefix(texts(a[:1]) or "").lstrip(" :")) or None,
-                url_destino=response.urljoin(a[0].attrib["href"]) if a else None,
+                url_destino=a[0].attrib["href"] if a else None,
             )
         yield from self.related(response)
 
@@ -215,7 +218,7 @@ class FrancielleVargasSpider(AcademicSpider):
                 tipo_actividad=tipo,
                 titulo=clean(" ".join(li.css("h8").xpath("./text()|./*[not(self::a)]//text()").getall())) or texts(li),
                 rol=sub or categoria,
-                fecha=", ".join(fechas) or anio(texts(li)),
+                fecha=", ".join(fechas or ANIO.findall(texts(li) or "")[:1]) or None,
                 url_destino=li.css("a::attr(href)").get(),
             )
         yield from self.related(response)
@@ -235,7 +238,7 @@ class FrancielleVargasSpider(AcademicSpider):
                 evento=texts(it.css("p a")),
                 descripcion=clean("".join(it.css("p").xpath("./b//text()|./text()").getall())),  # "Leiden U., NL"
                 fecha=texts(it.xpath("ancestor::div[@class='year-card'][1]/div[@class='year-title']")),
-                url_destino=response.urljoin(slides) if slides else None,
+                url_destino=slides,
             )
         yield from self.related(response)
 
@@ -267,7 +270,7 @@ class FrancielleVargasSpider(AcademicSpider):
         yield from self.related(response)
 
     def parse_cv(self, response: Response) -> Iterator:
-        s = cv_secciones(cv_texto(response.body))
+        s = cv_secciones(cv_texto(response))
         # "PhD in Computer Science and Computational Mathematics 2024\nUniversity of São Paulo (USP)"
         for grado, year, inst in re.findall(r"^(.+?) ((?:19|20)\d{2})\n(.+)$", s.get("Education", ""), re.M):
             yield self.item("formacion", response, grado=grado, anio=year, institucion=inst.strip())

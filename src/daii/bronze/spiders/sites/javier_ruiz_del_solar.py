@@ -4,7 +4,7 @@ Home de una página (contacto, formación, cargos, áreas, "other activities") y
 CV (curriculum.html), publicaciones, tesis guiadas, líneas de investigación y cursos.
 El servidor declara UTF-8, pero las páginas son windows-1252 o macintosh (según su <meta charset>): se
 re-decodifican con el charset del <meta>.
-No se extraen fecha de nacimiento ni RUT del CV.
+No se extraen fecha de nacimiento ni RUT del CV, y esa página no se guarda en disco (`guardar=False`).
 """
 
 import re
@@ -12,12 +12,10 @@ from collections.abc import Iterator
 
 from scrapy.http import Response, TextResponse
 
-from daii.bronze.spiders.base import AcademicSpider, clean, email
+from daii.bronze.spiders.base import AcademicSpider, anio, anios, autores, clean, email, plain
 
 SITIO = "https://www.cec.uchile.cl/~jruizd/"
 PERSONA = "javier-ruiz-del-solar"
-YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
-INITIALS = re.compile(r"^(?:[A-Z][a-z]?\.\s?-?)+$")
 CARGO = re.compile(
     r"^(.*?)\s+(?:at|of) the\s+(.+)$"
 )  # "Professor of Electrical Engineering at the Universidad de Chile"
@@ -27,7 +25,7 @@ DOI = re.compile(r"\b10\.\d{4,}/[^\s,;()]+")
 ESTADO = re.compile(r"\((in press|accepted|submitted|to appear)\)", re.I)
 # Sección del CV → tipo_actividad (vocabulario de docs/modelo_datos.md); el rol queda con el texto de la sección
 ACTIVIDADES = {
-    "Technical Committees": "consejo_directivo",
+    "Technical Committees": "comite",
     "Journal Editor": "editorial",
     "Journal Reviewer": "revisor",
     "Proposal Reviewer": "revisor",
@@ -35,8 +33,8 @@ ACTIVIDADES = {
     "Session Chair": "organizacion_evento",
     "Organizing Committee": "organizacion_evento",
     "Program Committee": "comite_programa",
-    "Invited speaker": "charla_invitada",
-    "Tutorial Courses": "charla_invitada",
+    "Invited speaker": "charla",
+    "Tutorial Courses": "tutorial",
 }
 CV_SECCIONES = {
     "Appointments",
@@ -53,25 +51,13 @@ CV_SECCIONES = {
 }
 
 
-def plain(sel) -> str:
-    """Texto sin espacios entre hijos (Word parte palabras en <span>: "Goethe-<span>Institut</span>")."""
-    return clean("".join(sel.css("::text").getall())) or ""
-
-
 def decoded(response: Response) -> Response:
     m = re.search(rb"charset=([\w-]+)", response.body[:3000])
     return response.replace(encoding=m.group(1).decode()) if m and isinstance(response, TextResponse) else response
 
 
-def autores(s: str) -> list[str]:
-    """ "Correa, M., Verschae, R., and Ruiz-del-Solar, J." → ["Correa, M.", "Verschae, R.", "Ruiz-del-Solar, J."]."""
-    out: list[str] = []
-    for tok in re.split(r"\s*[;,]\s*(?:and\s+)?|\s+and\s+", s.strip(" ,;")):
-        if INITIALS.match(tok) and out and "," not in out[-1]:
-            out[-1] += ", " + tok
-        elif tok:
-            out.append(tok)
-    return out
+def lines(sel) -> list[str]:
+    return [t for t in (clean(x) for x in sel.xpath(".//text()").getall()) if t]
 
 
 def fechas(t: str) -> tuple[str, str | None, str | None]:
@@ -110,18 +96,16 @@ class JavierRuizDelSolarSpider(AcademicSpider):
     }
 
     async def start(self):
-        if self.only and self.only != PERSONA:
-            return
-        yield self.page(SITIO, self.parse, PERSONA)
-        yield self.page(SITIO + "curriculum.html", self.parse_cv, PERSONA)
-        yield self.page(SITIO + "publications.html", self.parse_publications, PERSONA)
-        yield self.page(SITIO + "thesis.html", self.parse_thesis, PERSONA)
-        yield self.page(SITIO + "research.html", self.parse_research, PERSONA)
-        yield self.page(SITIO + "courses.htm", self.parse_courses, PERSONA)
+        if self.only in (None, PERSONA):
+            yield self.page(SITIO, self.parse, PERSONA)
+            yield self.page(SITIO + "curriculum.html", self.parse_cv, PERSONA, guardar=False)  # trae RUT y nacimiento
+            yield self.page(SITIO + "publications.html", self.parse_publications, PERSONA)
+            yield self.page(SITIO + "thesis.html", self.parse_thesis, PERSONA)
+            yield self.page(SITIO + "research.html", self.parse_research, PERSONA)
+            yield self.page(SITIO + "courses.htm", self.parse_courses, PERSONA)
 
     def parse(self, response: Response) -> Iterator:
         response = decoded(response)
-        lines = lambda sel: [t for t in (clean(x) for x in sel.xpath(".//text()").getall()) if t]  # noqa: E731
         contacto = lines(response.xpath("//p[contains(., 'e-mail')]"))
         phone = next((x.removeprefix("Phone:").strip() for x in contacto if x.startswith("Phone:")), None)
         yield self.item(
@@ -160,7 +144,7 @@ class JavierRuizDelSolarSpider(AcademicSpider):
         response = decoded(response)
         seccion = None
         for el in response.css("body p, body h1, body h3"):
-            t = plain(el)
+            t = plain(el) or ""
             if t.rstrip(": ") in CV_SECCIONES:
                 seccion = t.rstrip(": ")
                 continue
@@ -183,9 +167,8 @@ class JavierRuizDelSolarSpider(AcademicSpider):
                 else:
                     yield self.item("formacion", response, grado=t.rstrip("."))
             elif seccion in ("Awards", "Selected Grants and Scholarships"):
-                y = YEAR.search(t)
                 nombre = t.rstrip(". ") if seccion == "Awards" else re.split(r"\s*\(", t)[0]
-                yield self.item("distincion", response, nombre=nombre, anio=y.group(0) if y else None)
+                yield self.item("distincion", response, nombre=nombre, anio=anio(t))
             elif seccion == "Research interests":
                 for nombre in t.rstrip(".").split(", "):
                     yield self.item("area", response, nombre=nombre)
@@ -206,7 +189,7 @@ class JavierRuizDelSolarSpider(AcademicSpider):
         response = decoded(response)
         tipo = None
         for el in response.css("body p, body h4"):
-            t = plain(el)
+            t = plain(el) or ""
             if re.match(r"^[A-E]\.(\d\.)?\s+\D", t):  # "A. International Journal Papers" / "D.2. Book Chapters"
                 tipo = re.sub(r"^[A-E]\.(\d\.)?\s+", "", t)
                 continue
@@ -244,14 +227,14 @@ class JavierRuizDelSolarSpider(AcademicSpider):
         response = decoded(response)
         nivel = rol = None
         for el in response.css("body p, body h1"):
-            t = plain(el)
+            t = plain(el) or ""
             m = re.match(r"^(.+?),?\s*[“\"](.+?)[”\"]\s*,?\s*(.*)$", t)
             if not m:
                 if t:  # encabezado: "Tesis de Magister", "Memorias de Ingeniero Civil", "... como profesor de comisión"
                     nivel, rol = (None, t) if "comisi" in t else (t, None)
                 continue
             resto = m.group(3)
-            y = YEAR.findall(resto)
+            y = anios(resto)
             co = re.search(r"\((profesor [^)]+)\)", resto)
             yield self.item(
                 "tesis",
@@ -275,6 +258,6 @@ class JavierRuizDelSolarSpider(AcademicSpider):
     def parse_courses(self, response: Response) -> Iterator:
         response = decoded(response)
         for td in response.css("td[width='98%']"):
-            codigo, _, nombre = plain(td).partition(" ")  # "EL708 Procesamiento Avanzado de Imágenes (...)"
+            codigo, _, nombre = (plain(td) or "").partition(" ")  # "EL708 Procesamiento Avanzado de Imágenes (...)"
             yield self.item("dictacion", response, codigo_curso=codigo, nombre_curso=nombre)
         yield from self.related(response, region="table")  # excluye el botón "main" → index.html

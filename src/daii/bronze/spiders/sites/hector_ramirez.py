@@ -11,7 +11,7 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean
+from daii.bronze.spiders.base import ANIO, AcademicSpider, anio, clean, plain
 
 PERSONA = "hector-ramirez"
 BASE = "https://sites.google.com/site/hectorramirezhomepage/"
@@ -22,7 +22,6 @@ PUBLICATIONS = BASE + "publications"
 STUDENTS = BASE + "student-s-formation"
 REGION = "section"
 
-ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
 DOI = re.compile(r"\b10\.\d{4,9}/[^\s;,]+")
 QUOTED = re.compile(r"[“\"](.+?)[”\"]")
 # "2016-2019: FONDECYT 1160204: ..." / "2014- 2016: ..." / "2022: ..."
@@ -34,10 +33,6 @@ ROL_PROYECTO = re.compile(
 LED_BY = re.compile(r"led (?:in Chile )?by ([^(;,]+?)\s*(?:\(|,|;|\.$|$)")
 PROGRAMA = re.compile(r"(?:Program|Programa|Monograph)\s*\w*\s*$")
 MINUSCULAS = {"and", "de", "da", "del", "van", "von", "le", "II"}
-
-
-def plain(sel) -> str:
-    return clean("".join(sel.css("::text").getall())) or ""
 
 
 def lineas(response: Response) -> list[str]:
@@ -112,14 +107,13 @@ class HectorRamirezSpider(AcademicSpider):
                     if clean(a):
                         yield self.item("area", response, nombre=clean(a))
             elif seccion == "Teaching:" and t.startswith("This year"):
-                anio = ANIO.search(t)
                 for nombre, codigo in re.findall(r"([A-Z][\w &]+?) \(([A-Z]{2}\d{4})\)", t):
                     yield self.item(
                         "dictacion",
                         response,
                         nombre_curso=nombre.removeprefix("and ").strip(),
                         codigo_curso=codigo,
-                        anio=anio.group(0) if anio else None,
+                        anio=anio(t),
                     )
             elif seccion == "Teaching:" and t.startswith("Former lectures:"):
                 cursos = t.removeprefix("Former lectures:").removesuffix("among others.")
@@ -246,7 +240,7 @@ class HectorRamirezSpider(AcademicSpider):
             yield self.item(
                 "tesis",
                 response,
-                titulo=q.group(1).strip(' ."“”') if q else rest,
+                titulo=q.group(1).strip(' ."“”') if q else None,
                 estudiante=estudiante.strip(),
                 programa=clean(re.sub(r"\(jointly advisored with [^)]*\)", "", programa).strip(" .:")) or None,
                 anio=m.group(1),

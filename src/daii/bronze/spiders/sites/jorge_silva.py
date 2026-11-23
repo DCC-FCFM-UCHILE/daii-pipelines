@@ -1,15 +1,13 @@
 """Sitio personal de Jorge F. Silva (Hugo Academic) y su CV en PDF (LaTeX, dos columnas: sección | contenido)."""
 
-import io
 import re
 import unicodedata
 from collections.abc import Iterator
 from urllib.parse import urlparse
 
-from pypdf import PdfReader
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, anio, anios, autores, clean, pdf_texto, texts
 
 PERSONA = "jorge-silva"
 HOME = "https://jorgesil77.github.io/"
@@ -24,7 +22,6 @@ SECCION = re.compile(
     r"|Publications|Patents|Teaching|Talks)\b"
 )
 NUMERO = re.compile(r"^\s*\d{1,2}\.\s+(?=\S)", re.M)
-ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
 # Fin de la primera oración (evita cortar "E. Orchard", "Dept. of").
 FRASE = re.compile(r"(?<=[a-z0-9)])\.\s+(?=[A-Z“])")
 CODIGO = re.compile(r"\b(\d{7}|\d{2}IDL\d-\d{5}|ACT\d+)\b")
@@ -45,10 +42,6 @@ def unir(lines: list[str]) -> str:
     t = unicodedata.normalize("NFKC", "\n".join(line.strip() for line in lines))
     t = re.sub(r"(\w)-\n+([a-z])", r"\1\2", t)  # shortcut: también une guiones reales ("Multiple-imputation")
     return clean(re.sub(r"-\n+(?=\S)", "-", t)) or ""
-
-
-def anios(text: str) -> list[int]:
-    return [int(y) for y in ANIO.findall(text)]
 
 
 def primera_frase(text: str) -> str:
@@ -100,11 +93,10 @@ def cita(text: str) -> tuple[list[str], str, str]:
     i = min((i for c in '“‘”"' if (i := text.find(c)) >= 0), default=-1)
     if i < 0:
         return [], text, ""
-    autores = [a for a in re.split(r",\s*(?:and\s+)?|\s+and\s+", text[:i].strip(" ,.")) if a]
     resto = text[i + 1 :]
     j = min((j for c in '”“"' if (j := resto.find(c)) >= 0), default=-1)
     titulo, resto = (resto[:j], resto[j + 1 :]) if j >= 0 else resto.partition(", ")[::2]
-    return autores, titulo.strip(" ,."), resto.strip(" ,.")
+    return autores(text[:i].strip(" ,.")), titulo.strip(" ,."), resto.strip(" ,.")
 
 
 class JorgeSilvaSpider(AcademicSpider):
@@ -121,7 +113,7 @@ class JorgeSilvaSpider(AcademicSpider):
     }
 
     async def start(self):
-        if not self.only or self.only == PERSONA:
+        if self.only in (None, PERSONA):
             yield self.page(HOME, self.parse, PERSONA)
             yield self.page(PUBLICACIONES, self.parse_publicaciones, PERSONA)
             yield self.page(CV, self.parse_cv, PERSONA)
@@ -133,7 +125,7 @@ class JorgeSilvaSpider(AcademicSpider):
             response,
             nombre=texts(perfil.css("h2[itemprop=name]")),
             cargo=texts(perfil.css("[itemprop=jobTitle]")),
-            foto_url=response.urljoin(perfil.css("img.portrait::attr(src)").get("")),
+            foto_url=perfil.css("img.portrait::attr(src)").get(),
             bio=texts(response.css("#about [itemprop=description] p")),
         )
         for href in perfil.css(".network-icon a::attr(href)").getall():
@@ -146,8 +138,8 @@ class JorgeSilvaSpider(AcademicSpider):
             yield self.item("area", response, nombre=texts(li))
 
         for li in response.css(".ul-edu li"):
-            grado, _, anio = (texts(li.css(".course")) or "").rpartition(", ")
-            yield self.item("formacion", response, grado=grado, institucion=texts(li.css(".institution")), anio=anio)
+            grado, _, egreso = (texts(li.css(".course")) or "").rpartition(", ")
+            yield self.item("formacion", response, grado=grado, institucion=texts(li.css(".institution")), anio=egreso)
 
         for card in response.css("#experience .card-body"):
             desde, _, hasta = (clean(" ".join(card.css(".exp-meta").xpath("text()").getall())) or "").partition("–")
@@ -168,7 +160,7 @@ class JorgeSilvaSpider(AcademicSpider):
                 response,
                 nombre=texts(card.css(".card-title")),
                 otorgante=texts(card.css(".card-subtitle a")),
-                anio=(anios(sub) or [None])[0],
+                anio=anio(sub),
             )
 
         for card in response.css("#talks .card-simple"):
@@ -180,7 +172,7 @@ class JorgeSilvaSpider(AcademicSpider):
                 titulo=texts(a),
                 descripcion=texts(card.css("[itemprop=articleBody]")),
                 fecha=texts(card.css("[itemprop=startDate]")),
-                url_destino=response.urljoin(a.attrib.get("href", "")),
+                url_destino=a.attrib.get("href"),
             )
 
         yield from self.related(response)
@@ -200,21 +192,21 @@ class JorgeSilvaSpider(AcademicSpider):
                 response,
                 titulo=texts(a),
                 autores=pub.css("[itemprop='author name'] ::text").getall(),
-                anio=(anios(" ".join(pub.xpath("text()").getall())) or [None])[0],
+                anio=anio(" ".join(pub.xpath("text()").getall())),
                 tipo_publicacion=next((t for c, t in tipos.items() if c in item.attrib.get("class", "").split()), None),
                 doi=doi,
-                url_destino=response.urljoin(a.attrib.get("href", "")),
+                url_destino=a.attrib.get("href"),
             )
         yield from self.related(response)
 
     def parse_cv(self, response: Response) -> Iterator:
-        reader = PdfReader(io.BytesIO(response.body))
-        text = "\n".join(p.extract_text(extraction_mode="layout") for p in reader.pages)
+        text = pdf_texto(response, extraction_mode="layout")
         s = secciones(text)
         cabecera = [c for line in text.split("Education", 1)[0].splitlines() if (c := clean(line))]
         email = next((c for c in cabecera if "@" in c), None)
         if cabecera:
-            yield self.item("persona", response, nombre=cabecera[0], cargo=cabecera[1], email=email)
+            cargo = cabecera[1] if len(cabecera) > 1 else None
+            yield self.item("persona", response, nombre=cabecera[0], cargo=cargo, email=email)
         for parser in (
             cv_formacion,
             cv_afiliaciones,
@@ -267,7 +259,7 @@ def cv_distinciones(s: dict[str, list[str]]) -> Items:
         por = re.search(r"(?:[Gg]iven|Recognized) by (?:the )?(.+?)\.(?:\s|$)", t)
         yield (
             "distincion",
-            {"nombre": primera_frase(t), "otorgante": por.group(1) if por else None, "anio": anios(fecha)[0]},
+            {"nombre": primera_frase(t), "otorgante": por.group(1) if por else None, "anio": anio(fecha)},
         )
 
 
@@ -318,7 +310,7 @@ def cv_actividades(s: dict[str, list[str]]) -> Items:
 def cv_publicaciones(s: dict[str, list[str]]) -> Items:
     for _, seccion, body in bloques(s.get("Publications", [])):
         for e in entradas(body):
-            autores, titulo, resto = cita(e)
+            aut, titulo, resto = cita(e)
             estado = "under review" if "under review" in resto else "accepted" if "accepted" in resto else None
             venue = FIN_VENUE.split(re.sub(r"^(?:in\s+(?:the\s+)?|under review:\s*)", "", resto), maxsplit=1)[0]
             doi = re.search(r"10\.\d{4,}/\S+", resto)
@@ -327,7 +319,7 @@ def cv_publicaciones(s: dict[str, list[str]]) -> Items:
                 "publicacion",
                 {
                     "titulo": titulo,
-                    "autores": autores,
+                    "autores": aut,
                     "anio": ys[-1] if ys else None,
                     "tipo_publicacion": None if seccion == "Under review" else seccion,
                     "venue": venue.strip(" ,.") or None,
@@ -343,8 +335,8 @@ def cv_publicaciones(s: dict[str, list[str]]) -> Items:
 def cv_cursos_y_charlas(s: dict[str, list[str]]) -> Items:
     t = unir(s.get("Teaching", []))
     for m in re.finditer(r"([A-Z][^:]*?):\s*(Lecturer|Teaching Assistant),[^()]*\(([^)]*)\)", t):
-        for sem, anio in re.findall(r"(Spring|Fall)\s+(\d{4})", m.group(3)):
-            yield "dictacion", {"nombre_curso": m.group(1), "rol": m.group(2), "anio": int(anio), "semestre": sem}
+        for sem, y in re.findall(r"(Spring|Fall)\s+(\d{4})", m.group(3)):
+            yield "dictacion", {"nombre_curso": m.group(1), "rol": m.group(2), "anio": int(y), "semestre": sem}
     for e in re.split(r"(?=“)", unir(s.get("Talks", []))):
         if not e.startswith("“"):
             continue

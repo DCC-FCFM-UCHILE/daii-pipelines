@@ -8,15 +8,13 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, anio, anios, autores, clean, plain, texts
 
 SITIO = "https://felipebravom.com/"
 PERSONA = "felipe-bravo"
 BRACKET = re.compile(r"^\[([^\]]*)\]\s*(.*)$")  # "[2024 - present] resto"
-YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 TERM = re.compile(r"(\w+)\s+(\d{4})")  # "fall 2026"
 DOI = re.compile(r"DOI:\s*(10\.\d+/\S+)")
-AUTHOR_SEP = re.compile(r",\s*(?:and\s+)?|\s+and\s+")
 # Sección del CV → tipo_actividad (vocabulario de docs/modelo_datos.md cuando calza; si no, la sección)
 ACTIVIDADES = {
     "Service": "servicio",
@@ -29,14 +27,9 @@ ACTIVIDADES = {
 }
 
 
-def plain(sel) -> str:
-    """Texto de un nodo sin insertar espacios entre hijos (evita "AffectiveTweets , a ...")."""
-    return clean("".join(sel.css("::text").getall())) or ""
-
-
 def bracket(li) -> tuple[str | None, str]:
     """Separa "[fecha] resto" de un <li>; sin corchete devuelve (None, texto)."""
-    t = plain(li)
+    t = plain(li) or ""
     m = BRACKET.match(t)
     return (clean(m.group(1)), m.group(2)) if m else (None, t)
 
@@ -81,7 +74,7 @@ class FelipeBravoSpider(AcademicSpider):
             telefono=clean(tel.partition(":")[2]),
             email=clean(email.partition(":")[2]),  # "fbravo at dcc.uchile.cl", tal como aparece
             oficina=contacto[0] if contacto else None,
-            foto_url=response.urljoin(art.css("img::attr(src)").get("")) if art.css("img") else None,
+            foto_url=art.css("img::attr(src)").get(),
         )
         for li in section(art, "affiliations"):
             links = li.css("a")
@@ -131,14 +124,7 @@ class FelipeBravoSpider(AcademicSpider):
             # "PhD. Computer Science, University of Waikato (Jul. 2017)"
             m = re.match(r"(.+?),\s*(.+?)\s*\(([^)]*)\)", texts(li) or "")
             if m:
-                anio = YEAR.search(m.group(3))
-                yield self.item(
-                    "formacion",
-                    response,
-                    grado=m.group(1),
-                    institucion=m.group(2),
-                    anio=anio.group() if anio else None,
-                )
+                yield self.item("formacion", response, grado=m.group(1), institucion=m.group(2), anio=anio(m.group(3)))
 
         for li in section(art, "teaching"):
             # "[CC6104] (Lecturer) Statistical Thinking (spring 2025, spring 2024), Computer Science Department, ..."
@@ -146,7 +132,7 @@ class FelipeBravoSpider(AcademicSpider):
             m = re.match(r"\(([^)]*)\)\s*(.+?)\s*\(([^)]*)\)", resto)
             if not m:
                 continue
-            for sem, anio in TERM.findall(m.group(3)):
+            for sem, año in TERM.findall(m.group(3)):
                 yield self.item(
                     "dictacion",
                     response,
@@ -154,14 +140,14 @@ class FelipeBravoSpider(AcademicSpider):
                     rol=m.group(1),
                     nombre_curso=m.group(2),
                     semestre=sem,
-                    anio=anio,
+                    anio=año,
                     url_curso=li.css("a::attr(href)").get(),
                 )
 
         for h3 in art.xpath("./h2[@id='grants']/following-sibling::h3[following-sibling::h2[1][@id='service']]"):
             for li in h3.xpath("following-sibling::ul[1]/li"):
                 fecha, resto = bracket(li)
-                years = YEAR.findall(fecha or "")
+                years = anios(fecha)
                 fuente, sep, despues = resto.partition(". Proyect Title")
                 titulo, codigo = despues.partition(":")[2], None
                 if m := re.search(r"\.?\s*Code:\s*(.+)$", titulo):
@@ -180,9 +166,7 @@ class FelipeBravoSpider(AcademicSpider):
 
         for li in section(art, "scholarships-and-awards"):
             fecha, resto = bracket(li)
-            anio = YEAR.search(fecha or "")
-            nombre = clean(resto.strip(" ."))
-            yield self.item("distincion", response, nombre=nombre, anio=anio.group() if anio else None)
+            yield self.item("distincion", response, nombre=clean(resto.strip(" .")), anio=anio(fecha))
 
         estudiantes = "./h2[@id='students']/following-sibling::h3[following-sibling::h2[1][@id='short-courses']]"
         for h3 in art.xpath(estudiantes):
@@ -192,11 +176,11 @@ class FelipeBravoSpider(AcademicSpider):
                 quoted = re.search(r"\"([^\"]+)\"", resto)
                 partes = [p.strip(" .") for p in re.sub(r"\"[^\"]+\"", "", resto).split(",") if p.strip(" .")]
                 rol = next((p for p in partes[1:] if p.startswith("Co-")), None)
-                years = YEAR.findall(fecha or "")
+                years = anios(fecha)
                 yield self.item(
                     "tesis",
                     response,
-                    titulo=quoted.group(1) if quoted else clean(resto),  # sin título en la fuente: la entrada completa
+                    titulo=quoted.group(1) if quoted else None,
                     estudiante=partes[0] if partes else None,
                     nivel=texts(h3),
                     rol=rol,
@@ -224,7 +208,7 @@ class FelipeBravoSpider(AcademicSpider):
                 "producto",
                 response,
                 tipo_producto="software",
-                nombre=clean(plain(li).strip(" .")),
+                nombre=clean((plain(li) or "").strip(" .")),
                 url_destino=li.css("a::attr(href)").get(),
             )
         yield from self.related(response, region="article")
@@ -234,11 +218,11 @@ class FelipeBravoSpider(AcademicSpider):
         for h3 in art.css("h3"):
             seccion = texts(h3)
             for li in h3.xpath("following-sibling::*[self::ul or self::ol][1]/li"):
-                full = plain(li)
+                full = plain(li) or ""
                 a = next((x for x in li.css("a") if (texts(x) or "").lower() not in ("pdf", "codalab")), None)
                 if a is None:
                     continue
-                titulo = plain(a)
+                titulo = plain(a) or ""
                 antes, _, despues = full.partition(titulo)
                 if seccion == "Theses":
                     # "PhD Thesis: <título> (pdf)"
@@ -251,14 +235,14 @@ class FelipeBravoSpider(AcademicSpider):
                         autores=[],
                     )
                     continue
-                years = YEAR.findall(despues.split("DOI")[0])
+                years = anios(despues.split("DOI")[0])
                 doi = DOI.search(despues)
                 estado = re.search(r"\((to appear|under review|accepted)\)", despues, re.I)
                 yield self.item(
                     "publicacion",
                     response,
                     titulo=titulo,
-                    autores=[x for x in AUTHOR_SEP.split(antes.strip(" ,.")) if x],
+                    autores=autores(antes.strip(" ,.")),
                     venue=texts(li.css("em")),
                     anio=years[-1] if years else None,
                     doi=doi.group(1).rstrip(".,") if doi else None,

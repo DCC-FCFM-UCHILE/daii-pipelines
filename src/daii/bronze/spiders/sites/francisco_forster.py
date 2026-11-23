@@ -1,15 +1,12 @@
 """Sitio personal de Francisco Förster (Jekyll, una sola página) y su CV en PDF (LaTeX, una columna)."""
 
-import io
 import re
-import unicodedata
 from collections.abc import Iterator
 from urllib.parse import urlparse
 
-from pypdf import PdfReader
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, anios, clean, latex_acentos, pdf_texto, texts
 
 PERSONA = "francisco-forster"
 HOME = "https://fforster.github.io/"
@@ -49,15 +46,7 @@ SECCIONES = {
     "Other recognitions/contributions:",
     "Other",
 }
-ACENTOS = {"´": "́", "¨": "̈", "˜": "̃", "`": "̀", "ˆ": "̂"}
-ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
 FRASE = re.compile(r"(?<!Prof)(?<!\b[A-Z])\.\s+(?=[A-Z])")  # fin de oración, sin cortar "Prof. X" ni "P.I."
-
-
-def acentos(text: str) -> str:
-    """LaTeX en pypdf deja el acento antes de la letra ("F¨orster", "Sim´on", "Rodr´ıguez"): recomponer."""
-    text = text.replace("ı", "i")
-    return re.sub(r"([´¨˜`ˆ])\s?([A-Za-z])", lambda m: unicodedata.normalize("NFC", m[2] + ACENTOS[m[1]]), text)
 
 
 def unir(lines: list[str]) -> str:
@@ -68,7 +57,7 @@ def unir(lines: list[str]) -> str:
 def secciones(text: str) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {}
     actual = None
-    for line in acentos(text).splitlines():
+    for line in latex_acentos(text).splitlines():
         if line.strip() in SECCIONES:
             actual = line.strip().rstrip(":")
         elif actual:
@@ -84,10 +73,6 @@ def entradas(lines: list[str], inicio: str) -> list[str]:
             out.append([])
         out[-1].append(line)
     return [unir(e) for e in out]
-
-
-def anios(text: str) -> list[int]:
-    return [int(y) for y in ANIO.findall(text)]
 
 
 class FranciscoForsterSpider(AcademicSpider):
@@ -107,7 +92,7 @@ class FranciscoForsterSpider(AcademicSpider):
     }
 
     async def start(self):
-        if not self.only or self.only == PERSONA:
+        if self.only in (None, PERSONA):
             yield self.page(HOME, self.parse, PERSONA)
             yield self.page(CV, self.parse_cv, PERSONA)
 
@@ -124,7 +109,7 @@ class FranciscoForsterSpider(AcademicSpider):
             nombre=texts(sec.css("h1[id^='--francisco']")),
             cargo=clean(response.css("header p::text").get()),
             email=clean(email.split(":", 1)[-1]),
-            foto_url=response.urljoin(about.css("img::attr(src)").get("")),
+            foto_url=about.css("img::attr(src)").get(),
             bio=texto,
         )
 
@@ -185,8 +170,7 @@ class FranciscoForsterSpider(AcademicSpider):
         yield from self.related(response, region="section")
 
     def parse_cv(self, response: Response) -> Iterator:
-        reader = PdfReader(io.BytesIO(response.body))
-        s = secciones("\n".join(p.extract_text() for p in reader.pages))
+        s = secciones(pdf_texto(response))
         for parser in (
             cv_formacion,
             cv_afiliaciones,
@@ -269,7 +253,7 @@ def cv_fondos(s: dict[str, list[str]]) -> Items:
 def cv_charlas(s: dict[str, list[str]]) -> Items:
     for e in re.split(r"(?<=\(\d{4}\))\.?\s+", unir(s.get("Invitations to speak at international conferences", []))):
         if m := re.match(r"(.+?)\s*\((\d{4})\)", e):
-            yield "actividad", {"tipo_actividad": "charla_invitada", "titulo": m[1], "evento": m[1], "fecha": m[2]}
+            yield "actividad", {"tipo_actividad": "charla", "titulo": m[1], "evento": m[1], "fecha": m[2]}
 
 
 def cv_cursos(s: dict[str, list[str]]) -> Items:
@@ -283,10 +267,7 @@ def cv_cursos(s: dict[str, list[str]]) -> Items:
 
 
 def cv_tesis(s: dict[str, list[str]]) -> Items:
-    """Students: "Astronomy: Isidora Mancilla, 2024 (B.Sc.); ...".
-
-    El CV no trae títulos de tesis y `titulo` es obligatorio: se usa la entrada tal cual aparece.
-    """
+    """Students: "Astronomy: Isidora Mancilla, 2024 (B.Sc.); ..." (el CV no trae títulos de tesis)."""
     for e in entradas(s.get("Students / Engineers Supervising Experience", []), r"[A-Z][\w ]+: "):
         programa, _, lista = e.partition(": ")
         if programa.startswith("Visiting students"):
@@ -299,7 +280,6 @@ def cv_tesis(s: dict[str, list[str]]) -> Items:
             yield (
                 "tesis",
                 {
-                    "titulo": est,
                     "estudiante": m[1],
                     "anio": int(m[3]) if m[3] and m[3].isdigit() else int(m[2]) if not m[3] else None,
                     "nivel": re.split(r",? co-?supervisor", nivel)[0].strip(", ") or None,

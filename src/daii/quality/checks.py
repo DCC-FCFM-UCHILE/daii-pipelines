@@ -4,6 +4,7 @@ fail → el run no se usa en silver (se mantiene el último bueno) y el flow ter
 warn → el run se usa, pero se reporta.
 """
 
+import contextlib
 import json
 from collections import Counter
 from pathlib import Path
@@ -34,10 +35,15 @@ def last_good(spider: str, before: Path | None = None) -> Path | None:
 
 def counts(run: Path) -> Counter:
     f = run / "items.jsonl"
-    return Counter(json.loads(line)["tipo"] for line in f.open()) if f.exists() else Counter()
+    c: Counter = Counter()
+    for line in f.open() if f.exists() else []:
+        with contextlib.suppress(json.JSONDecodeError):  # última línea a medio escribir (proceso matado)
+            c[json.loads(line)["tipo"]] += 1
+    return c
 
 
 def check(spider: str, run: Path) -> dict:
+    run.mkdir(parents=True, exist_ok=True)  # si Scrapy murió antes de crear el run, igual queda su quality.json
     fails, warns = [], []
     stats_f = run / "stats.json"
     stats = json.loads(stats_f.read_text()) if stats_f.exists() else {}

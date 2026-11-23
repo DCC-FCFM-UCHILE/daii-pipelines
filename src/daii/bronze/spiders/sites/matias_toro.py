@@ -6,11 +6,10 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, email, texts
+from daii.bronze.spiders.base import ANIO, AcademicSpider, anios, clean, email, texts
 
 SITIO = "https://matiastoro.github.io/"
 PERSONA = "matias-toro"
-YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 
 
 class MatiasToroSpider(AcademicSpider):
@@ -55,7 +54,7 @@ class MatiasToroSpider(AcademicSpider):
             yield self.item("afiliacion", response, organizacion=texts(a), url_organizacion=a.attrib["href"])
         # Centros: "Instituto Milenio ... (IMFD)" · "2022–2025" · "Collaborating researcher"
         for li in response.xpath("//h3[@class='rail-label'][.='Centres']/../following-sibling::ul[1]/li"):
-            years = YEAR.findall(texts(li.css(".side")) or "")
+            years = ANIO.findall(texts(li.css(".side")) or "")
             hasta = years[1] if len(years) > 1 else None
             yield self.item(
                 "afiliacion",
@@ -88,7 +87,7 @@ class MatiasToroSpider(AcademicSpider):
                 info = texts(pub.css(".info"))
                 doi = pub.xpath(".//a[.='doi']/@href").get()
                 pdf = pub.xpath(".//a[.='pdf']/@href").get()
-                anio = rail if rail.isdigit() else next(iter(YEAR.findall(info or "")[-1:]), None)
+                anio = rail if rail.isdigit() else (anios(info) or [None])[-1]
                 yield self.item(
                     "publicacion",
                     response,
@@ -111,13 +110,13 @@ class MatiasToroSpider(AcademicSpider):
                 estudiante=texts(li.css(".who")),
                 nivel=texts(li.css(".code")),
                 rol=texts(li.css(".with")),
-                anio=None if when.startswith("since") else (YEAR.findall(when) or [None])[0],
+                anio=None if when.startswith("since") else (anios(when) or [None])[0],
             )
 
         for li in response.xpath("//h3[@class='rail-label'][.='Grants']/../following-sibling::ul[1]/li"):
             # "Fondecyt Regular 2026, led by Eduardo Graells-Garrido"
             fuente, _, ir = (texts(li.css(".detail")) or "").partition(", led by ")
-            years = YEAR.findall(fuente)
+            years = anios(fuente)
             yield self.item(
                 "proyecto",
                 response,
@@ -132,10 +131,10 @@ class MatiasToroSpider(AcademicSpider):
             texts(li.css(".code")): clean("".join(li.css(".what::text").getall()))
             for li in response.css("#teaching ul.items li")
         }
-        anios = response.css("table.timetable thead th::text").getall()
+        columnas = response.css("table.timetable thead th::text").getall()
         for tr in response.css("table.timetable tbody tr"):
             codigo = texts(tr.css("th"))
-            for anio, td in zip(anios, tr.css("td"), strict=False):
+            for anio, td in zip(columnas, tr.css("td"), strict=False):
                 for i, term in enumerate(td.css(".term"), 1):
                     if "on" in term.attrib.get("class", "").split():
                         yield self.item(

@@ -49,6 +49,7 @@ def test_publications():
     assert {x["tipo_publicacion"] for x in pubs} == {"Journal Articles", "Conference Papers"}
     talk = out["actividad"][0]
     assert talk["tipo_actividad"] == "tutorial" and talk["fecha"] == "February 16, 2026"
+    assert talk["evento"] == "FG2026" and talk["url_destino"].startswith("https://rodrigo.verschae.org/")
 
 
 def test_research_y_news():
@@ -61,6 +62,9 @@ def test_research_y_news():
     out = parse("verschae_news.html", "news/", "parse_news")
     acts = out["actividad"]
     assert len(acts) >= 20
-    assert not any("paper" in a["tipo_actividad"].lower() for a in acts)
-    román = next(a for a in acts if a["tipo_actividad"] == "Organizing Committee")
+    assert not any("paper" in a["descripcion"].lower() for a in acts)
+    román = next(a for a in acts if a["descripcion"] == "Organizing Committee")
+    assert román["tipo_actividad"] == "organizacion_evento"
     assert román["fecha"] == "2026" and román["url_destino"] == "https://ro-man2026.org/"
+    tipos = {a["descripcion"]: a["tipo_actividad"] for a in acts}
+    assert tipos["New Visit"] == "visita" and tipos["Invited Speaker"] == "charla" and tipos["July 2019"] == "noticia"

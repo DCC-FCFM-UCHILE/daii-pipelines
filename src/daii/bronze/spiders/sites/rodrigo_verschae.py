@@ -9,21 +9,23 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean
+from daii.bronze.spiders.base import AcademicSpider, anio, anios, clean, email, plain
 
 SITIO = "https://rodrigo.verschae.org/"
 PERSONA = "rodrigo-verschae"
-YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 # Fechas de un tramo de trayectoria: "(2018-2026)", "Since August 2026", "From 2020 to 2023"
 PERIODO = re.compile(r"\((\d{4})(?:-(\d{4}))?\),?|Since (\w+ \d{4}),?|From (\d{4}) to (\d{4}),?")
 GRADO = re.compile(r"an? ([^()]+?) \(((?:[^()]|\([^()]*\))+), (\d{4})\)")  # "a M.Sc. in X (ENS (..), France, 2006)"
 TAG = re.compile(r"^\[([^\]]+)\],?\s*(.*)$")  # "[New Paper] resto"
 QUOTE = re.compile(r"[“\"]")
-
-
-def plain(sel) -> str:
-    """Texto de un nodo sin insertar espacios entre hijos."""
-    return clean("".join(sel.css("::text").getall())) or ""
+# Etiqueta de noticia "[New Visit]" → tipo_actividad; sin palabra clave clara es "noticia"
+NOTICIAS = {
+    "visit": "visita",
+    "tutorial": "tutorial",
+    "speaker": "charla",
+    "editor": "editorial",
+    "organizing": "organizacion_evento",
+}
 
 
 def tramos(texto: str) -> Iterator[tuple[str, str | None, str | None]]:
@@ -66,23 +68,21 @@ class RodrigoVerschaeSpider(AcademicSpider):
     }
 
     async def start(self):
-        if self.only and self.only != PERSONA:
-            return
-        yield self.page(SITIO, self.parse_home, PERSONA)
-        yield self.page(SITIO + "publications/", self.parse_publications, PERSONA)
-        yield self.page(SITIO + "research/", self.parse_research, PERSONA)
-        yield self.page(SITIO + "news/", self.parse_news, PERSONA)
+        if self.only in (None, PERSONA):
+            yield self.page(SITIO, self.parse_home, PERSONA)
+            yield self.page(SITIO + "publications/", self.parse_publications, PERSONA)
+            yield self.page(SITIO + "research/", self.parse_research, PERSONA)
+            yield self.page(SITIO + "news/", self.parse_news, PERSONA)
 
     def parse_home(self, response: Response) -> Iterator:
         content = response.css(".page__content")
-        about = " ".join(plain(p) for p in content.xpath("./h1[@id='about-me']/following-sibling::p"))
+        about = " ".join(plain(p) or "" for p in content.xpath("./h1[@id='about-me']/following-sibling::p"))
         yield self.item(
             "persona",
             response,
             nombre=plain(response.css(".author__name")),
-            cargo=plain(response.css(".author__bio")) or None,
-            email=(response.css(".author__urls a[href^=mailto]::attr(href)").get() or "").removeprefix("mailto:")
-            or None,
+            cargo=plain(response.css(".author__bio")),
+            email=email(response.css(".author__urls a[href^=mailto]::attr(href)").get()),
             foto_url=response.css(".author__avatar img::attr(src)").get(),
             bio=clean(about),
         )
@@ -94,24 +94,24 @@ class RodrigoVerschaeSpider(AcademicSpider):
             yield self.item(
                 "perfil",
                 response,
-                plataforma=plain(a).lower(),
+                plataforma=(plain(a) or "").lower(),
                 url_destino=href,
                 identificador=orcid.group(1) if orcid else None,
             )
 
         # "Faculty at <a>IDIA</a>, the Data and IA Initiative ..." / "<a>Robotics and Intelligent Systems Lab</a>"
         for li in content.xpath("./h2[@id='affiliations']/following-sibling::ul[1]/li"):
-            rol, _, _ = plain(li).partition(" at ")
+            rol, sep, _ = (plain(li) or "").partition(" at ")
             yield self.item(
                 "afiliacion",
                 response,
                 organizacion=plain(li.css("a")),
-                rol=rol if " at " in plain(li) else None,
+                rol=rol if sep else None,
                 url_organizacion=li.css("a::attr(href)").get(),
             )
         vistos = set()
-        accomplishments = [plain(li) for li in content.xpath("./h1[@id='accomplishments']/following-sibling::ul[1]/li")]
-        for texto in [about, *accomplishments]:
+        logros = content.xpath("./h1[@id='accomplishments']/following-sibling::ul[1]/li")
+        for texto in [about, *(plain(li) or "" for li in logros)]:
             for tramo, desde, hasta in tramos(texto):
                 rol, org = cargo_org(tramo)
                 if (org, desde) not in vistos:
@@ -120,61 +120,58 @@ class RodrigoVerschaeSpider(AcademicSpider):
 
         # "I received a Doctoral degree in Electrical Engineering (Universidad de Chile, 2010), a M.Sc. ..."
         recibidos = next((f for f in re.split(r"(?<=\))\.\s+", about) if "I received" in f), "")
-        for grado, inst, anio in GRADO.findall(recibidos):
-            yield self.item("formacion", response, grado=grado, institucion=inst, anio=anio)
+        for grado, inst, egreso in GRADO.findall(recibidos):
+            yield self.item("formacion", response, grado=grado, institucion=inst, anio=egreso)
 
-        for li in content.xpath("./h1[@id='accomplishments']/following-sibling::ul[1]/li"):
-            premio = plain(li.css("strong"))
-            if (
-                premio
-            ):  # "... received the <strong>2025 ... Award</strong> from the Institute of Engineers of Chile for ..."
-                m = re.search(r"from (?:the )?(.+?)(?: for |\.|$)", plain(li))
+        for li in logros:
+            t = plain(li) or ""
+            # "... received the <strong>2025 ... Award</strong> from the Institute of Engineers of Chile for ..."
+            if premio := plain(li.css("strong")):
+                m = re.search(r"from (?:the )?(.+?)(?: for |\.|$)", t)
                 yield self.item(
                     "distincion",
                     response,
                     nombre=premio,
                     otorgante=m.group(1) if m else None,
-                    anio=(YEAR.search(plain(li)) or [None])[0],
+                    anio=anio(t),
                 )
-            elif "Editor" in plain(li):
+            elif "Editor" in t:
+                fecha = anio(t)
                 yield self.item(
-                    "actividad",
-                    response,
-                    tipo_actividad="editorial",
-                    titulo=plain(li),
-                    fecha=(YEAR.search(plain(li)) or [None])[0],
+                    "actividad", response, tipo_actividad="editorial", titulo=t, fecha=str(fecha) if fecha else None
                 )
         yield from self.related(response, region="#main")
 
     def parse_publications(self, response: Response) -> Iterator:
         for art in response.css(".list__item article"):
-            seccion = plain(art.xpath("ancestor::div[@class='list__item'][1]/preceding-sibling::h2[1]"))
+            seccion = plain(art.xpath("ancestor::div[@class='list__item'][1]/preceding-sibling::h2[1]")) or ""
             titulo = plain(art.css(".archive__item-title"))
-            fecha = plain(art.css(".page__meta"))
             if seccion.startswith("Talks"):
-                desc = plain(art.css(".archive__item-excerpt"))
+                desc = plain(art.css(".archive__item-excerpt")) or ""
+                partes = desc.split(", ")  # "Tutorial, FG2026, Kyoto, Japan" / "Talk, London School of Testing, ..."
                 yield self.item(
                     "actividad",
                     response,
-                    tipo_actividad=desc.split(",")[0].lower() or "charla",  # "Tutorial, FG2026, ..." / "Talk, ..."
+                    tipo_actividad="tutorial" if partes[0] == "Tutorial" else "charla",
                     titulo=titulo,
                     descripcion=desc or None,
-                    fecha=fecha or None,
+                    evento=partes[1] if len(partes) > 1 else None,
+                    fecha=plain(art.css(".page__meta")),
                     url_destino=art.css(".archive__item-title a::attr(href)").get(),
                 )
                 continue
             publicado = plain(art.xpath("./p[starts-with(normalize-space(.), 'Published in')]"))
-            cita = plain(art.xpath("./p[starts-with(normalize-space(.), 'Recommended citation')]"))
+            cita = plain(art.xpath("./p[starts-with(normalize-space(.), 'Recommended citation')]")) or ""
             cita = cita.removeprefix("Recommended citation:").strip()
             autores = QUOTE.split(cita, maxsplit=1)[0].strip(" ,") if QUOTE.search(cita) else ""
-            anio = YEAR.findall(publicado)
+            ys = anios(publicado)
             yield self.item(
                 "publicacion",
                 response,
                 titulo=titulo,
-                anio=anio[-1] if anio else None,
+                anio=ys[-1] if ys else None,
                 tipo_publicacion=seccion or None,
-                venue=plain(art.xpath("./p[starts-with(normalize-space(.), 'Published in')]/i")) or None,
+                venue=plain(art.xpath("./p[starts-with(normalize-space(.), 'Published in')]/i")),
                 autores=[a.strip() for a in autores.split(",") if a.strip()],
                 url_destino=art.xpath(".//a[contains(., 'Download Paper')]/@href").get()
                 or art.css(".archive__item-title a::attr(href)").get(),
@@ -189,7 +186,7 @@ class RodrigoVerschaeSpider(AcademicSpider):
                 yield self.item("area", response, nombre=plain(li))
         # "Director, FOVI Project “Artificial ...”, Universidad de O’Higgins, Chile"
         for li in content.xpath("./h1[@id='current-main-research-projects']/following-sibling::ul[1]/li"):
-            t = plain(li)
+            t = plain(li) or ""
             rol, _, resto = t.partition(", ")
             fuente, _, resto = resto.partition("“")
             titulo, _, _ = resto.partition("”")
@@ -206,16 +203,18 @@ class RodrigoVerschaeSpider(AcademicSpider):
 
     def parse_news(self, response: Response) -> Iterator:
         for li in response.css(".page__content li"):
-            m = TAG.match(plain(li))
+            m = TAG.match(plain(li) or "")
             if not m or "paper" in m.group(1).lower():  # los papers ya vienen de /publications/
                 continue
-            anio = li.xpath("ancestor::ul[1]/preceding-sibling::h2[1]/text()").get()
+            etiqueta = m.group(1)
+            h2 = li.xpath("ancestor::ul[1]/preceding-sibling::h2[1]/text()").get()
             yield self.item(
                 "actividad",
                 response,
-                tipo_actividad=m.group(1),
-                titulo=m.group(2).strip(" ,") or m.group(1),
-                fecha=clean(anio),
+                tipo_actividad=next((v for k, v in NOTICIAS.items() if k in etiqueta.lower()), "noticia"),
+                titulo=m.group(2).strip(" ,") or etiqueta,
+                descripcion=etiqueta,
+                fecha=clean(h2),
                 url_destino=li.css("a::attr(href)").get(),
             )
         yield from self.related(response, region=".page__content")

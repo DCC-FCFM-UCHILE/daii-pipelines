@@ -12,14 +12,12 @@ Publicaciones, proyectos, estudiantes y cursos del CV repiten lo del sitio. La c
 nacimiento y dirección: no se lee.
 """
 
-import io
 import re
 from collections.abc import Iterator
 
-from pypdf import PdfReader
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, autores, clean, texts
+from daii.bronze.spiders.base import ANIO, AcademicSpider, autores, clean, pdf_texto, texts
 from daii.config import academico
 
 PERSONA = "doris-saez"
@@ -31,7 +29,6 @@ TEACHING = BASE + "?page_id=633"
 MAIN = ".entry-content"
 SIDEBAR = "#primary"
 
-ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
 DOI = re.compile(r"\b10\.\d{4,9}/[^\s,]+")
 APA = re.compile(r"(?<=\(\d{4}\)\.\s)(.+?)\.\s")  # "Autores (2022). Título. Revista, ..." (OTHER JOURNALS)
 TITULO = re.compile(r"«\s*(.+?)[,.]?\s*»")
@@ -108,7 +105,8 @@ class DorisSaezSpider(AcademicSpider):
         yield self.page(PROJECTS, self.parse_projects, PERSONA)
         yield self.page(STUDENTS, self.parse_students, PERSONA)
         yield self.page(TEACHING, self.parse_teaching, PERSONA)
-        yield self.page(academico(PERSONA)["perfiles"]["cv"], self.parse_cv, PERSONA)
+        # la cabecera trae RUT, fecha de nacimiento y dirección: no se guarda el PDF en pages/
+        yield self.page(academico(PERSONA)["perfiles"]["cv"], self.parse_cv, PERSONA, guardar=False)
 
     def parse(self, response: Response) -> Iterator:
         main = response.css(MAIN)
@@ -248,8 +246,7 @@ class DorisSaezSpider(AcademicSpider):
         yield from self.related(response, region=MAIN)
 
     def parse_cv(self, response: Response) -> Iterator:
-        texto = "\n".join(p.extract_text(extraction_mode="layout") for p in PdfReader(io.BytesIO(response.body)).pages)
-        s = secciones_cv(texto)
+        s = secciones_cv(pdf_texto(response, extraction_mode="layout"))
         for _, _, t in s.get("formacion", []):
             # "Doctor in Engineering Sciences, Pontificia Universidad Católica de Chile, December 2000."
             partes = [p.strip() for p in t.rstrip(".").split(",")]

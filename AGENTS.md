@@ -63,7 +63,15 @@ Reglas:
   ~50% de lo que hay hoy). Es la alarma principal cuando un sitio cambia de estructura.
 - Usar Playwright (`meta={"playwright": True}`) solo si hace falta JS o un desafío anti-bot (p. ej. DBLP/Anubis).
 - PDFs: el `Response` no es texto. Usar `pypdf` sobre `response.body`.
-- Helpers compartidos entre spiders (p. ej. `autores()`) van en `spiders/base.py`, nunca se importan de otro spider.
+- Helpers compartidos van en `spiders/base.py`, nunca se importan de otro spider. Ya existen: `clean`, `texts`,
+  `plain`, `anio`/`anios`, `autores`, `email`, `abs_url`, `pdf_texto`, `latex_acentos`, `redact`.
+- URLs: pasar el href **crudo** (o `None`) en `url_destino`, `url_organizacion`, `url_curso` y `foto_url`; `item()` las
+  vuelve absolutas. Nunca `response.urljoin(x.get(""))`: con href vacío devuelve la URL de la página (dato falso).
+- `tipo_actividad` es un vocabulario cerrado (`TipoActividad` en `bronze/items.py`): mapear la sección de la fuente a
+  ese vocabulario y dejar el texto original en `descripcion` o `rol`.
+- Si no hay título de tesis, `titulo=None`. Nunca rellenar con el programa, el nivel o la línea completa del CV.
+- Páginas con datos sensibles en el documento (CVs con RUT): pedirlas con `self.page(..., guardar=False)` para que no
+  se archiven en `pages/`.
 - No extraer datos sensibles (RUT, fecha de nacimiento, dirección particular, datos de terceros como emails de referencias).
 - Nombre del spider: `sitio_<slug_con_guiones_bajos>` para sitios personales (p. ej. `sitio_felipe_bravo`).
 
