@@ -13,4 +13,5 @@ def test_dblp_toro():
     p = next(p for p in out["publicacion"] if p["ids"]["dblp"] == "conf/csfw/ArquezTT25")
     assert p["titulo"] == "Gradual Sensitivity Typing"
     assert p["autores"] == ["Damián Árquez", "Matías Toro", "Éric Tanter"]  # ordenados por ordinal
-    assert p["doi"] == "10.1109/CSF64896.2025.00021" and p["anio"] == 2025 and p["tipo_publicacion"] == "Inproceedings"
+    assert p["doi"] == "https://doi.org/10.1109/CSF64896.2025.00021"  # crudo; silver normaliza
+    assert p["anio"] == 2025 and p["tipo_publicacion"] == "Inproceedings"

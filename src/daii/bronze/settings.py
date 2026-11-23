@@ -11,7 +11,6 @@ ROBOTSTXT_OBEY = True
 CONCURRENT_REQUESTS_PER_DOMAIN = 2
 DOWNLOAD_DELAY = 1.0
 AUTOTHROTTLE_ENABLED = True
-RETRY_HTTP_CODES = [429, 500, 502, 503, 504, 522, 524, 408]
 RETRY_TIMES = 3
 DOWNLOAD_TIMEOUT = 30  # hosts académicos caídos no deben bloquear la corrida (default Scrapy: 180s)
 
@@ -20,15 +19,14 @@ DOWNLOAD_HANDLERS = {
     "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
     "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
 }
-PLAYWRIGHT_BROWSER_TYPE = "chromium"
-PLAYWRIGHT_LAUNCH_OPTIONS = {"headless": True}
 
-DOWNLOADER_MIDDLEWARES = {"daii.bronze.middlewares.SavePagesMiddleware": 950}
+# 540: process_response corre después de Retry (550), Compression (590) y Redirect (600) → se guarda el cuerpo
+# ya descomprimido, sin 3xx ni reintentos fallidos.
+DOWNLOADER_MIDDLEWARES = {"daii.bronze.middlewares.SavePagesMiddleware": 540}
 ITEM_PIPELINES = {"daii.bronze.pipelines.ValidatePipeline": 100}
 EXTENSIONS = {"daii.bronze.extensions.DumpStats": 500}
 
 FEEDS = {
     str(BRONZE / "%(name)s" / "%(run_id)s" / "items.jsonl"): {"format": "jsonlines", "encoding": "utf8"},
 }
-FEED_EXPORT_ENCODING = "utf-8"
 LOG_LEVEL = "INFO"

@@ -10,7 +10,7 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, clean, email, texts
 
 # "Profesor asociado del Departamento de Geofísica de la Universidad de Chile."
 CARGO = re.compile(r"^(Profesor[a]?(?: \w+)?) del? (.+?)\.")
@@ -24,10 +24,6 @@ class Cr2Spider(AcademicSpider):
     name = "cr2"
     expect = {"persona": 1, "afiliacion": 1, "perfil": 1, "publicacion": 25}
 
-    async def start(self):
-        for p in self.personas("cr2"):
-            yield self.page(p["perfiles"]["cr2"], self.parse, p["slug"])
-
     def parse(self, response: Response) -> Iterator:
         content = response.css(".td_block_text_with_title")
         h2 = content.css("h2")
@@ -39,7 +35,7 @@ class Cr2Spider(AcademicSpider):
             response,
             nombre=nombre,
             cargo=cargo,
-            email=(content.css("a[href^='mailto:']::attr(href)").get() or "").removeprefix("mailto:") or None,
+            email=email(content.css("a[href^='mailto:']::attr(href)").get()),
             foto_url=content.css("img::attr(src)").get(),
             bio=bio,
         )

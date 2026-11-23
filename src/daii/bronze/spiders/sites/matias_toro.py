@@ -6,7 +6,7 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, clean, email, texts
 
 SITIO = "https://matiastoro.github.io/"
 PERSONA = "matias-toro"
@@ -39,7 +39,7 @@ class MatiasToroSpider(AcademicSpider):
             response,
             nombre=clean(" ".join(intro.css("h1.name span::text").getall())),
             cargo=cargo,
-            email=(intro.css("a[href^='mailto:']::attr(href)").get() or "").removeprefix("mailto:") or None,
+            email=email(intro.css("a[href^='mailto:']::attr(href)").get()),
             oficina=texts(response.css("footer .contact > p:not([class])")),
             foto_url=response.css(".portrait img::attr(src)").get(),
             bio=texts(response.css("#research p.lead")),

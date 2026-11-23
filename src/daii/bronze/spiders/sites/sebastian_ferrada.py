@@ -133,8 +133,7 @@ class SebastianFerradaSpider(AcademicSpider):
         yield self.page(CV, self.parse_cv, PERSONA)
 
     def detalle(self, response: Response, href: str, callback):
-        # dont_filter: si related() de otra página ya pidió este detalle como `pagina`, igual se parsea aquí.
-        return self.page(response.urljoin(href), callback, PERSONA).replace(dont_filter=True)
+        return self.page(response.urljoin(href), callback, PERSONA)
 
     def parse_home(self, response: Response) -> Iterator:
         about = response.css("#about")

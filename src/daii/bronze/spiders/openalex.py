@@ -84,7 +84,7 @@ class OpenalexSpider(AcademicSpider):
                 tipo_publicacion=loc.get("raw_type") or w.get("type"),
                 venue=(loc.get("source") or {}).get("display_name"),
                 autores=[a["author"]["display_name"] for a in w.get("authorships") or []],
-                doi=(w.get("doi") or "").removeprefix("https://doi.org/") or None,
+                doi=w.get("doi"),  # crudo: silver normaliza
                 url_destino=loc.get("pdf_url") or loc.get("landing_page_url"),
                 citas=w.get("cited_by_count"),
                 ids={"openalex": w["id"].rsplit("/", 1)[-1]},

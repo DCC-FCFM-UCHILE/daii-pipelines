@@ -14,7 +14,7 @@ from scrapy import Request
 from scrapy.http import Response
 from scrapy_playwright.page import PageMethod
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, anio, clean, texts
 
 PANES = [
     "informacion-personal",
@@ -26,13 +26,15 @@ PANES = [
     "extensiones",
 ]
 PAGINA = re.compile(r"Página (\d+) de (\d+)")
+# Tipos de "Vinculación con el medio" del portafolio → vocabulario de items.TipoActividad.
+TIPO_EXTENSION = {
+    "Divulgaciones": "divulgacion",
+    "Noticias": "prensa",
+    "Prestaciones": "asesoria",
+    "Proyectos": "vinculacion",
+}
 MAX_PAGES = 60  # tope de seguridad por tabla
 WAIT_MS = 120_000  # las esperas de página usan 30 s por defecto; perfiles grandes con carga paralela tardan más
-
-
-def _year(s: str | None) -> str | None:
-    m = re.search(r"(\d{4})", s or "")
-    return m.group(1) if m else None
 
 
 def _rows(table: Selector) -> Iterator[tuple[dict[str, str | None], Selector]]:
@@ -141,83 +143,83 @@ class PortafolioSpider(AcademicSpider):
                 yield self.item(
                     "formacion",
                     response,
-                    grado=r["Grado / Título"] or "",
-                    institucion=r["Institución"],
-                    anio=_year(r["Fecha"]),
+                    grado=r.get("Grado / Título") or "",
+                    institucion=r.get("Institución"),
+                    anio=anio(r.get("Fecha")),
                 )
             elif pane == "informacion-personal" and "Cargo" in heads:
                 yield self.item(
                     "afiliacion",
                     response,
-                    organizacion=" / ".join(x for x in [r["Organismo"], r["Departamento"]] if x),
-                    rol=r["Cargo"],
-                    desde=r["Inicio"],
-                    hasta=None if r["Término"] in (None, "-") else r["Término"],
+                    organizacion=" / ".join(x for x in [r.get("Organismo"), r.get("Departamento")] if x),
+                    rol=r.get("Cargo"),
+                    desde=r.get("Inicio"),
+                    hasta=None if r.get("Término") in (None, "-") else r.get("Término"),
                 )
             elif pane == "docencia":
                 yield self.item(
                     "dictacion",
                     response,
-                    nombre_curso=r["Nombre de asignatura"] or "",
-                    codigo_curso=r["Código"],
-                    anio=r["Año"],
-                    semestre=r["Periodo"],
-                    rol=" · ".join(x for x in [r["Rol"], r["Nivel"]] if x),
-                    institucion=r["Unidad Académica"],
+                    nombre_curso=r.get("Nombre de asignatura") or "",
+                    codigo_curso=r.get("Código"),
+                    anio=r.get("Año"),
+                    semestre=r.get("Periodo"),
+                    rol=" · ".join(x for x in [r.get("Rol"), r.get("Nivel")] if x),
+                    institucion=r.get("Unidad Académica"),
                 )
             elif pane == "publicaciones":
                 yield self.item(
                     "publicacion",
                     response,
-                    titulo=r["Publicación"] or "",
-                    anio=r["Año"],
-                    venue=r["Título revista"],
+                    titulo=r.get("Publicación") or "",
+                    anio=r.get("Año"),
+                    venue=r.get("Título revista"),
                     tipo_publicacion="revista",
-                    doi=re.sub(r"^https?://(dx\.)?doi\.org/", "", href) if href and "doi.org" in href else None,
+                    doi=href if href and "doi.org" in href else None,  # crudo: silver normaliza
                     url_destino=href,
-                    ids={"indexacion": r["Indexación"]} if r.get("Indexación") else {},
+                    ids={"indexacion": r.get("Indexación")} if r.get("Indexación") else {},
                 )
             elif pane == "libros-capitulos":
                 yield self.item(
                     "publicacion",
                     response,
-                    titulo=r["Título"] or "",
-                    anio=r["Año"],
-                    venue=r["Editorial"],
+                    titulo=r.get("Título") or "",
+                    anio=r.get("Año"),
+                    venue=r.get("Editorial"),
                     tipo_publicacion="libro o capítulo",
-                    doi=re.sub(r"^https?://(dx\.)?doi\.org/", "", href) if href and "doi.org" in href else None,
+                    doi=href if href and "doi.org" in href else None,  # crudo: silver normaliza
                     url_destino=href,
                 )
             elif pane == "proyectos-investigacion":
                 yield self.item(
                     "proyecto",
                     response,
-                    titulo=r["Título"] or "",
-                    codigo=r["Código"],
-                    fuente=" · ".join(x for x in [r["Fuente"], r["Programa"]] if x),
-                    anio_inicio=_year(r["Inicio"]),
-                    anio_fin=_year(r["Fin"]),
-                    investigador_responsable=r["Investigador/a principal | Coinvestigadores/as"],
+                    titulo=r.get("Título") or "",
+                    codigo=r.get("Código"),
+                    fuente=" · ".join(x for x in [r.get("Fuente"), r.get("Programa")] if x),
+                    anio_inicio=anio(r.get("Inicio")),
+                    anio_fin=anio(r.get("Fin")),
+                    investigador_responsable=r.get("Investigador/a principal | Coinvestigadores/as"),
                 )
             elif pane == "memorias-tesis":
                 yield self.item(
                     "tesis",
                     response,
-                    titulo=r["Titulo"] or "",
-                    anio=r["Año"],
-                    estudiante=r["Autores/as"],
+                    titulo=r.get("Titulo") or "",
+                    anio=r.get("Año"),
+                    estudiante=r.get("Autores/as"),
                     rol="guía",
-                    programa=r["Unidad Académica"],
+                    programa=r.get("Unidad Académica"),
                     url_destino=href,
                 )
             elif pane == "extensiones":
                 yield self.item(
                     "actividad",
                     response,
-                    tipo_actividad=r["Tipo"] or "extension",
-                    titulo=r["Iniciativa"] or "",
-                    descripcion=r["Subtipo"],
-                    fecha=" - ".join(x for x in [r["Fecha inicio"], r["Fecha fin"]] if x and "9999" not in x),
-                    rol=r["Rol"],
+                    tipo_actividad=TIPO_EXTENSION.get(r.get("Tipo") or "", "extension"),
+                    titulo=r.get("Iniciativa") or "",
+                    descripcion=" · ".join(x for x in [r.get("Tipo"), r.get("Subtipo")] if x) or None,
+                    fecha=" - ".join(x for x in [r.get("Fecha inicio"), r.get("Fecha fin")] if x and "9999" not in x),
+                    rol=r.get("Rol"),
                     url_destino=href,
                 )

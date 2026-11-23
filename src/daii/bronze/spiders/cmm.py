@@ -9,7 +9,7 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, clean, email, texts
 
 YEAR_END = re.compile(r"\s*\((\d{4})\)\s*$")  # "Doctor en Matemáticas, ..., Francia (1994)"
 AWARD_YEAR = re.compile(r"\s+[-–]\s+(\d{4})$")  # "CNRS Fellow-Ambassadeur - 2023"
@@ -18,10 +18,6 @@ AWARD_YEAR = re.compile(r"\s+[-–]\s+(\d{4})$")  # "CNRS Fellow-Ambassadeur - 2
 class CmmSpider(AcademicSpider):
     name = "cmm"
     expect = {"persona": 1, "formacion": 1, "afiliacion": 2, "area": 1}
-
-    async def start(self):
-        for p in self.personas("cmm"):
-            yield self.page(p["perfiles"]["cmm"], self.parse, p["slug"])
 
     def parse(self, response: Response) -> Iterator:
         main = response.css("main")
@@ -33,7 +29,7 @@ class CmmSpider(AcademicSpider):
             response,
             nombre=texts(main.css("h1.post_title")),
             cargo=texts(main.css(".cargo")),
-            email=(contacto.css("a[href^='mailto:']::attr(href)").get() or "").removeprefix("mailto:") or None,
+            email=email(contacto.css("a[href^='mailto:']::attr(href)").get()),
             telefono=texts(tel[-1]) if tel else None,
             oficina=next(  # el iconbox sin link es la oficina ("724")
                 (t for b in contacto.css(".w-iconbox") if not b.css("a") and (t := texts(b.css(".w-iconbox-title")))),

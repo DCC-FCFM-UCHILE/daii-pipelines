@@ -21,7 +21,8 @@ def test_portafolio_mcphee_pagina_1():
     d = out["dictacion"][0]
     assert (d["codigo_curso"], d["anio"], d["semestre"]) == ("CD1100", 2026, "Primer Semestre")
     pub = out["publicacion"][0]
-    assert pub["doi"] == "10.5194/tc-20-1895-2026" and pub["ids"]["indexacion"] == "WOS/SCOPUS/UCH/VID"
+    assert pub["doi"] == "http://dx.doi.org/10.5194/tc-20-1895-2026"  # crudo; silver normaliza
+    assert pub["ids"]["indexacion"] == "WOS/SCOPUS/UCH/VID"
     assert out["proyecto"][0]["codigo"] == "CIA250010" and out["proyecto"][0]["anio_fin"] == 2030
     assert out["tesis"][0]["estudiante"] == "Castillo Ávalos, Yuri Alejandro"
     assert out["actividad"][0]["rol"] == "Colaborador(a)"

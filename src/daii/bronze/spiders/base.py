@@ -1,12 +1,15 @@
 """Clase base de todos los spiders: semillas por persona, ítems con metadatos y links relacionados."""
 
+import io
 import re
+import unicodedata
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 from urllib.parse import urlparse
 
 import scrapy
+from pypdf import PdfReader
 from scrapy.http import Response, TextResponse
 
 from daii.config import academicos, con_perfil, whitelist
@@ -20,12 +23,60 @@ def clean(text: str | None) -> str | None:
     return text or None
 
 
+ANIO = re.compile(r"\b(?:19|20)\d{2}\b")
+URL_FIELDS = ("url_destino", "url_organizacion", "url_curso", "foto_url")
+LATEX_ACENTO = re.compile(r"([´˜¨`ˆ¸])\s?([A-Za-zı])")
+LATEX_COMB = {"´": "\u0301", "˜": "\u0303", "¨": "\u0308", "`": "\u0300", "ˆ": "\u0302", "¸": "\u0327"}
+
+
+def anios(text: str | None) -> list[int]:
+    """Todos los años (19xx/20xx) como palabra completa; no confunde años con trozos de códigos como 1240954."""
+    return [int(a) for a in ANIO.findall(text or "")]
+
+
+def anio(text: str | None) -> int | None:
+    """Primer año del texto (usar `anios(t)[-1]` para el último)."""
+    return (anios(text) or [None])[0]
+
+
+def plain(sel) -> str | None:
+    """Texto de un nodo SIN insertar espacios entre hijos (para editores que parten palabras en <span>)."""
+    return clean("".join(sel.css("::text").getall()))
+
+
+def abs_url(response: Response, href: str | None) -> str | None:
+    """URL absoluta o None (ojo: response.urljoin("") devuelve la URL de la página, no vacío)."""
+    return response.urljoin(href) if href else None
+
+
+def pdf_texto(response: Response, **kw: Any) -> str:
+    """Texto de un PDF (kw → PageObject.extract_text, p. ej. extraction_mode="layout")."""
+    return "\n".join(p.extract_text(**kw) or "" for p in PdfReader(io.BytesIO(response.body)).pages)
+
+
+def latex_acentos(text: str) -> str:
+    """pypdf deja el acento LaTeX antes de la letra ("F¨orster", "Rodr´ıguez"): recomponer."""
+    text = LATEX_ACENTO.sub(lambda m: m[2].replace("ı", "i") + LATEX_COMB[m[1]], text)
+    return unicodedata.normalize("NFC", text.replace("ı", "i"))
+
+
+def email(href: str | None) -> str | None:
+    """ "mailto:x@y.cl" → "x@y.cl"."""
+    return (href or "").removeprefix("mailto:").strip() or None
+
+
+def redact(url: str) -> str:
+    """Quita credenciales de query strings antes de persistir una URL (p. ej. api_key de OpenAlex)."""
+    return re.sub(r"([?&])api_key=[^&]*&?", r"\1", url).rstrip("?&")
+
+
 def texts(sel) -> str | None:
     """Texto visible de un selector (incluye hijos), limpio."""
     return clean(" ".join(sel.css("::text").getall()))
 
 
-INITIALS = re.compile(r"^(?:[A-Z][a-z]?\.\s?-?)+$")
+# Iniciales con o sin punto ("F.", "Ch.", "R", "J.-L."); la forma alternada evita fusionar "F. Bravo, J. Li".
+INITIALS = re.compile(r"^(?:[A-ZÁÉÍÓÚÑ](?:[a-z]\.|\.?)\s?-?)+$")
 
 
 def autores(s: str) -> list[str]:
@@ -56,16 +107,26 @@ class AcademicSpider(scrapy.Spider):
         self.only = persona
         self.handled: set[str] = set()
 
+    async def start(self):
+        """Por defecto (spiders de plataforma): una página por persona con `perfiles[<name>]` en config."""
+        for p in self.personas(self.name):
+            yield self.page(p["perfiles"][self.name], self.parse, p["slug"])
+
     def personas(self, plataforma: str | None = None) -> list[dict]:
         ps = con_perfil(plataforma) if plataforma else academicos()
         return [p for p in ps if not self.only or p["slug"] == self.only]
 
     def page(self, url: str, callback, persona: str, **meta: Any) -> scrapy.Request:
         self.handled.add(url)
-        return scrapy.Request(url, callback=callback, errback=self._page_failed, meta={"persona": persona, **meta})
+        # dont_filter: si related() de otra página ya pidió esta URL como `pagina`, igual se parsea aquí.
+        return scrapy.Request(
+            url, callback=callback, errback=self._page_failed, dont_filter=True, meta={"persona": persona, **meta}
+        )
 
-    def _page_failed(self, failure) -> None:
+    async def _page_failed(self, failure) -> None:
         """Una página propia no se pudo bajar: quality lo reporta como warn."""
+        if page := failure.request.meta.get("playwright_page"):  # con playwright_include_page la cierra el spider
+            await page.close()
         self.crawler.stats.inc_value("daii/page_error")
         self.logger.error("página propia falló: %s (%s)", failure.request.url, failure.value)
 
@@ -75,10 +136,13 @@ class AcademicSpider(scrapy.Spider):
         self.logger.info("link relacionado falló: %s (%s)", failure.request.url, failure.value)
 
     def item(self, tipo: str, response: Response, **fields: Any) -> dict:
+        for k in URL_FIELDS:  # hrefs relativos → absolutos, en un solo lugar
+            if fields.get(k):
+                fields[k] = response.urljoin(fields[k])
         return {
             "tipo": tipo,
             "persona": response.meta["persona"],
-            "url": response.url,
+            "url": redact(response.url),
             "spider": self.name,
             "run_id": self.run_id,
             "scraped_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -101,7 +165,8 @@ class AcademicSpider(scrapy.Spider):
                 not response.meta.get("related")
                 and url not in self.handled
                 and not u.path.lower().endswith(SKIP_EXT)
-                and (u.netloc == here.netloc or any(u.netloc == d or u.netloc.endswith("." + d) for d in whitelist()))
+                and (host := u.hostname or "")
+                and (host == here.hostname or any(host == d or host.endswith("." + d) for d in whitelist()))
             )
             yield self.item("link", response, url_destino=url, texto=texts(a), seguido=follow)
             if follow:

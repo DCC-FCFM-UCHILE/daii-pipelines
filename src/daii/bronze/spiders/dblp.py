@@ -45,11 +45,10 @@ class DblpSpider(AcademicSpider):
             yield req
 
     def parse(self, response: Response) -> Iterator[dict]:
-        pid = response.meta.get("pid")
-        if pid:
-            yield self.item(
-                "perfil", response, plataforma="dblp", identificador=pid, url_destino=f"https://dblp.org/pid/{pid}.html"
-            )
+        pid = response.meta["pid"]
+        yield self.item(
+            "perfil", response, plataforma="dblp", identificador=pid, url_destino=f"https://dblp.org/pid/{pid}.html"
+        )
         for row in json.loads(response.text)["results"]["bindings"]:
             signed = sorted((_val(row, "authors") or "").splitlines(), key=lambda s: int(s.split("|", 1)[0]))
             yield self.item(
@@ -60,6 +59,6 @@ class DblpSpider(AcademicSpider):
                 tipo_publicacion=(_val(row, "type") or "").rsplit("#", 1)[-1] or None,
                 venue=_val(row, "venue"),
                 autores=[s.split("|", 1)[1] for s in signed],
-                doi=(_val(row, "doi") or "").removeprefix("https://doi.org/") or None,
+                doi=_val(row, "doi"),  # crudo: silver normaliza
                 ids={"dblp": row["publ"]["value"].rsplit("/rec/", 1)[-1]},
             )

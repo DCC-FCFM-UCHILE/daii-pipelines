@@ -8,7 +8,7 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, clean, email, texts
 
 YEAR_END = re.compile(r",\s*(\d{4})\s*$")
 SEMESTRE = re.compile(r"(\d{4})\s+(Otoño|Primavera|Verano|Invierno|Anual)")
@@ -18,10 +18,6 @@ class UcurriculumSpider(AcademicSpider):
     name = "ucurriculum"
     expect = {"persona": 1, "formacion": 1, "dictacion": 1}
 
-    async def start(self):
-        for p in self.personas("ucurriculum"):
-            yield self.page(p["perfiles"]["ucurriculum"], self.parse, p["slug"])
-
     def parse(self, response: Response) -> Iterator:
         box = response.css(".academico")
         yield self.item(
@@ -29,7 +25,7 @@ class UcurriculumSpider(AcademicSpider):
             response,
             nombre=texts(box.css(".nombre")) or texts(response.css(".quien h2")),
             cargo=texts(box.css(".cargo")),
-            email=(box.css(".email a::attr(href)").get() or "").removeprefix("mailto:") or None,
+            email=email(box.css(".email a::attr(href)").get()),
             telefono=box.css(".anexo a::text").get(),
             oficina=box.css(".oficina::attr(title)").get(),
             foto_url=box.css("img.img-fluid::attr(src)").get(),
@@ -99,7 +95,7 @@ class UcurriculumSpider(AcademicSpider):
                     )
                 elif seccion.startswith("Proyectos"):
                     # "Fondecyt_Anid, 1240954, 2024 - 2028"  (la fuente puede traer comas; se parsea desde la derecha)
-                    years = re.findall(r"\d{4}", meta[-1]) if meta else []
+                    years = re.findall(r"\b\d{4}\b", meta[-1]) if meta else []
                     rest = meta[:-1] if years else meta
                     yield self.item(
                         "proyecto",

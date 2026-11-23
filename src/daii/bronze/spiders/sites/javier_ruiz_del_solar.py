@@ -12,7 +12,7 @@ from collections.abc import Iterator
 
 from scrapy.http import Response, TextResponse
 
-from daii.bronze.spiders.base import AcademicSpider, clean
+from daii.bronze.spiders.base import AcademicSpider, clean, email
 
 SITIO = "https://www.cec.uchile.cl/~jruizd/"
 PERSONA = "javier-ruiz-del-solar"
@@ -128,7 +128,7 @@ class JavierRuizDelSolarSpider(AcademicSpider):
             "persona",
             response,
             nombre=contacto[0],
-            email=(response.css("a[href^='mailto:']::attr(href)").get() or "").removeprefix("mailto:") or None,
+            email=email(response.css("a[href^='mailto:']::attr(href)").get()),
             telefono=phone,
         )
 

@@ -18,23 +18,15 @@ from collections.abc import Iterator
 
 from scrapy.http import Response
 
-from daii.bronze.spiders.base import AcademicSpider, clean, texts
+from daii.bronze.spiders.base import AcademicSpider, anio, clean, texts
 
 ANIO = re.compile(r"\b(\d{4})\b")
 DESDE_HASTA = re.compile(r"(\d{4})\s*-\s*(.+)")
 
 
-def _anio(text: str | None) -> int | None:
-    return int(m.group(1)) if text and (m := ANIO.search(text)) else None
-
-
 class AnidSpider(AcademicSpider):
     name = "anid"
     expect = {"persona": 1, "formacion": 1, "afiliacion": 6, "publicacion": 20, "proyecto": 1, "link": 5}
-
-    async def start(self):
-        for p in self.personas("anid"):
-            yield self.page(p["perfiles"]["anid"], self.parse, p["slug"])
 
     def parse(self, response: Response) -> Iterator:
         foto = response.css(".profile-picture img::attr(src)").get()
@@ -67,7 +59,7 @@ class AnidSpider(AcademicSpider):
                         response,
                         grado=texts(h5.css("strong")),
                         institucion=", ".join(x for x in (inst, pais) if x) or None,
-                        anio=_anio(h5.css("small::text").get()),
+                        anio=anio(h5.css("small::text").get()),
                     )
             elif seccion in ("Experiencia Académica", "Experiencia Profesional"):
                 for li in body.css("li"):
@@ -93,7 +85,7 @@ class AnidSpider(AcademicSpider):
                         response,
                         nombre=texts(li.css("h5 strong")),
                         otorgante=texts(li.css("span.text-warning")),
-                        anio=_anio(texts(li.css("small"))),
+                        anio=anio(texts(li.css("small"))),
                     )
 
         for href in response.css("#messages a::attr(href)").getall():
@@ -113,7 +105,7 @@ class AnidSpider(AcademicSpider):
         meta = {texts(tr.css("td:first-child")): texts(tr.css("td:nth-child(2)")) for tr in art.css("#metadata tr")}
         tipo = texts(art.css(".metadata .label-info"))
         titulo = texts(art.css(".article > h3"))
-        anio = _anio(texts(art.css(".metadata")))
+        anio_obra = anio(texts(art.css(".metadata")))
         ident = response.url.rsplit("id=", 1)[-1]
         if tipo == "Proyecto":
             inicio, _, fin = (meta.get("Año de Inicio/Término:") or "").partition("-")
@@ -122,8 +114,8 @@ class AnidSpider(AcademicSpider):
                 response,
                 titulo=titulo,
                 fuente=meta.get("Financiamiento/Sponsor:"),
-                anio_inicio=_anio(inicio) or anio,
-                anio_fin=_anio(fin),
+                anio_inicio=anio(inicio) or anio_obra,
+                anio_fin=anio(fin),
             )
         else:
             indexacion = ", ".join(texts(s) or "" for s in art.css(".metadata .label:not(.label-info)"))
@@ -136,7 +128,7 @@ class AnidSpider(AcademicSpider):
                 "publicacion",
                 response,
                 titulo=titulo,
-                anio=anio,
+                anio=anio_obra,
                 tipo_publicacion=tipo,
                 venue=meta.get("Título de la Revista:"),
                 autores=autores,

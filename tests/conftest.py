@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import pytest
 from scrapy import Request
 from scrapy.http import HtmlResponse, Response, TextResponse
 
@@ -24,8 +23,3 @@ def run_parse(gen) -> dict[str, list[dict]]:
             item = bronze_item.validate_python(x).model_dump()
             out.setdefault(item["tipo"], []).append(item)
     return out
-
-
-@pytest.fixture
-def parsed():
-    return run_parse

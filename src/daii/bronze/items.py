@@ -8,6 +8,31 @@ from typing import Annotated, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
+# Vocabulario cerrado: el texto original de la fuente va en `descripcion` o `rol`.
+TipoActividad = Literal[
+    "charla",  # charla invitada, seminario, talk
+    "keynote",
+    "tutorial",
+    "editorial",  # editor/a, comité editorial, guest editor
+    "comite_programa",  # PC/SPC de conferencias
+    "comite",  # otros comités (asesores, técnicos, sociedades)
+    "organizacion_evento",  # chair, organización de eventos o escuelas
+    "revisor",
+    "divulgacion",  # outreach, ciencia para público general
+    "prensa",  # medios, noticias sobre la persona
+    "noticia",  # noticias del propio sitio (nuevo cargo, proyecto, visita...)
+    "asesoria",  # consultoría, asesoría a empresas o Estado
+    "transferencia",  # transferencia tecnológica
+    "politica_publica",
+    "consejo_directivo",
+    "gestion",  # cargos de gestión universitaria
+    "servicio",  # servicio académico no clasificado arriba
+    "visita",  # estadías y visitas académicas
+    "vinculacion",  # vinculación con comunidades
+    "extension",  # extensión universitaria (cursos, prestaciones)
+    "otro",
+]
+
 
 class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -74,7 +99,7 @@ class Publicacion(_Base):
 
 class Tesis(_Base):
     tipo: Literal["tesis"] = "tesis"
-    titulo: str
+    titulo: str | None = None  # muchas fuentes listan estudiantes sin título: no se inventa
     anio: int | None = None
     nivel: str | None = None  # memoria|magister|doctorado|postdoc (texto)
     estudiante: str | None = None
@@ -109,9 +134,7 @@ class Dictacion(_Base):
 
 class Actividad(_Base):
     tipo: Literal["actividad"] = "actividad"
-    tipo_actividad: (
-        str  # charla|keynote|editorial|comite_programa|divulgacion|prensa|... (vocabulario de modelo_datos.md)
-    )
+    tipo_actividad: TipoActividad
     titulo: str
     descripcion: str | None = None
     evento: str | None = None
