@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!--
+Design by Free CSS Templates
+http://www.freecsstemplates.org
+Released for free under a Creative Commons Attribution 2.5 License
+
+Name       : Blogsmith
+Description: A two-column, fixed-width blog design.
+Version    : 1.0
+Released   : 20071001
+
+-->
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<title>Ivan Sipiran's Personal Page</title>
+<meta name="keywords" content="" />
+<meta name="description" content="" />
+<link href="default.css" rel="stylesheet" type="text/css" media="screen" />
+</head>
+<body>
+<!-- start header -->
+<div id="logo">
+	<h1><a href="#">Ivan Sipiran</a></h1>
+	<p>&nbsp;</p>
+</div>
+<div id="menu">
+	<ul>
+		<li><a href="index.html">Main</a></li>
+		<li  class="current_page_item"><a href="">Research</a></li>
+		<li><a href="publications.html">Publications</a></li>
+		<li><a href="links.html">Software and Links</a></li>
+		<li><a href="mycoords.html">My coords</a></li>
+	</ul>
+</div>
+<!-- end header -->
+<!-- start page -->
+<div id="page">
+	<div id="page-bg">
+		<div id="latest-post">
+			In this page, I show some projects where I was involved in since my undergraduate studies. These works are in descending chronological order.
+		</div>
+		<!-- start content -->
+		<div id="content">
+			<div class="post">
+				<h2 class="title"><a href="#">Data-driven restoration of archaeological objects with neural networks</a></h2>
+				<div class="entry" >
+					<p>
+During archaeological excavations, it is common to find fractured or damaged objects. The process to repair and conserve these objects is tedious and delicate. Objects are often fragile and the time for manipulation must be short. With the recent progress in geometry processing and shape analysis, one can address the repair problem from a computational perspective. The process starts with a 3D scanning of the object. Then, an algorithm analyzes the 3D shape to guide the conservation process. Previous experience shows that unsupervised shape analysis to repair damaged objects give good approximations to conservators, and therefore reduce the workload and time of the processing.</p>
+<p>
+The main problem is the prediction of missing geometry of damaged objects. Current methods assume
+that man-made objects exhibit some kind of structure and regularity. The most common type of structure
+used is symmetry. If an algorithm can detect symmetries in the object, we can apply the symmetric trans-
+formation to create what is missing. Although this approach is a promising direction, there are still some
+drawbacks: 1) If the object is too damaged, the symmetries cannot be recovered from the object itself. 2)
+The computational time to search for symmetries is still high.</p>
+<p>
+We hypothesize that the aforementioned drawbacks can be addressed by a data-driven approach. It
+means we can learn the structure and regularity from a collection of complete known objects (in training
+time) and use them to complete and repair incomplete damaged objects (in testing time). In our project, the learning will be addressed through a deep learning architecture that captures the structure of complete objects and produces good approximations for incomplete objects.</p>
+<p>
+                       This project is being funded by FONDECYT under contract 62-2018-FONDECYT-BM-IADT-AV.<br />
+                <center>
+		     <img src="images/nn.png" alt="" width="650" />
+		</center>
+                    </p>
+			</div>
+		</div>
+<div class="post">
+				<h2 class="title"><a href="#">Visualization and flooding simulation system for risk management in vulnerable cities</a></h2>
+				<div class="entry" >
+<p>We propose the implementation of a system for acquisition, processing, visualization and simulation for flooding events. The first stage consists of acquiring topographic information of cities with high vulnerability of floodings. The 3D surface will be obtained from drones equipped  with a high-resolution LIDAR scanner. The use of drones allows us to work in places of difficult access and where the risk for human work is high. The second stage is devoted to develop a visualization system for huge amount of 3D data. Moreover, our goal is to provide a visualization platform in the cloud, so the access to the gathered information will be easy. The third stage consists of implementing a flooding simulation system which will be used to compute information in eventual flooding events. With this system we can provide precise information on the impact of an event, and therefore this information can be used to improve the risk management.</p>
+					<p>
+                       This project is being funded by FONDECYT under contract 129-2018-FONDECYT.<br />
+                    </p>
+              </div>
+	</div>
+
+			<div class="post">
+				<h2 class="title"><a href="#">Analysis of Symmetries in 3D objects and its Application to Archaeology</a></h2>
+				<div class="entry" >
+					<p>
+                        The goal of this project is to provide computational tools for the analysis of cultural heritage objects. A ubiquitous characteristic of human-made objects is that they tend 
+                        to exhibit symmetries. The symmetry has been historically associated to beauty and order. In this context, we believe that the analysis of symmetries could help to 
+                        understand the geometry of cultural heritage objects. Using the self-information we can get from our analysis, we will provide computational algorithms to complete and repair archaeological objects. This tool could be very helpful in preservation and conservation procedures. This project is being funded by INNOVATE- Peru under contract 280-PNICP-BRI-2015.<br />
+                    </p>
+<p>
+We have researched robust methods to analyze the symmetry of 3D objects. Our current engine uses sophisticated algorithms based on the heat diffusion theory over surfaces to reveal the structure of an object. Some examples of our methods can be observed in the following videos.
+</p>
+
+<iframe width="640"  height="400" src = "https://www.youtube.com/embed/CeND9HsvVVM"></iframe> <br />
+<iframe width="640"  height="400" src = "https://www.youtube.com/embed/lllsjEDBZJs"></iframe> <br />
+<iframe width="640"  height="400" src = "https://www.youtube.com/embed/5AKQO-w5A5o"></iframe> <br />
+
+
+				</div>
+			</div>
+            
+            <div class="post">
+				<h2 class="title"><a href="#">Object Completion for Cultural Heritage - EU Project PRESIOUS</a></h2>
+				<div class="entry" >
+					<p>
+                        The goal of this research was to provide computational tool to archaeologists in order to guide the restoration and preservation tasks of damaged objects. Cultural heritage objects were scanned with a high-resolution 3D scanner. Subsequently, we developed algorithms to analyze and process the geometry of the objects. A common problem of cultural heritage objects is the existence of large missing parts which are ussually non-existent. We propose a computational tool that analyzes the geometry of the input 3D object and generates candidate completed objects. The output can be used for several further tasks such as: searching missing fragments, completion of objects for exhibition, 3D printing of missing parts. More details of the PRESIOUS project and the obtained results, please visit <a href="http://www.presious.eu">www.presious.eu</a>.<br />
+		<center>
+		<img src="images/presious.png" alt="" width="650" />
+		</center>
+              </p>
+				</div>
+			</div>
+            
+            <div class="post">
+				<h2 class="title"><a href="#">A fully hierarchical approach for finding correspondences in non-rigid shapes</a></h2>
+				<div class="entry" >
+					<p>
+        This research presents a hierarchical method for finding correspondences in non-rigid shapes. We propose a new
+							representation for 3D meshes: the decomposition tree. This structure characterizes the recursive decomposition process
+							of a mesh into regions of interest and keypoints. The internal nodes contain regions of interest (which may be 
+							recursively decomposed) and the leaf nodes contain the keypoints to be matched. We also propose a hierarchical 
+							matching algorithm that performs in a level-wise manner. The matching process is guided by the similarity 
+							between regions in high levels of the tree, until reaching the keypoints stored in the leaves. This allows us to 
+							reduce the search space of correspondences, making also the matching process efficient. We evaluate the 
+							effectiveness of our approach using the SHREC’2010 robust correspondence benchmark. In addition, we show that 
+							our results outperform the state of the art.<br />
+		<center>
+		<img src="images/results_1.png" alt="" width="650" />
+		</center>
+              </p>
+				</div>
+			</div>
+			
+			<div class="post">
+				<h2 class="title"><a href="#">Key-component Detection on 3D Meshes using Local Features</a></h2>
+				<div class="entry" >
+					<p>
+                           We present a method to detect stable components on 3D meshes. A component is a region
+                           on the mesh which contains discriminative local features. Our goal is to represent a 3D
+                           mesh with a set of regions, which we called key-components, that characterize the 
+                           represented object and therefore, they could be used for effective matching and recognition.
+                           As key-components are features in coarse scales, they are less sensitive to mesh deformations
+                           such as noise. In addition, the number of key-components is low compared to other local 
+                           representations such as keypoints, allowing us to use them in efficient subsequent tasks.
+                           A desirable characteristic of a decomposition is that the components should be repeatable 
+                           regardless shape transformations. We show in the experiments that the key-components are repeatable 
+                           under several transformationsusing the SHREC'10 feature detection benchmark.<br />
+		<center>
+		<img src="images/component.jpg" alt="" width="350" />
+		</center>
+              </p>
+				</div>
+			</div>
+			
+			<div class="post">
+				<h2 class="title"><a href="#">Data-aware 3D Partitioning for Generic Shape Retrieval</a></h2>
+				<div class="entry" >
+					<p>
+        We present a new approach for generic 3D shape retrieval based on a mesh partitioning
+							scheme. Our method combines a mesh global description and mesh partition descriptions to represent a
+							3D shape. The partitioning is useful because it helps us to extract additional information in a more local
+							sense. Thus, part descriptions can mitigate the semantic gap imposed by global description methods.
+							We propose to find spatial agglomerations of local features to generate mesh partitions. Hence, the
+							definition of a distance function is stated as an optimization problem to find the best match between two
+							shape representations. We show that mesh partitions are representative and therefore it helps to
+							improve the effectiveness in retrieval tasks. We present exhaustive experimentation using the SHREC'09
+							Generic Shape Retrieval Benchmark.<br />
+		<center>
+		<img src="images/partitions.png" alt="" width="650" />
+		</center>
+              </p>
+				</div>
+			</div>
+			
+			<div class="post">
+				<h2 class="title"><a href="#">Harris 3D: interest point detection on meshes</a></h2>
+				<p class="byline"><a href="harris3D.html">Project Page</a></p>
+				<div class="entry" >
+					<p>
+                           With the increasing amount of 3D data and the ability of capture devices to produce low-cost
+			multimedia data, the capability to select relevant information has become an interesting research field.
+			In 3D objects, the aim is to detect a few salient structures which can be used, instead of the whole
+			object, for applications like object registration, retrieval, and mesh simplification.
+			In this paper, we present an interest points detector for 3D objects based on Harris operator, which has
+			been used with good results in computer vision applications. We propose an adaptive technique to
+			determine the neighborhood of a vertex, over which the Harris response on that vertex is calculated.
+			Our method is robust to several transformations, which can be seen in the high repeatability values
+			obtained using the SHREC feature detection and description benchmark. In addition, we show that
+			Harris 3D outperforms the results obtained by recent effective techniques such as Heat Kernel
+			Signatures.<br />
+		<center>
+		<img src="images/harris.jpg" alt="" width="400" />
+		</center>
+              </p>
+				</div>
+			</div>
+
+			<div class="post">
+				<h2 class="title"><a href="#">Partial Similarity Search in 3D Object Databases</a></h2>
+				<div class="entry" >
+					<p>
+                The ability to store and manipulate large amounts of information have enabled the emergence of a number of applications. Generally, the information is given as text because it is easy to produce and understand text by a computer. However, there are situations where it is difficult to represent textually a need. For example, let us imagine the tourist's album with stories instead of photos. Thus, the multimedia information diffusion has increase considerably, on the one hand, to support new needs, and on the other hand, because of the proliferation of capture devices such as digital cameras and medical devices, which make possible an inexpensive production. With images, videos or three-dimensional models, a number of applications have benefited such as security, entertainment, engineering processes, and so on. Unlike text, multimedia information is difficult to be compared directly and therefore we require techniques to manipulate it effectively. We are interested in content-based 3D objects retrieval, where we aim to retrieve visually similar objects from a collections of 3D models given a 3D object as query. In particular, the objective in this work is to define techniques for Partial Similarity Retrieval, where a complete query model is not available and we require to retrieve objects that contains substructures visually similar to the query, as shown in the figure(at left, an incomplete  query model, at right, the models that should be retrieved). There are many real-world scenarios, such as Computer Aided Desing, where this problem require attention.<br />
+		<center>
+		<img src="images/partialRetrieval.jpg" alt="" width="600" />
+		</center>
+              </p>
+				</div>
+			</div>
+			<div class="post">
+				<h2 class="title"><a href="#">Supervised Researches</a></h2>
+				<div class="entry">
+					<p>When I was in National University of Trujillo as professor, I guided the researches listed below. 
+					</p>
+					<p>
+						<ul>
+							<li><strong>Content-Based Image Retrieval for Supporting the Medical Images Diagnosis.</strong> In this work, the authors proposed  to use content-based image retrieval methods to help in diagnosis involving medical images. To achieve this, the authors developed feature vectors extraction techniques on images. Using Gabor Wavelets, the extraction algorithm provides orientation and scale robustness. In addition, after the extraction step, the feature vectors were organized in a metric index in order to efficiently retrieve similar images to a given query. Authors: Laura Florián Cruz and <a href = "http://www.seccperu.org/ededc/doku.php">Fredy Carranza Athó</a>.
+							</li><br />
+							<li><strong>Multidimensional Indexes to Organize High-Dimensional Patterns.</strong>
+								In this work, the authors evaluated the performance of multidimensional indexes in the organization of high-dimensional data in order to provide a framework for task such as multidimensional data mining, image mining and queries by examples in multimedia objects. Authors: Percy Fhon Bautista and Carlos Romero Miñano.
+							</li>
+						</ul>
+					</p>
+				</div>
+			</div>
+			<div class="post">
+				<h2 class="title"><a href="#">Variational Segmentation of Digital Images</a></h2>
+				<p class="byline"><small>State: Completed in August 2006</small></p>
+				<div class="entry">
+					<p>
+                In this work, we implemented an algorithm for digital images segmentation, based on the Minimal Partition Problem as a limit case of Mumford-Shah functional. This functional provides a good characterization of the segmentation process. We compare the obtained results with those obtained with algorithms as multi-thresholding, region-growing and split-merge. The developed method is based on a functional energy minimization on a given image. The level-set method allow us to define an equivalent problem, which is numerically more appropiate. The application of Euler-Lagrage Variational procedure results in an multi-phase image segmentation algorithm. More details can be seen in the publications page. Below, I show some images with results.<br />
+
+		<center>
+		<img src="images/4_ms.jpg" /><br />
+		<img src="images/res1.jpg" /><br />
+		<img src="images/res2.jpg" /><br />
+		<img src="images/resCara36.jpg" /><br />
+		<img src="images/winona_ms.jpg" width="400" /><br />
+		</center>
+					</p>
+			  </div>
+			</div>
+			<div class="post">
+				<h2 class="title"><a href="#">Fingerprint Recognition with Deviation Standard Maps and Neural Networks</a></h2>
+				<div class="entry">
+					<p>
+                The goal of this work was to develop a fingerprint recognition system. First, we applied Gabor Filters to produce a set of images convolved with different filter orientations. Then, we calculated a Deviation Standard Map in a block-wise manner in order to decrease the amount of information. Finally, the set of maps is concatenated to build a high-dimensional feature vector. All feature vectors are used in a feed-forward neural network with backpropagation learning to identify people.
+                <br />
+					</p>
+				</div>
+			</div>
+			<div class="post">
+				<h2 class="title"><a href="#">Expert System for Supermarket Customer Loyalty</a></h2>
+				<p class="byline"><small>State: Completed in August 2005.</small></p>
+				<div class="entry">
+					<p>In this project, we proposed the development of an expert system to evaluate the customer loyalty in a supermarket. If the customer preference and information on customer purchases are available, the system can predict whether a customer is likely to stop buying in the supermarket. The system was implemented in CLIPS as inference engine with user interfaces in Visual C++.<br />
+					</p>
+				</div>
+			</div>
+		</div>
+		<!-- end content -->
+		<!-- start sidebar -->
+	  <!-- end sidebar -->
+	  <div style="clear: both;">&nbsp;</div>
+	</div>
+</div>
+<!-- end page -->
+<div id="footer">
+	<p>&copy;2013 All Rights Reserved. &nbsp;&bull;&nbsp; Design by <a href="http://www.freecsstemplates.org/">Free CSS Templates</a>.</p>
+</div>
+</body>
+</html>

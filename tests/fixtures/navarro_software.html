@@ -1,0 +1,136 @@
+<title> Software </title>
+
+<h3>B&uacute;squeda Aproximada Secuencial en Texto (1996)</h3>
+
+Este es el c&oacute;digo correspondiente al paper "Improving an Algorithm for 
+Approximate Pattern Matching", de R. Baeza-Yates y G. Navarro.<p>
+
+Es un gzipped tar con las explicaciones necesarias en un archivo README
+(en ingl&eacute;s) dentro. Est&aacute; compilado para SunOS, no hay c&oacute;digo fuente.<p>
+
+     Este c&oacute;digo puede usarse y distribuirse libremente con prop&oacute;sitos de
+     docencia e investigaci&oacute;n, siempre que no sea modificado y se mantenga
+     esta nota junto con &eacute;l. Ninguna parte de este c&oacute;digo se puede usar para
+     obtener ganancias o ventajas comerciales directas o indirectas sin el
+     permiso escrito de los autores.<p>
+
+
+<a href="asm.tar.gz">Aqu&iacute; est&aacute; el c&oacute;digo</a>. <p>
+
+
+<h3>NR-grep: B&uacute;squeda en Texto Flexible y Eficiente (2000) </h3>
+
+Este es el c&oacute;digo correspondiente al paper "NR-grep: A Fast and Flexible 
+Pattern Matching Tool", de G. Navarro.<p>
+
+<a href="../ps/spe01.ps.gz">
+Obtenga el paper</a> que explica todos los aspectos del software y
+apareci&oacute; en <i>Software Practice & Experience</i>.<p>
+
+<a href="nrgrep-1.1.tar.gz">Obtenga el c&oacute;digo (versi&oacute;n 1.1)</a>, un gzipped tar
+con todas las explicaciones necesarias en un archivo README.<br>
+Es c&oacute;digo fuente distribuido con una licencia GNU, que ha sido probado en Solaris y Linux. No se dan garant&iacute;as, sin embargo.<p>
+
+Interesado en versiones anteriores? 
+<a href="nrgrep-1.0.tar.gz">nrgrep versi&oacute;n 1.0</a>.
+
+<h3>JTV: Java Turing Visual (2002) </h3>
+
+Esta es una interfaz gr&aacute;fica para simular M&aacute;quinas de Turing, usando la 
+notaci&oacute;n abreviada de Lewis y Papadimitriou.
+Es la memoria de ingenier&iacute;a de Marco Mora, un alumno m&iacute;o.<p>
+
+<a href="http://www.dcc.uchile.cl/jtv/">Esta es la p&aacute;gina oficial de JTV</a>.
+Preguntas y comentarios espec&iacute;ficos a <a href="mailto:mmora@dcc.uchile.cl">Marco
+Mora</a>.
+
+<h3>IXPN: Indexed XPath via Proximal Nodes (2002) </h3>
+
+Esta es una demostraci&oacute;n de un &iacute;ndice basado en el modelo Proximal Nodes
+que resuelve consultas en XPath. Es la memoria de ingenier&iacute;a de Manuel
+Ortega, un alumno m&iacute;o. La demostraci&oacute;n usa la colecci&oacute;n de Shakespeare,
+que est&aacute; bastante difundida.<p>
+
+<a href="http://www.dcc.uchile.cl/ixpn/">Esta es la p&aacute;gina oficial de IXPN</a>.
+Preguntas y comentarios espec&iacute;ficos a <a href="mailto:mortega@dcc.uchile.cl">Manuel Ortega</a>.
+
+<h3>LZ-index: Un Indice basado en el Trie Ziv-Lempel (2003) </h3>
+
+Este es el c&oacute;digo correspondiente al paper "Indexing Text with the Ziv
+Lempel Trie" y "Implementing the LZ-index: Theory and Practice", de 
+G. Navarro.<p>
+
+Obtenga
+<a href="../ps/jda03.2.ps.gz">el paper ya publicado en JDA</a> o bien
+<a href="../ps/techreports/jlzindex.ps.gz">el
+reporte t&eacute;cnico completo</a>, que explica todos los aspectos de la 
+implementaci&oacute;n y partes del cual se han enviado a <i>ACM Journal of 
+Experimental Algorithmics</i>.
+<p>
+
+<a href="lzindex-1.1.tar.gz">Obtenga la versi&oacute;n 1.1 del LZ-index</a>, que es
+la actual. Se diferencia de la original en una nueva implementaci&oacute;n de 
+<i>rank</i>, producto del trabajo con Rodrigo Gonz&aacute;lez, Szymon Grabowski y
+Veli M&auml;kinen, que hizo al &iacute;ndice notablemente m&aacute;s r&aacute;pido.
+<p>
+
+Tambi&eacute;n puede <a href="lzindex-1.0.tar.gz">obtener el c&oacute;digo original</a> del 
+paper de JDA.
+<p>
+
+En el art&iacute;culo enviado a ACM JEA se propone una nueva versi&oacute;n del &iacute;ndice que
+ocupa 80% del espacio de la versi&oacute;n original y es hasta 3 veces m&aacute;s lento para
+consultas cortas, pero casi igual para consultas largas.
+<a href="lzindex-smaller.tar.gz">Obtenga el c&oacute;digo</a> de esa versi&oacute;n.
+Contiene la funci&oacute;n <i>rank</i> mejorada de la versi&oacute;n 1.1.
+<p>
+
+Todos los c&oacute;digos vienen como tars gzippeados con las explicaciones necesarias 
+en un archivo README y el copyright en COPYRIGHT.<br> 
+Son c&oacute;digo fuente probado en Solaris y Linux.<p>
+
+Compar&eacute; el LZindex contra mi implementaci&oacute;n particular del FMindex en el 
+art&iacute;culo. <a href="fmindex.tar.gz">Obtenga esa implementaci&oacute;n</a> si quiere
+jugar con ella. Es un gzipped tar con las explicaciones necesarias en un 
+archivo README y el copyright en un archivo COPYRIGHT. Contiene c&oacute;digo fuente
+que se ha testeado en Solaris y Linux.<br>
+NOTA: Esta implementaci&oacute;n sigue la idea del art&iacute;culo de Ferragina y Manzini, sin
+embargo, se ha optimizado para usar mucho m&aacute;s espacio, de modo que pudiera
+compararlo con justicia contra el LZindex, que es mayor. Podr&iacute;a ser que le 
+interese obtener 
+<a href="http://butirro.di.unipi.it/~ferrax/fmindex/index.html">la 
+implementaci&oacute;n de ellos</a>.<p>
+
+Finalmente, puede obtener <a href="sada.tar.gz">la implementaci&oacute;n de 
+Sadakane</a> de su Compressed Suffix Array, contra el cual compar&eacute; en el
+art&iacute;culo.<p>
+
+<h3>LZgrep: Una Herramienta para B&uacute;squeda Directa en Texto Comprimido (2003 y 2005) </h3>
+
+Este es el c&oacute;digo correspondiente al art&iacute;culo "LZgrep: A Boyer-Moore String
+Matching Tool for Ziv-Lempel Compressed Text", de G. Navarro y J. Tarhio.
+Contiene mejoras de Carlos Avendano P&eacute;rez.<p>
+
+<a href="lzgrep.ps.gz">
+Obtenga el art&iacute;culo</a> que explica todos los aspectos del software y se ha
+enviado a <i>Software Practice & Experience</i>.<p>
+
+<a href="lzgrep.tar.gz">Obtenga el c&oacute;digo (versi&oacute;n 0.99)</a>, un tar gzippeado
+con la informaci&oacute;n de copyright en el archivo COPYRIGHT. Cree el ejecutable con
+"make" y corra "lzgrep --help" para comenzar.<br>
+Es c&oacute;digo fuente que se ha probado en Solaris y Linux. Por favor vea los
+detalles de copyright y (ausencia de) garant&iacute;as en el archivo COPYRIGHT.<br>
+Nota: la opci&oacute;n D-WM no est&aacute; implementada a&uacute;n (funciona como D-SBOM). Todo el
+resto deber&iacute;a funcionar.<p>
+
+<h3>Sitio Pizza&amp;Chili: Corpus y Testbed de Compresi&oacute;n de Texto Completo
+(2005)</h3>
+
+El <a href="http://pizzachili.dcc.uchile.cl">Sitio Pizza&amp;Chili</a> contiene implementaciones gratuitas de &iacute;ndices comprimidos de texto completo, y 
+colecciones textuales de prueba. Es un esfuerzo conjunto con
+Paolo Ferragina, Universidad de Pisa.<p>
+
+Obtenga el <a href="ftp://ftp.dcc.uchile.cl/pub/users/gnavarro/survcompr.ps.gz">
+reporte t&eacute;cnico</a> donde se revisan los &iacute;ndices comprimidos existentes, 
+algunos de los cuales est&aacute;n implementados en el sitio.<p>
+

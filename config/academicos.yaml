@@ -1,0 +1,217 @@
+# Semillas: una entrada por académico/a. `slug` es la clave estable en todas las capas.
+# Las claves de `perfiles` deciden qué spiders de plataforma corren para esa persona:
+#   orcid, openalex (ID de autor, opcional: si falta se resuelve por ORCID), dblp (pid),
+#   ucurriculum (ficha institucional FCFM), sitio (sitio personal), cv (PDF)
+- slug: felipe-bravo
+  nombre: Felipe Bravo-Marquez
+  unidad: DCC
+  perfiles:
+    orcid: 0000-0002-2153-4306
+    dblp: 04/8612
+    ucurriculum: https://dcc.uchile.cl/nosotros/academico/fbravo/
+    sitio: https://felipebravom.com/
+    scholar: https://scholar.google.com/citations?user=q--XWcQAAAAJ
+    github: https://github.com/felipebravom
+
+- slug: matias-toro
+  nombre: Matías Toro
+  unidad: DCC
+  perfiles:
+    orcid: 0000-0002-5315-0198
+    dblp: 169/6836
+    ucurriculum: https://dcc.uchile.cl/nosotros/academico/mtoro/
+    sitio: https://matiastoro.github.io/
+    scholar: https://scholar.google.com/citations?user=hRPJ-ZIAAAAJ
+    github: https://github.com/matiastoro
+
+- slug: javier-ruiz-del-solar
+  nombre: Javier Ruiz del Solar
+  unidad: DIE
+  perfiles:
+    orcid: 0000-0003-2965-633X
+    sitio: https://www.cec.uchile.cl/~jruizd/
+
+- slug: claudia-lopez
+  nombre: Claudia López Moncada
+  unidad: DCC
+  perfiles:
+    ucurriculum: https://dcc.uchile.cl/nosotros/academico/clopez/
+    sitio: https://claudialopezmoncada.com/
+    scholar: https://scholar.google.com/citations?user=vw1dhvcAAAAJ
+
+- slug: francisco-forster
+  nombre: Francisco Förster Burón
+  unidad: IDIA
+  perfiles:
+    orcid: 0000-0003-3459-2270
+    sitio: https://fforster.github.io/
+    scholar: https://scholar.google.com/citations?user=ptRI8_sAAAAJ
+    github: https://github.com/fforster
+
+- slug: rodrigo-verschae
+  nombre: Rodrigo Verschae
+  unidad: IDIA
+  perfiles:
+    orcid: 0000-0002-1661-3309
+    sitio: https://rodrigo.verschae.org/
+    scholar: https://scholar.google.com/citations?user=Fv1lZNkAAAAJ
+
+- slug: jorge-silva
+  nombre: Jorge F. Silva
+  unidad: DIE
+  perfiles:
+    orcid: 0000-0002-0256-282X
+    sitio: https://jorgesil77.github.io/
+    cv: https://jorgesil77.github.io/files/cv.pdf
+
+- slug: marcos-orchard
+  nombre: Marcos E. Orchard
+  unidad: DIE
+  perfiles:
+    orcid: 0000-0003-4778-2719
+    sitio: https://www.morchard.cl/
+
+- slug: mauricio-cerda
+  nombre: Mauricio Cerda Villablanca
+  unidad: DCC
+  perfiles:
+    orcid: 0000-0003-3447-1815
+    ucurriculum: https://dcc.uchile.cl/nosotros/academico/mauricio-cerda/
+    linkedin: https://www.linkedin.com/in/mauricio-cerda-villablanca-532b35178/
+
+- slug: alejandro-maass
+  nombre: Alejandro Maass
+  unidad: DIM
+  perfiles:
+    orcid: 0000-0002-7038-4527
+    cmm: https://www.cmm.uchile.cl/?persona=alejandro-maass
+
+- slug: james-mcphee
+  nombre: James Peter McPhee Torres
+  unidad: DIC
+  perfiles:
+    orcid: 0000-0002-7547-0926
+    portafolio: https://portafolio-academico.uchile.cl/perfil/27103-James-Peter-Mc-Phee-Torres
+
+- slug: richard-weber
+  nombre: Richard Weber
+  unidad: DII
+  perfiles:
+    orcid: 0000-0002-6351-1065
+    sitio: https://richardweber.wixsite.com/home
+    scholar: http://scholar.google.com/citations?user=WzCAULkAAAAJ
+
+- slug: gonzalo-navarro
+  nombre: Gonzalo Navarro
+  unidad: DCC
+  perfiles:
+    orcid: 0000-0002-2286-741X
+    dblp: n/GonzaloNavarro
+    ucurriculum: https://dcc.uchile.cl/nosotros/academico/gnavarro/
+    sitio: https://users.dcc.uchile.cl/~gnavarro/sindex.html
+    cv: https://users.dcc.uchile.cl/~gnavarro/curric/curric.pdf
+    scholar: http://scholar.google.com/citations?user=_fx52FkAAAAJ
+
+- slug: susana-mondschein
+  nombre: Susana Mondschein
+  unidad: DII
+  perfiles:
+    orcid: 0000-0002-8476-0204
+    sitio: https://www.dii.uchile.cl/~smondsch/
+    cv: https://www.dii.uchile.cl/~smondsch/cvsusanamondschein.pdf
+    sitio_campania: https://susanamondschein.cl/
+
+- slug: aidan-hogan
+  nombre: Aidan Hogan
+  unidad: DCC
+  perfiles:
+    orcid: 0000-0001-9482-1982
+    dblp: h/AidanHogan
+    ucurriculum: https://dcc.uchile.cl/nosotros/academico/ahogan/
+    sitio: https://aidanhogan.com/
+
+- slug: roberto-rondanelli
+  nombre: Roberto Rondanelli
+  unidad: DGF
+  perfiles:
+    orcid: 0000-0002-7440-7810
+    cr2: https://www.cr2.cl/roberto-rondanelli/
+
+- slug: maisa-rojas
+  nombre: Maisa Rojas
+  unidad: DGF
+  perfiles:
+    orcid: 0000-0002-5985-1905
+    # dgf.uchile.cl publica un registro DNS 127.0.0.1 y su certificado TLS está incompleto: sin spider hasta que se arregle
+    sitio: https://dgf.uchile.cl/~maisa/Maisa_espanol/Maisa_Rojas.html
+
+- slug: hector-ramirez
+  nombre: Héctor Ramírez
+  unidad: DIM
+  perfiles:
+    orcid: 0000-0002-6239-1890
+    cmm: https://www.cmm.uchile.cl/?persona=hector-ramirez
+    sitio: https://sites.google.com/site/hectorramirezhomepage/home
+
+- slug: doris-saez
+  nombre: Doris Sáez Hueichapan
+  unidad: DIE
+  perfiles:
+    orcid: 0000-0001-8029-9871
+    dblp: 50/7283
+    sitio: https://www.cec.uchile.cl/~dsaez/
+    cv: https://www.cec.uchile.cl/~dsaez/wp-content/uploads/2025/08/CV_DSaez_Aug_2025.pdf
+
+- slug: ivan-sipiran
+  nombre: Iván Sipirán
+  unidad: DCC
+  perfiles:
+    orcid: 0000-0002-8766-3581
+    dblp: 49/9218
+    ucurriculum: https://dcc.uchile.cl/nosotros/academico/isipiran/
+    sitio: https://www.ivan-sipiran.com/
+    cv: https://www.ivan-sipiran.com/fullcv.pdf
+    scholar: http://scholar.google.com/citations?user=53Mi3fIAAAAJ
+
+- slug: viviana-meruane
+  nombre: Viviana Meruane Naranjo
+  unidad: DIMEC
+  perfiles:
+    orcid: 0000-0002-6692-2687
+    portafolio: https://portafolio-academico.uchile.cl/perfil/61060-Viviana-Isabel-Meruane-Naranjo
+
+- slug: alejandro-jofre
+  nombre: Alejandro Jofré
+  unidad: DIM
+  perfiles:
+    cmm: https://www.cmm.uchile.cl/?persona=alejandro-jofre  # el link original (?cmm_people=) cae en la portada
+
+- slug: claudia-scoccola
+  nombre: Claudia Graciela Scoccola
+  unidad: DAS
+  perfiles:
+    portafolio: https://portafolio-academico.uchile.cl/perfil/4605738-Claudia-Graciela-Scoccola-.
+
+- slug: sebastian-ferrada
+  nombre: Sebastián Ferrada
+  unidad: DCC
+  perfiles:
+    orcid: 0000-0002-9834-8376
+    dblp: 183/2356
+    ucurriculum: https://dcc.uchile.cl/nosotros/academico/sferrada/
+    sitio: https://sferrada.com/
+    scholar: https://scholar.google.com/citations?user=7GM_30gAAAAJ
+
+- slug: joaquin-fontbona
+  nombre: Joaquín Fontbona Torres
+  unidad: DIM
+  perfiles:
+    anid: https://investigadores.anid.cl/es/public_search/researcher?id=4406
+
+- slug: francielle-vargas
+  nombre: Francielle Vargas
+  unidad: IDIA
+  perfiles:
+    orcid: 0000-0003-3164-2682
+    sitio: https://franciellevargas.github.io/
+    cv: https://franciellevargas.github.io/doc/cv.pdf

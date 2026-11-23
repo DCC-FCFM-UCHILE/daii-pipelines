@@ -1,0 +1,741 @@
+<head>
+  <style>
+    /* ===== GLOBAL ===== */
+    body {
+        font-family: Arial, sans-serif;
+        font-size: 0.9rem;      /* BASE igual Talks */
+        color: #333;  
+        zoom: 0.85; /* zoom da pagina*/
+    }
+
+    /* ===== TITLE ===== */
+    .centered-title {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 3vh;
+        text-align: center;
+    }
+
+    .centered-title h1 {
+        font-size: 1.2rem;      /* IGUAL Talks */
+        font-weight: bold;
+        color: #333;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin: 0;
+    }
+
+    /* ===== YEAR (LEFT ALIGNED) ===== */
+    .pub-type {
+        font-size: 1rem;        /* ano */
+        font-weight: bold;
+        margin: 24px 0 12px;
+        text-align: left;       /* ← ALINHADO À ESQUERDA */
+        margin-left: 30px;      /* alinhado com os papers */
+    }
+
+    /* ===== PUBLICATION ITEMS ===== */
+    .pub-item {
+        margin-bottom: 20px;
+        text-align: left;
+        margin-left: 30px;
+    }
+
+    .pub-title {
+        font-size: 0.95rem;
+        font-weight: bold;
+        margin-bottom: 4px;
+    }
+
+    .pub-details {
+        font-size: 0.9rem;
+        margin: 6px 0 10px;
+        font-style: normal;
+        line-height: 1.3;
+    }
+
+    /* ===== BUTTONS ===== */
+    .button {
+        border: 1px solid #2980b9;
+        background-color: white;
+        color: #2980b9;
+        padding: 5px 10px;
+        font-size: 0.8rem;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-right: 4px;
+        transition: background-color 0.2s;
+    }
+
+    .button:hover {
+        background-color: #f0f8ff;
+    }
+
+    /* ===== LIST RESET ===== */
+    ul {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+    }
+  </style>
+</head>
+
+
+<body>
+  <div class="centered-title"><h1><a name="publications"><b>Publications</b></a></h1></div> 
+      <center> (*) Equal Contribution. </center>
+</body>
+
+<body style="font-size: 8px;">
+  <center><h3 class="pub-type">Preprints</h3></center>
+ <ul>
+    <li class="pub-item">
+      <div class="pub-title">Closing the AI Trust Gap: The Case for Independent Certification for Trustworthy AI</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+      Trisevgeni Papakonstantinou, Cansu Canca, Farah Nanji, Waheedullah Pardess, Jen Weedon, Jasmijn Remmers, Eliza Krigman, Matthew Ball, Yalda Daryani, Kiran Iqbal, <u><b>Francielle Vargas</b></u>, María Llorente Sánchez, Joe Humphreys, Fendi Tsim, Kelly Fitzpatrick, Jeff Dunn, Catherine Feldman <br> 
+     <b><i>ArXiv 2607.15992, 2026</i></b>
+      </div>
+        <span class="pub-buttons" style="margin-left:8px;">
+          <a href="https://arxiv.org/abs/2607.15992" target="_blank">
+            <button class="button" type="button">pdf</button>
+          </a>
+           <a href="pages/bib/trustai.bib" target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+        </span>
+    </li>
+  </ul>
+</body>
+
+
+
+<!--
+<body>
+ <ul>
+    <li class="pub-item">
+      <div class="pub-title">Towards Forward Alignment in RAG: Contrastive Evidence Retrieval with Rationale Supervision</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+        <u><b>Francielle Vargas</b></u>, João Robiatti, Diego Alves, Lucas Pascotti Valem, Ameeta Agrawal, Daniel Pedronette, André Freitas<br>
+        <b><i>ArXiv 2606.01482, 2026</i></b>
+      </div>
+      <span class="pub-buttons" style="margin-left:8px;">
+        <a href="https://arxiv.org/abs/2606.01482" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/" target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+      </span>
+    </li>
+ </ul>
+</body>
+-->
+
+
+<body style="font-size: 8px;">
+  <center><h3 class="pub-type">2026</h3></center>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Self-Explaining Hate Speech Detection with Moral Rationales</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+       <u><b>Francielle Vargas</b></u>, Jackson Trager, Diego Alves, Matteo Guida, Surendrabikram Thapa, Berk Atil, Daryna Dementieva, Andrew Smart, Ameeta Agrawal <br> 
+     <b><i>Findings of the Association for Computational Linguistics: ACL 2026. pp. 34109–34131. San Diego, USA. </i></b>       
+     </div>
+      <span class="pub-buttons" style="margin-left:8px;">
+        <a href="https://aclanthology.org/2026.findings-acl.1704/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/smra.bib" target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+      </span>
+    </li>
+  </ul>
+</body>
+
+ <body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Aligning Attention with Human Rationales for Self-Explaining Hate Speech Detection</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+      Brage Eilertsen, Røskva Bjørgfinsdóttir, <u><b>Francielle Vargas</b></u>, Ali Ramezani-Kebrya <br> 
+     <b><i>40th Annual AAAI Conference on Artificial Intelligence (AAAI 2026). pp 37369-37378. Singapore, Singapore.</i></b>
+      </div>
+        <span class="pub-buttons" style="margin-left:8px;">
+          <a href="https://ojs.aaai.org/index.php/AAAI/article/view/41069" target="_blank">
+            <button class="button" type="button">pdf</button>
+          </a>
+           <a href="pages/bib/Aligning-Attention-with-Human-Rationales-for-Self-Explaining.bib" target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+        </span>
+    </li>
+  </ul>
+</body>
+
+ <body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Self-Explaining Unsupervised Prototype-based Embeddings via Projection and Ranking</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+     Thiago C. C. Almeida, <u><b>Francielle Vargas</b></u>, Lucas Pascotti Valem, Daniel Pedronette <br> 
+     <b><i>Knowledge-Based Systems. pp. 01–27. vol 355. n. 117236. Elsevier.</i></b>
+      </div>
+        <span class="pub-buttons" style="margin-left:8px;">
+          <a href="https://www.sciencedirect.com/science/article/pii/S0950705126019623?via%3Dihub" target="_blank">
+            <button class="button" type="button">pdf</button>
+          </a>
+           <a href="pages/bib/S0950705126019623.bib" target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+        </span>
+    </li>
+  </ul>
+</body>
+
+
+ <body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Social Support Detection and Target Identification in Social Media</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+     Moein Shahiki Tash, Zahra Ahani, Luis Ramos, Fazlourrahman Balouchzahi, Olga Kolesnikova, Grigori Sidorov, Alexander Gelbukh, Ra´ul Monroy, <u><b>Francielle Vargas</b></u> <br> 
+     <b><i>Procesamiento del Lenguaje Natural. pp. 699–708, vol.77.  Sociedad Española para el Procesamiento del Lenguaje Natural.</i></b>
+      </div>
+        <span class="pub-buttons" style="margin-left:8px;">
+          <a href="http://journal.sepln.org/sepln/ojs/ojs/index.php/pln/article/viewFile/6921/4257" target="_blank">
+            <button class="button" type="button">pdf</button>
+          </a>
+           <a href="pages/bib/sepln.bib" target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+        </span>
+    </li>
+  </ul>
+</body>
+
+
+<body style="font-size: 8px;">
+  <center><h3 class="pub-type">2025</h3></center>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">MFTCXplain: A Multilingual Benchmark Dataset for Evaluating the Moral Reasoning of LLMs through Multi-hop Hate Speech Explanation</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+      Jackson Trager*, <u><b>Francielle Vargas</b></u>*, Diego Alves, Matteo Guida, Mikel Ngueajio, Ameeta Agrawal, Yalda Daryanai, Farzan Karimi-Malekabadi, Flor Miriam Plaza-del-Arco<br> 
+     <b><i>Findings of the Association for Computational Linguistics: EMNLP 2025. pp. 15709–15740. Suzhou, China.</i></b>
+      </div>
+        <span class="pub-buttons" style="margin-left:8px;">
+          <a href="https://aclanthology.org/2025.findings-emnlp.851/" target="_blank">
+            <button class="button" type="button">pdf</button>
+          </a>
+           <a href="pages/bib/mftcxplain.bib" target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+          <a href="https://github.com/franciellevargas/MFTCXplain" target="_blank">
+          <button class="button" type="button">corpus</button> 
+        </a>
+        </span>
+    </li>
+  </ul>
+</body>
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">HateBRXplain: A Benchmark Dataset with Human-Annotated Rationales for Explainable Hate Speech Detection in Brazilian Portuguese</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+     Isadora Salles, <u><b>Francielle Vargas</b></u>, Fabrício Benevenuto <br> 
+     <b><i>31st International Conference on Computational Linguistics (COLING 2025). pp. 6659–6669. Abu Dhabi, UAE.</i></b>       
+     </div>
+      <span class="pub-buttons" style="margin-left:6px;">
+        <a href="https://aclanthology.org/2025.coling-main.446/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/2025.coling-main.446.bib" target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+          <a href="https://github.com/franciellevargas/HateBRXplain" target="_blank">
+          <button class="button" type="button">corpus</button> 
+        </a>
+      </span>
+    </li>
+  </ul>
+</body>
+
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Discourse Annotation Guideline for Low-Resource Languages</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+        <u><b>Francielle Vargas</b></u>, Wolfgang Schmeisser-Nieto, Zohar Rabinovich, Thiago A.S. Pardo, Fabrício Benevenuto <br>  
+        <b><i>Natural Language Processing Journal. pp. 700–743, vol. 31, n. 2. Cambridge University Press.</i></b> 
+        </div>
+       <span class="pub-buttons" style="margin-left:8px;"> 
+        <a href="https://www.cambridge.org/core/journals/natural-language-processing/article/discourse-annotation-guideline-for-lowresource-languages/58202E4FF560D594CACB0169A0EE5E03" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/CambridgeCore_Citation_28Feb2025.bib" target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+       </span>
+    </li>
+  </ul>
+</body>
+
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Proceedings of the The 9th Workshop on Online Abuse and Harms (WOAH)</div>
+       <div class="pub-details" style="margin-bottom: 5px;">
+        Agostina Calabrese, Christine de Kock, Debora Nozza, Flor Miriam Plaza-del-Arco, Zeerak Talat, <u><b>Francielle Vargas</b></u> <br>  
+        <b><i>63rd Annual Meeting of the Association for Computational Linguistics (ACL 2025). pp. 1–549. Vienna, Austria.</i></b> 
+     </div>
+      <span class="pub-buttons" style="margin-left:8px;">
+          <a href="https://aclanthology.org/volumes/2025.woah-1/" target="_blank">
+            <button class="button" type="button">pdf</button>
+          </a>
+        <a href="pages/bib/2025.woah-1.bib target="_blank">
+          <button class="button bib-button" type="button">bib</button>
+        </a>
+     </span>
+    </li>
+  </ul>
+</body>
+
+
+<body>
+  <center><h4 class="pub-type">2024</h4></center>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Improving Explainable Fact-Checking via Sentence-Level Factual Reasoning</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+       <u><b>Francielle Vargas</b></u>, Isadora Salles, Diego Alves, Ameeta Agrawal, Thiago Pardo, Fabrício Benevenuto <br>  
+         <b><i>7th Fact Extraction and VERification Workshop (FEVER @ EMNLP 2024). pp. 192–204. Miami, USA.</i></b> 
+      </div>
+      <div class="pub-buttons">
+        <a href="https://aclanthology.org/2024.fever-1.23/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+         <a href="pages/bib/2024.fever-1.23.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+      </div>
+    </li>
+  </ul>
+</body>
+
+
+<body>  
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Context-Aware and Expert Data Resources for Brazilian Portuguese Hate Speech Detection</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+        <u><b>Francielle Vargas</b></u>, Isabelle Carvalho, Thiago Pardo, Fabrício Benevenuto <br>   
+         <b><i>Natural Language Processing Journal. pp. 435-456, vol. 31, n. 2. Cambridge University Press.</i></b> 
+      </div>
+      <span class="pub-buttons" style="margin-left:8px;">
+        <a href="https://www.cambridge.org/core/journals/natural-language-processing/article/contextaware-and-expert-data-resources-for-brazilian-portuguese-hate-speech-detection/7D9019ED5471CD16E320EBED06A6E923#" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+         <a href="pages/bib/nlp-context-aware-vargas-et-all2024.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+        <a href="https://huggingface.co/datasets/franciellevargas/HateBR" target="_blank">
+          <button class="button" type="button">corpus</button>
+          
+        <a href="https://huggingface.co/datasets/franciellevargas/MOL" target="_blank">
+          <button class="button" type="button">lexicon</button>
+        </a>
+    </span>
+    </li>
+  </ul>
+</body>
+
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">HausaHate: An Expert Annotated Corpus for Hausa Hate Speech Detection</div>
+       <div class="pub-details" style="margin-bottom: 5px;">
+       <u><b>Francielle Vargas</b></u>, Samuel Guimarães, Shamsuddeen H. Muhammad, Diego Alves, Ibrahim Said Ahmad, Idris Abdulmumin, Diallo Mohamed, Thiago Pardo, Fabrício Benevenuto <br>
+         <b><i>8th Workshop on Online Abuse and Harms (WOAH @ NAACL 2024). pp. 52–58. Mexico City, Mexico.</i></b>
+      </div>
+      <div class="pub-buttons">
+        <a href="https://aclanthology.org/2024.woah-1.5/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        
+        <a href="pages/bib/2024.woah-1.5.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+        
+        <a href="https://huggingface.co/datasets/franciellevargas/HausaHate" target="_blank">
+          <button class="button" type="button">corpus</button>
+        </a>
+        
+      </div>
+    </li>
+  </ul>
+</body>
+
+<body>
+  <center><h4 class="pub-type">2023</h4></center>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Predicting Sentence-Level Factuality of News and Bias of Media Outlets</div>
+       <div class="pub-details" style="margin-bottom: 5px;">
+       <u><b>Francielle Vargas</b></u>, Kokil Jaidka, Thiago Pardo, Fabrício Benevenuto <br>
+        <b><i>14th International Conference on Recent Advances in Natural Language Processing (RANLP 2023). pp. 1197–1206. Varna, Bulgaria. </i></b>
+      </div>
+      <div class="pub-buttons">
+        <a href="https://aclanthology.org/2023.ranlp-1.127/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/2023.ranlp-1.127.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+        <a href="https://huggingface.co/datasets/franciellevargas/FactNews" target="_blank">
+           <button class="button" type="button">corpus</button>
+        </a>
+        
+      </div>
+    </li>
+  </ul>
+</body>
+
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Socially Responsible Hate Speech Detection: Can Classifiers Reflect Social Stereotypes?</div>
+       <div class="pub-details" style="margin-bottom: 5px;">
+       <u><b>Francielle Vargas</b></u>, Isabelle Carvalho, Ali Hürriyetoğlu, Thiago Pardo, Fabrício Benevenuto <br>
+        <b><i>14th International Conference on Recent Advances in Natural Language Processing (RANLP 2023). pp. 1187–1196. Varna, Bulgaria. </i></b>
+      </div>
+      <div class="pub-buttons">
+        
+        <a href="https://aclanthology.org/2023.ranlp-1.126/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        
+        <a href="pages/bib/2023.ranlp-1.126.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+        
+      </div>
+    </li>
+  </ul>
+</body>
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">NoHateBrazil: A Brazilian Portuguese Text Offensiveness Analysis System</div>
+       <div class="pub-details" style="margin-bottom: 5px;">
+       <u><b>Francielle Vargas</b></u>, Isabelle Carvalho, Wolfgang Schmeisser-Nieto, Fabrício Benevenuto, Thiago Pardo<br>
+        <b><i>14th International Conference on Recent Advances in Natural Language Processing (RANLP 2023). pp. 1180-1186. Varna, Bulgaria. </i></b>
+      </div>
+      <div class="pub-buttons">
+        
+        <a href="https://aclanthology.org/2023.ranlp-1.125/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        
+        <a href="pages/bib/2023.ranlp-1.125.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+        
+      </div>
+    </li>
+  </ul>
+</body>
+
+
+<body>
+  <center><h4 class="pub-type">2022</h4></center>
+  <ul>
+     
+   <li class="pub-item">
+      <div class="pub-title">HateBR: A Large Expert Annotated Corpus of Brazilian Instagram Comments for Offensive Language and Hate Speech Detection</div>
+     <div class="pub-details" style="margin-bottom: 5px;">
+        <u><b>Francielle Vargas</b></u>, Isabelle Carvalho, Fabiana R. Góes, Thiago Pardo, Fabrício Benevenuto <br>
+         <b><i>13th Language Resources and Evaluation Conference (LREC 2022). pp. 7174–7183. Marseille, France. </i></b>
+      </div>
+      <div class="pub-buttons">
+        
+        <a href="https://aclanthology.org/2022.lrec-1.777/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        
+        <a href="pages/bib/2022.lrec-1.777.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+        
+        <a href="https://huggingface.co/datasets/franciellevargas/HateBR" target="_blank">
+           <button class="button" type="button">corpus</button>
+        </a>
+        
+      </div>
+    </li>
+  </ul>
+</body>  
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Rhetorical Structure Approach for Online Deception Detection: A Survey</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+       <u><b>Francielle Vargas</b></u>, Jonas D'Alessandro, Zohar Rabinovich, Fabrício Benevenuto, Thiago Pardo <br>
+         <b><i>13th Language Resources and Evaluation Conference (LREC 2022). pp. 5906–5915. Marseille, France. </i></b>
+      </div>
+      <div class="pub-buttons">
+        <a href="https://aclanthology.org/2022.lrec-1.635/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/2022.lrec-1.635.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+      
+      </div>
+    </li>
+  </ul>
+</body>  
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Extended Multilingual Protest News Detection</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+        Ali Hürriyetoğlu, Osman Mutlu, Fırat Duruşan, Onur Uca, Alaeddin Gürel, Benjamin J. Radford, Yaoyao Dai, Hansi Hettiarachchi, Niklas Stoehr, Tadashi Nomoto, Milena Slavcheva, <u><b>Francielle Vargas</b></u>, Aaqib Javid, Fatih Beyhan, Erdem Yörük <br>
+       <b><i>5th Workshop on Challenges and Applications of Automated Extraction of Socio-political Events from Text (CASE @ EMNLP 2022). pp. 223–228. Abu Dhabi, United Arab Emirates. </i></b>
+      </div>
+      <div class="pub-buttons">
+        <a href="https://aclanthology.org/2022.case-1.31/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/2022.case-1.31.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+      </div>
+    </li>
+  </ul>
+</body> 
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Implicit Opinion Aspect Clues in Portuguese Texts: Analysis and Categorization</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+        Mateus T. Machado, Thiago Pardo, Evandro E. S. Ruiz, Ariani Di Felippo, <u><b>Francielle Vargas</b></u> <br>
+       <b><i>15th International Conference on Computational Processing of Portuguese (PROPOR 2022). pp. 68–78. Fortaleza, Brazil. </i></b>
+      </div>
+      <div class="pub-buttons">
+        <a href="https://dl.acm.org/doi/10.1007/978-3-030-98305-5_7" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/acm_978-3-030-98305-5_7.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>
+      </div>
+    </li>
+  </ul>
+</body>  
+
+
+
+
+<body>
+  <center><h4 class="pub-type">2021</h4></center>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Contextual-Lexicon Approach for Abusive Language Detection</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+        <u><b>Francielle Vargas</b></u>, Isabelle Carvalho, Fabiana R. Góes, Fabrício Benevenuto, Thiago Pardo <br>
+         <b><i>13th International Conference on Recent Advances in Natural Language Processing (RANLP 2021). pp. 1438–1447. Held Online. </i></b>
+      </div>
+      <div class="pub-buttons">
+        
+        <a href="https://aclanthology.org/2021.ranlp-1.161/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        
+        <a href="pages/bib/2021.ranlp-1.161.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>   
+      </div>
+    </li>
+  </ul>
+</body> 
+
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Toward Discourse-Aware Models for Multilingual Fake News Detection</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+        <u><b>Francielle Vargas</b></u>, Fabrício Benevenuto, Thiago Pardo <br>
+         <b><i>13th International Conference on Recent Advances in Natural Language Processing (RANLP 2021). pp. 210–218. Held Online. </i></b>
+      </div>
+      <div class="pub-buttons">
+        
+        <a href="https://aclanthology.org/2021.ranlp-srw.29/" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        
+        <a href="pages/bib/2021.ranlp-srw.29.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>   
+      </div>
+    </li>
+  </ul>
+</body>  
+
+<body>
+  <center><h4 class="pub-type">2020 and Before</h4></center>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Linguistic Rules for Fine-Grained Opinion Extraction</div>
+       <div class="pub-details" style="margin-bottom: 5px;">
+        <u><b>Francielle Vargas</b></u>, Thiago Pardo <br>
+         <b><i>5th Worksop on Social Sensing (SocialSens @ ICWSM 2020). pp. 1–6. Held Online. </i></b>
+      </div>
+      <div class="pub-buttons">
+        
+        <a href="https://workshop-proceedings.icwsm.org/abstract.php?id=2020_24" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        
+        <a href="pages/bib/socialsensing2020.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>   
+      </div>
+    </li>
+  </ul>
+</body> 
+
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Aspect Clustering Methods for Sentiment Analysis</div>
+      <div class="pub-details" style="margin-bottom: 5px;">
+        <u><b>Francielle Vargas</b></u>, Thiago Pardo <br>
+         <b><i>13th International Conference on Computational Processing of Portuguese (PROPOR 2018). pp. 365-374. Canela, Brazil. </i></b>
+      </div>
+      <div class="pub-buttons">
+        
+        <a href="https://dl.acm.org/doi/10.1007/978-3-319-99722-3_37" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        
+        <a href="pages/bib/acm_978-3-319-99722-3_37.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>   
+      </div>
+    </li>
+  </ul>
+</body>  
+
+<body>
+  <center><h4 class="pub-type">Non-Peer Review</h4></center>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Towards A Diverse, Inclusive, Accessible and Equitable AAAI International Conference on Web and Social Media (ICWSM)</div>
+       <div class="pub-details" style="margin-bottom: 5px;">
+       Jason R.C. Nurse, <u><b>Francielle Vargas</b></u>, Naeemul Hassan, Dakuo Wang, Panagiotis Andriotis, Amira Ghenai, Kokil Jaidka, Eni Mustafaraj, Kenneth Joseph, Brooke Foucault Welles <br>
+         <b><i>Workshop Proceedings of the 15th International AAAI Conference on Web and Social Media (ICWSM 2021). pp. 1–12. Held Online. </i></b>
+      </div>
+      <div class="pub-buttons">  
+        <a href="https://workshop-proceedings.icwsm.org/pdf/2021_00.pdf" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>   
+      </div>
+    </li>
+  </ul>
+</body> 
+
+
+<hr>       
+</hr>
+
+
+<body>
+  <center><h4 class="pub-type">Theses </h4></center>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">🏆 Socially Responsible and Explainable Automated Fact-Checking and Hate Speech Detection</div>
+      <div class="pub-details">
+         <b><i>Ph.D Thesis in Computer Science and Computational Mathematics. University of São Paulo. 2024.</b></i> <br>
+         <b><i>Research Areas: Artificial Intelligence, Natural Language Processing</b></i><br>
+      </div>
+      <div class="pub-buttons">
+        <a href="https://teses.usp.br/teses/disponiveis/55/55134/tde-07012025-155212/pt-br.html" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/2024_phd.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>   
+      </div>
+    </li>
+  </ul>
+</body>  
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">Semantic Clustering of Aspects for Opinion Mining</div>
+      <div class="pub-details">
+         <b><i>MSc. Thesis in Computer Science and Computational Mathematics. University of São Paulo. 2017.</b></i><br>
+         <b><i>Research Areas: Artificial Intelligence, Natural Language Processing </b></i><br>
+      </div>
+      
+      <div class="pub-buttons">
+        <a href="https://teses.usp.br/teses/disponiveis/55/55134/tde-31072018-170236/es.html" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/2017_msc.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>   
+      </div>
+    </li>
+  </ul>
+</body>  
+
+
+
+<body>
+  <ul>
+    <li class="pub-item">
+      <div class="pub-title">An Essay on Socio-Historical Lexicology using Resources from Corpus Linguistics and Computational Linguistics</div>
+      <div class="pub-details">
+        <b><i>B.A. Thesis in Linguistics. Federal University of Minas Gerais. 2014.</b></i><br>
+        <b><i>Research Areas: Computational Linguistics, Corpus Linguistics</b></i><br>
+      </div>
+      <div class="pub-buttons">
+        <a href="pages/doc/tcc_ba_francielle.pdf" target="_blank">
+          <button class="button" type="button">pdf</button>
+        </a>
+        <a href="pages/bib/ba_linguistics_ufmg.bib" target="_blank">
+            <button class="button bib-button" type="button">bib</button>
+        </a>   
+      </div>
+    </li>
+  </ul>
+</body> 
+ 
+           
+<hr>       
+</hr> 
+
+           
+</html>
+           
+            
+           
+

@@ -1,0 +1,10 @@
+data/
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Fixtures con datos personales sensibles que no se pueden censurar (se descargan localmente)
+tests/fixtures/saez_cv.pdf

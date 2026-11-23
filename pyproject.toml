@@ -1,0 +1,45 @@
+[project]
+name = "daii"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Pablo Badilla", email = "pablo.badilla@uchile.cl" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "polars>=2.1.0",
+    "prefect>=3.9.4",
+    "pypdf>=7.1.1",
+    "pyyaml>=6.0.4",
+    "scrapy>=2.20.0",
+    "scrapy-playwright>=0.0.48",
+    "sqlmodel>=0.0.50",
+]
+
+[project.scripts]
+daii = "daii:main"
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.6",
+    "ty>=0.0.108",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ty.rules]
+# Scrapy declara `Spider.parse` como atributo (CallbackT); sobreescribirlo es el patrón idiomático.
+incompatible-mutable-override = "ignore"

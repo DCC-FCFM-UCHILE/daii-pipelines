@@ -1,0 +1,265 @@
+<head>
+  <style>
+    /* zoom da pagina */
+    body {
+      zoom: 0.88;
+    }
+
+    .centered-title {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 2vh;
+      text-align: center;
+    }
+
+    .centered-title h1 {
+      font-size: 1.2rem;
+      font-family: 'Arial', sans-serif;
+      font-weight: bold;
+      color: #333;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    /* =========================
+       CONTAINER TEACHING + STUDENTS
+       ========================= */
+
+    .teaching-students-container {
+      display: flex;
+      gap: 25px;
+      align-items: flex-start;
+      width: 100%;
+    }
+
+    .teaching-column,
+    .students-column {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* =========================
+       TEACHING
+       ========================= */
+
+    #teaching {
+      padding: 20px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .teaching-experience {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .teaching-item {
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      background-color: #fff;
+      border-left: 4px solid #007BFF;
+      border-radius: 5px;
+      box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .teaching-item .year {
+      font-size: 0.85rem;
+      color: #007BFF;
+      font-weight: bold;
+    }
+
+    .teaching-item .role {
+      font-size: 0.95rem;
+      color: #333;
+      margin: 5px 0;
+    }
+
+    .teaching-item .institution {
+      font-size: 1rem;
+      color: #777;
+    }
+
+    /* =========================
+       STUDENTS
+       ========================= */
+
+    #students {
+      padding: 20px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .students-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .student-item {
+      padding: 10px 12px;
+      background-color: #fff;
+      border-left: 4px solid #007BFF;
+      border-radius: 5px;
+      box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .student-name {
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .student-info {
+      font-size: 0.85rem;
+      color: #777;
+      line-height: 1.4;
+    }
+
+    .section-divider {
+      margin-top: 20px;
+      border: 0;
+      border-top: 2px solid #007BFF;
+    }
+
+    /* =========================
+       MOBILE
+       ========================= */
+
+    @media (max-width: 800px) {
+      .teaching-students-container {
+        flex-direction: column;
+      }
+
+      .teaching-column,
+      .students-column {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="teaching-students-container">
+
+    <!-- =========================
+         TEACHING
+         ========================= -->
+
+    <div class="teaching-column">
+
+      <div class="centered-title">
+        <h1>
+          <a name="resources"><b>Teaching</b></a>
+        </h1>
+      </div>
+
+      <section id="teaching">
+
+        <div class="teaching-experience">
+
+          <div class="teaching-item">
+            <span class="role"><b>Natural Language Processing</b></span>
+            <span class="year">2026 – Present · Undergraduate Course</span>
+            <span class="institution">
+              Faculty of Physical and Mathematical Sciences (FCFM), University of Chile
+            </span>
+          </div>
+
+          <div class="teaching-item">
+            <span class="role"><b>Neural Networks and Deep Learning</b></span>
+            <span class="year">2021 – 2021 · Graduate Course</span>
+            <span class="institution">
+              Institute of Mathematical and Computer Sciences (ICMC), University of São Paulo
+            </span>
+          </div>
+
+          <div class="teaching-item">
+            <span class="role"><b>Computing Theory and Compilers</b></span>
+            <span class="year">2020 – 2020 · Undergraduate Course</span>
+            <span class="institution">
+              Institute of Mathematical and Computer Sciences (ICMC), University of São Paulo
+            </span>
+          </div>
+
+          <div class="teaching-item">
+            <span class="role"><b>Computer Seminars I</b></span>
+            <span class="year">2016 – 2016 · Undergraduate Course</span>
+            <span class="institution">
+              Institute of Mathematical and Computer Sciences (ICMC), University of São Paulo
+            </span>
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+
+    <!-- =========================
+         STUDENTS
+         ========================= -->
+
+    <div class="students-column">
+
+      <div class="centered-title">
+        <h1>
+          <a name="students"><b>Students</b></a>
+        </h1>
+      </div>
+
+      <section id="students">
+
+        <div class="students-list">
+
+          <div class="student-item">
+            <div class="student-name">Juan David Nieto García</div>
+            <div class="student-info">
+              Ph.D. Student in Computer Science (Co-Advisor) · Fluminense Federal University (UFF), Brazil · 2026 – Present
+            </div>
+          </div>
+
+           <div class="student-item">
+            <div class="student-name">Andres Faundez</div>
+            <div class="student-info">
+              Undergraduate Student in Computer Science (Advisor) · University of Chile , Chile · 2026 – Present
+            </div>
+          </div>
+
+          <div class="student-item">
+            <div class="student-name">Kevin Blanco</div>
+            <div class="student-info">
+              Ph.D. in Social Neuroscience and Cognition (PhD Internship - Advisor) · University of Adolfo Ibáñez, Chile · 2026 – 2026
+            </div>
+          </div>
+
+          <div class="student-item">
+            <div class="student-name">Isadora Salles</div>
+            <div class="student-info">
+              Master's Student in Computer Science (Co-Advisor) · Federal University of Minas Gerais, Brazil · 2024 – 2024
+            </div>
+          </div>
+
+            <div class="student-item">
+            <div class="student-name"> Lucas Sobral Fontes Cardado</div>
+            <div class="student-info">
+              Undergraduate Student in Computer Science (Co-Advisor) · University of São Paulo, Brazil · 2020 – 2020
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+  </div>
+<br><br>
+</body>
