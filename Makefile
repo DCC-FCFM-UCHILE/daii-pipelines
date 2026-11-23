@@ -5,7 +5,7 @@
 SPIDERS ?=
 SPIDER ?=
 PERSONA ?=
-CRON ?= 0 6 * * 1
+CRON ?=
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -49,8 +49,8 @@ silver: ## Reconstruye silver desde bronze
 gold: ## Reconstruye gold desde silver
 	uv run daii gold
 
-serve: ## Deployment programado en Prefect (CRON="0 6 * * 1")
-	uv run daii serve --cron "$(CRON)"
+serve: ## Deployment programado en Prefect (CRON="..." opcional; default del CLI: lunes 06:00)
+	uv run daii serve $(if $(CRON),--cron "$(CRON)")
 
 ui: ## UI de Prefect en http://127.0.0.1:4200
 	uv run prefect server start
