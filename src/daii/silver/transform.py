@@ -102,7 +102,7 @@ def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
     ).fill_null(False)
     df = df.filter(~unrelated).with_columns(
         # extrae el DOI aunque venga como URL o con basura alrededor ("bar050\n10.1093/database/bar050")
-        doi=pl.col("doi").str.to_lowercase().str.extract(r"(10\.\d{4,9}/\S+)").str.strip_chars_end(";"),
+        doi=pl.col("doi").cast(pl.String).str.to_lowercase().str.extract(r"(10\.\d{4,9}/\S+)").str.strip_chars_end(";"),
         titulo_norm=pl.col("titulo").map_elements(norm_text, return_dtype=pl.String),
         tipo_publicacion=pl.col("tipo_publicacion").map_elements(
             lambda v: classify(v, TIPO_PUB), return_dtype=pl.String
@@ -160,15 +160,15 @@ TRANSFORMS = {
         nivel=pl.col("grado").map_elements(lambda v: classify(v, NIVEL_FORMACION), return_dtype=pl.String)
     ),
     "proyecto": lambda df: df.with_columns(
-        codigo=pl.col("codigo").str.strip_chars(),
+        codigo=pl.col("codigo").cast(pl.String).str.strip_chars(),
         instrumento=pl.concat_str("fuente", "titulo", separator=" ", ignore_nulls=True).map_elements(
             lambda v: classify(v, INSTRUMENTO), return_dtype=pl.String
         ),
     ),
     "dictacion": lambda df: df.with_columns(
-        codigo_curso=pl.col("codigo_curso").str.to_uppercase(),
+        codigo_curso=pl.col("codigo_curso").cast(pl.String).str.to_uppercase(),
         # Cada fuente nombra los semestres a su modo; el calendario chileno: 1er semestre = Otoño.
-        semestre=pl.col("semestre").str.to_titlecase().replace(SEMESTRES),
+        semestre=pl.col("semestre").cast(pl.String).str.to_titlecase().replace(SEMESTRES),
     ),
     "tesis": lambda df: df.with_columns(
         rol_norm=pl.col("rol").fill_null("").map_elements(lambda v: classify(v, ROL_TESIS), return_dtype=pl.String)

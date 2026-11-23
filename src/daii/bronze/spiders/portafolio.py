@@ -78,9 +78,9 @@ class PortafolioSpider(AcademicSpider):
                     if not await page.locator(f"#justify-tab-example-tab-{pane}").count():
                         self.crawler.stats.set_value(coverage, "sin_pestania")
                         continue
-                    fragments += await self._paginar(page, pane, response)
+                    await self._paginar(page, pane, response, fragments)
                     self.crawler.stats.set_value(coverage, "completa")
-                except Exception:  # una pestaña rota no debe perder a la persona: queda la página 1 de cada tabla
+                except Exception:  # conserva las páginas ya capturadas para diagnóstico
                     self.logger.exception("portafolio %s: falló la paginación de %s", response.url, pane)
                     self.crawler.stats.inc_value("daii/page_error")
                     self.crawler.stats.set_value(coverage, "incompleta")
@@ -90,12 +90,16 @@ class PortafolioSpider(AcademicSpider):
         for item in self.parse_static(response, extra=fragments):
             yield item
 
-    async def _paginar(self, page, pane: str, response: Response) -> list[tuple[str, Selector, str]]:
+    async def _paginar(self, page, pane: str, response: Response, fragments: list[tuple[str, Selector, str]]) -> None:
         """Páginas 2..n de cada tabla de una pestaña (clic en '>')."""
-        fragments: list[tuple[str, Selector, str]] = []
         root = f"#justify-tab-example-tabpane-{pane}"
         await page.click(f"#justify-tab-example-tab-{pane}")
-        for i in range(await page.locator(f"{root} [class*=paginadorTexto]").count()):
+        panel_count = await page.locator(root).count()
+        table_count = await page.locator(f"{root} table").count()
+        paginator_count = await page.locator(f"{root} [class*=paginadorTexto]").count()
+        if panel_count != 1 or table_count != paginator_count:
+            raise ValueError(f"{pane}: panel o paginadores irreconocibles")
+        for i in range(paginator_count):
             pag = page.locator(f"{root} [class*=paginadorTexto]").nth(i)
             for _ in range(MAX_PAGES):
                 m = PAGINA.search(await pag.inner_text())
@@ -123,7 +127,6 @@ class PortafolioSpider(AcademicSpider):
                 m = PAGINA.search(await pag.inner_text())
                 if not m or int(m.group(1)) < int(m.group(2)):
                     raise ValueError(f"{pane}: quedaron páginas sin leer")
-        return fragments
 
     def _archive_table(self, response: Response, pane: str, table_index: int, page_number: int, table: Selector) -> str:
         return archive_observation(

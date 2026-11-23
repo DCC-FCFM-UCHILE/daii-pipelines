@@ -32,6 +32,14 @@ def parquet_hashes(directory: Path) -> dict[str, str]:
     return {p.name: digest(p) for p in sorted(directory.glob("*.parquet"))}
 
 
+def code_provenance() -> dict:
+    return {
+        "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
+        "lockfile": digest(ROOT / "uv.lock"),
+    }
+
+
 def prepare() -> str:
     VERSIONS.mkdir(parents=True, exist_ok=True)
     build_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ") + "-" + uuid4().hex[:8]
@@ -43,10 +51,8 @@ def prepare() -> str:
     manifest = {
         "build_id": build_id,
         "schema_version": 1,
-        "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-        "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
+        **code_provenance(),
         "config": config_hashes(),
-        "lockfile": digest(ROOT / "uv.lock"),
         "runs": runs,
         "inputs": inputs,
     }
@@ -78,10 +84,10 @@ def publish(build_id: str | None = None) -> dict[str, int]:
     if not candidates:
         raise ValueError("Ejecute daii silver para generar un candidato")
     directory = _version(build_id or candidates[-1]["build_id"])
-    manifest = json.loads((directory / "manifest.json").read_text())
     GOLD_DB.parent.mkdir(parents=True, exist_ok=True)
     with (GOLD_DB.parent / ".publish.lock").open("a") as lock:
         flock(lock, LOCK_EX)
+        manifest = json.loads((directory / "manifest.json").read_text())
         if GOLD_DB.exists():
             with sqlite3.connect(GOLD_DB) as current:
                 has_version = current.execute("SELECT 1 FROM sqlite_master WHERE name='datarelease'").fetchone()
@@ -94,33 +100,35 @@ def publish(build_id: str | None = None) -> dict[str, int]:
             raise ValueError("El candidato Silver cambió")
         with tempfile.TemporaryDirectory(dir=GOLD_DB.parent) as temporary:
             db = Path(temporary) / "daii.sqlite"
-            counts = load.build(directory / "silver", db, manifest["runs"])
-            with sqlite3.connect(db) as connection:
-                connection.execute("CREATE TABLE datarelease (build_id TEXT PRIMARY KEY, published_at TEXT NOT NULL)")
-                published_at = datetime.now(UTC).isoformat()
-                connection.execute("INSERT INTO datarelease VALUES (?, ?)", (manifest["build_id"], published_at))
-                if (
-                    connection.execute("PRAGMA integrity_check").fetchone() != ("ok",)
-                    or connection.execute("PRAGMA foreign_key_check").fetchone()
-                ):
-                    raise ValueError("La SQLite candidata no pasó la validación")
             snapshot = directory / "daii.sqlite"
             if snapshot.exists():
-                if manifest.get("gold_sha256") and digest(snapshot) != manifest["gold_sha256"]:
-                    raise ValueError("La SQLite histórica cambió")
-                with sqlite3.connect(snapshot) as existing:
-                    published_at = existing.execute(
-                        "SELECT published_at FROM datarelease WHERE build_id = ?", (manifest["build_id"],)
-                    ).fetchone()[0]
+                if digest(snapshot) != manifest.get("gold_sha256"):
+                    raise ValueError("La SQLite histórica cambió o su publicación quedó incompleta")
                 shutil.copyfile(snapshot, db)
+                counts = manifest["counts"]
+                published_at = manifest["published_at"]
             else:
-                staged = directory / "daii.sqlite.tmp"
-                shutil.copyfile(db, staged)
-                staged.replace(snapshot)
+                counts = load.build(directory / "silver", db, manifest["runs"])
+                published_at = datetime.now(UTC).isoformat()
+                with sqlite3.connect(db) as connection:
+                    connection.execute(
+                        "CREATE TABLE datarelease (build_id TEXT PRIMARY KEY, published_at TEXT NOT NULL)"
+                    )
+                    connection.execute("INSERT INTO datarelease VALUES (?, ?)", (manifest["build_id"], published_at))
+                    if (
+                        connection.execute("PRAGMA integrity_check").fetchone() != ("ok",)
+                        or connection.execute("PRAGMA foreign_key_check").fetchone()
+                    ):
+                        raise ValueError("La SQLite candidata no pasó la validación")
+                manifest |= {"gold_code": code_provenance(), "counts": counts}
             manifest |= {"published_at": published_at, "gold_sha256": digest(db)}
             sidecar = directory / "manifest.tmp"
             sidecar.write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
             sidecar.replace(directory / "manifest.json")
+            if not snapshot.exists():
+                staged = directory / "daii.sqlite.tmp"
+                shutil.copyfile(db, staged)
+                staged.replace(snapshot)
             db.replace(GOLD_DB)
     return counts
 

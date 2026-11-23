@@ -8,6 +8,7 @@ import contextlib
 import json
 from collections import Counter
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from daii.config import BRONZE
 
@@ -29,7 +30,12 @@ def status(run: Path) -> str | None:
 def last_good(spider: str, before: Path | None = None) -> Path | None:
     """Último run evaluado que no falló (opcionalmente, anterior a `before`)."""
     return next(
-        (r for r in runs(spider) if (before is None or r.name < before.name) and status(r) in ("ok", "warn")), None
+        (
+            r
+            for r in runs(spider)
+            if (before is None or r.name < before.name) and status(r) == "ok" and (r / "items.jsonl").is_file()
+        ),
+        None,
     )
 
 
@@ -81,5 +87,8 @@ def check(spider: str, run: Path) -> dict:
         "problems": fails + warns,
         "counts": dict(got),
     }
-    (run / "quality.json").write_text(json.dumps(result, indent=1, ensure_ascii=False))
+    with NamedTemporaryFile(mode="w", encoding="utf-8", dir=run, delete_on_close=False) as pending:
+        json.dump(result, pending, indent=1, ensure_ascii=False)
+        pending.close()
+        Path(pending.name).replace(run / "quality.json")
     return result

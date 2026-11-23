@@ -12,7 +12,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from daii.config import BRONZE, GOLD_DB, SILVER, academicos
 from daii.config import GOLD as GOLD
 from daii.gold import models as m
-from daii.quality.checks import runs, status
+from daii.quality.checks import last_good, runs, status
 from daii.silver.transform import _prio, norm_text
 
 
@@ -300,7 +300,7 @@ def _run_row(spider: str) -> dict:
     # el último run evaluado: un `scrapy crawl` manual de depuración no tapa la salud real del spider
     last = next((r for r in runs(spider) if status(r)), runs(spider)[0])
     q = json.loads((last / "quality.json").read_text()) if (last / "quality.json").exists() else {}
-    good = next((r for r in runs(spider) if status(r) == "ok" and (r / "items.jsonl").is_file()), None)
+    good = last_good(spider)
     return {
         "spider": spider,
         "ultimo_run": last.name,

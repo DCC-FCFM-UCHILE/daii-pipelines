@@ -23,7 +23,11 @@ def test_check_statuses(tmp_path, monkeypatch):
 
     r3 = _run(tmp_path, "20260103T000000Z", ["publicacion"], ok)  # bajo el mínimo
     assert checks.check("spi", r3)["status"] == "fail"
-    assert checks.last_good("spi") == r2  # silver ignora el run fallido
+    assert checks.last_good("spi") == r1
 
     r4 = _run(tmp_path, "20260104T000000Z", [], {})  # crash
     assert set(checks.check("spi", r4)["problems"]) >= {"0 ítems", "sin stats.json: el proceso de Scrapy se cayó"}
+
+    r5 = _run(tmp_path, "20260105T000000Z", ["publicacion"] * 3, ok)
+    assert checks.check("spi", r5)["status"] == "warn"
+    assert checks.last_good("spi") == r1

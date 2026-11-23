@@ -84,7 +84,7 @@ def _summary(results: list[dict]) -> str:
 def pipeline(spiders: list[str] | None = None) -> dict:
     if unknown := set(spiders or []) - set(all_spiders()):
         raise ValueError(f"spiders inexistentes: {sorted(unknown)}")  # antes de crear carpetas fantasma en bronze
-    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
+    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ-%f") + "-" + uuid4().hex[:8]
     try:
         futures = {s: crawl.submit(s, run_id) for s in spiders or all_spiders()}
         # un spider que revienta (nombre mal escrito, error de import) es un `fail`, no aborta silver/gold

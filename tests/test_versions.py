@@ -42,7 +42,9 @@ def test_publica_la_corrida_fijada_y_preserva_historial(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="anterior"):
         versions.publish(first)
-    versions.publish(second)
+    with monkeypatch.context() as patch:
+        patch.setattr(load, "build", lambda *_: pytest.fail("La republicación debe reutilizar el snapshot"))
+        versions.publish(second)
     added = tmp_path / "versions" / second / "silver" / "proyecto.parquet"
     added.write_bytes(b"archivo imprevisto")
     with pytest.raises(ValueError, match="Silver cambió"):

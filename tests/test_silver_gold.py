@@ -89,3 +89,9 @@ def test_quality_spider_que_no_arranco(tmp_path, monkeypatch):
     monkeypatch.setattr(checks, "BRONZE", tmp_path)
     res = checks.check("orcd", tmp_path / "orcd" / "20260101T000000Z")  # el run nunca se creó
     assert res["status"] == "fail"
+
+
+def test_publicacion_sin_doi_en_corrida_parcial():
+    out = _pubs({"persona": "a", "spider": "sitio_x", "titulo": "Una publicación", "doi": None, "anio": None})
+    assert out["doi"].to_list() == [None]
+    assert out["pub_key"].to_list() == ["t:una publicacion|?"]
