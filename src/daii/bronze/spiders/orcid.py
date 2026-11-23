@@ -61,12 +61,14 @@ class OrcidSpider(AcademicSpider):
                 "perfil", response, plataforma=u.get("url-name") or "web", url_destino=_v(u, "url", "value")
             )
         for e in _v(person, "external-identifiers", "external-identifier") or []:
+            if not _v(e, "external-id-url", "value"):
+                continue  # Perfil.url_destino es obligatorio
             yield self.item(
                 "perfil",
                 response,
                 plataforma=e["external-id-type"],
                 identificador=e["external-id-value"],
-                url_destino=_v(e, "external-id-url", "value") or "",
+                url_destino=_v(e, "external-id-url", "value"),
             )
 
         for sec, key in [

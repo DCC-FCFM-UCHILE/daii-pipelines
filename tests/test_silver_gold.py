@@ -65,9 +65,24 @@ def test_gold_se_construye_y_respeta_config(tmp_path, monkeypatch):
         ]
     ).write_parquet(silver / "tesis.parquet")
 
+    titulada = tesis | {"titulo": "Gradual sensitivity types", "anio": 2021}
+    pl.concat(
+        [
+            pl.read_parquet(silver / "tesis.parquet"),
+            pl.DataFrame(
+                [  # misma tesis desde dos fuentes: una trae estudiante y la otra no
+                    {"persona": "matias-toro", "spider": "a", "estudiante": "Damián", "rol_norm": "guia", **titulada},
+                    {"persona": "matias-toro", "spider": "b", "estudiante": None, "rol_norm": "guia", **titulada},
+                ]
+            ),
+        ],
+        how="vertical_relaxed",
+    ).write_parquet(silver / "tesis.parquet")
+
     counts = load.build()
     assert gold_db.exists() and not gold_db.with_suffix(".tmp").exists()
-    assert counts["tesis"] == 2  # sin título, el estudiante distingue; quien no está en config no entra
+    # sin título el estudiante distingue (Ana ≠ Beto); con título no (1 sola); fuera de config no entra
+    assert counts["tesis"] == 3
 
 
 def test_quality_spider_que_no_arranco(tmp_path, monkeypatch):

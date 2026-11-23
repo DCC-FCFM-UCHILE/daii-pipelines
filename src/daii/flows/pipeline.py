@@ -1,5 +1,7 @@
 """Flow Prefect: bronze (spiders en paralelo) → quality → silver → gold → alerta por email."""
 
+import os
+import signal
 import subprocess
 import sys
 import traceback
@@ -30,18 +32,23 @@ CRAWL_TIMEOUT_S = 4200  # > CLOSESPIDER_TIMEOUT (3600) de bronze/settings.py
 def crawl(spider: str, run_id: str) -> dict:
     """Corre un spider en su propio proceso (el reactor de Twisted no se puede reiniciar) y evalúa el run."""
     log = get_run_logger()
+    # grupo de procesos propio: si hay que matarlo, también mueren sus hijos (Chromium de Playwright)
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "scrapy", "crawl", spider, "-a", f"run_id={run_id}"],
+        cwd=ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
     try:
-        proc = subprocess.run(
-            [sys.executable, "-m", "scrapy", "crawl", spider, "-a", f"run_id={run_id}"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            timeout=CRAWL_TIMEOUT_S,  # respaldo de CLOSESPIDER_TIMEOUT si el proceso se cuelga (p. ej. Chromium)
-        )
+        _, stderr = proc.communicate(timeout=CRAWL_TIMEOUT_S)  # respaldo de CLOSESPIDER_TIMEOUT
         if proc.returncode:
-            log.error("scrapy terminó con código %s:\n%s", proc.returncode, proc.stderr[-3000:])
+            log.error("scrapy terminó con código %s:\n%s", proc.returncode, stderr[-3000:])
     except subprocess.TimeoutExpired:
-        log.error("scrapy no terminó en %s s; se mató el proceso", CRAWL_TIMEOUT_S)
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+        log.error("scrapy no terminó en %s s; se mató el proceso y sus hijos", CRAWL_TIMEOUT_S)
     result = checks.check(spider, BRONZE / spider / run_id)
     (log.info if result["status"] == "ok" else log.warning)("%s: %s %s", spider, result["status"], result["problems"])
     return result
@@ -75,6 +82,8 @@ def _summary(results: list[dict]) -> str:
 
 @flow(name="daii-pipeline", task_runner=ThreadPoolTaskRunner(max_workers=4))
 def pipeline(spiders: list[str] | None = None) -> dict:
+    if unknown := set(spiders or []) - set(all_spiders()):
+        raise ValueError(f"spiders inexistentes: {sorted(unknown)}")  # antes de crear carpetas fantasma en bronze
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     try:
         futures = {s: crawl.submit(s, run_id) for s in spiders or all_spiders()}

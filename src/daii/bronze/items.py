@@ -85,7 +85,7 @@ class Formacion(_Base):
 
 class Publicacion(_Base):
     tipo: Literal["publicacion"] = "publicacion"
-    titulo: str
+    titulo: str = Field(min_length=1)  # vacío = parser roto → ítem inválido → quality avisa
     anio: int | None = None
     tipo_publicacion: str | None = None  # journal|conference|book|chapter|preprint|... (texto de la fuente)
     venue: str | None = None

@@ -72,35 +72,45 @@ class PortafolioSpider(AcademicSpider):
         fragments: list[tuple[str, Selector]] = []
         try:
             for pane in PANES:
-                root = f"#justify-tab-example-tabpane-{pane}"
-                if not await page.locator(f"#justify-tab-example-tab-{pane}").count():
-                    continue  # no todos los perfiles tienen todas las pestañas
-                await page.click(f"#justify-tab-example-tab-{pane}")
-                for i in range(await page.locator(f"{root} [class*=paginadorTexto]").count()):
-                    pag = page.locator(f"{root} [class*=paginadorTexto]").nth(i)
-                    for _ in range(MAX_PAGES):
-                        m = PAGINA.search(await pag.inner_text())
-                        if not m or int(m.group(1)) >= int(m.group(2)):
-                            break
-                        rows = page.locator(f"{root} table").nth(i).locator("tbody")
-                        before = await rows.inner_text()
-                        await pag.locator("label", has_text=re.compile(r"^\s*>\s*$")).click()
-                        # el contador "Página n" cambia antes que las filas: esperar a que cambien las filas
-                        for _ in range(50):
-                            await page.wait_for_timeout(200)
-                            if await rows.inner_text() != before:
-                                break
-                        else:
-                            raise TimeoutError(f"{pane}: la tabla {i} no cambió tras pasar de página")
-                        await page.wait_for_timeout(300)  # amabilidad con el servidor
-                        html = await page.inner_html(root)
-                        # solo la tabla i-ésima de esta página nueva (las demás tablas del panel no cambiaron)
-                        fragments.append((pane, Selector(text=html).css("table")[i]))
+                try:
+                    fragments += await self._paginar(page, pane)
+                except Exception:  # una pestaña rota no debe perder a la persona: queda la página 1 de cada tabla
+                    self.logger.exception("portafolio %s: falló la paginación de %s", response.url, pane)
+                    self.crawler.stats.inc_value("daii/page_error")
         finally:
             await page.close()
 
         for item in self.parse_static(response, extra=fragments):
             yield item
+
+    async def _paginar(self, page, pane: str) -> list[tuple[str, Selector]]:
+        """Páginas 2..n de cada tabla de una pestaña (clic en '>')."""
+        fragments: list[tuple[str, Selector]] = []
+        root = f"#justify-tab-example-tabpane-{pane}"
+        if not await page.locator(f"#justify-tab-example-tab-{pane}").count():
+            return fragments  # no todos los perfiles tienen todas las pestañas
+        await page.click(f"#justify-tab-example-tab-{pane}")
+        for i in range(await page.locator(f"{root} [class*=paginadorTexto]").count()):
+            pag = page.locator(f"{root} [class*=paginadorTexto]").nth(i)
+            for _ in range(MAX_PAGES):
+                m = PAGINA.search(await pag.inner_text())
+                if not m or int(m.group(1)) >= int(m.group(2)):
+                    break
+                rows = page.locator(f"{root} table").nth(i).locator("tbody")
+                before = await rows.inner_text()
+                await pag.locator("label", has_text=re.compile(r"^\s*>\s*$")).click()
+                # el contador "Página n" cambia antes que las filas: esperar a que cambien las filas
+                for _ in range(50):
+                    await page.wait_for_timeout(200)
+                    if await rows.inner_text() != before:
+                        break
+                else:
+                    raise TimeoutError(f"{pane}: la tabla {i} no cambió tras pasar de página")
+                await page.wait_for_timeout(300)  # amabilidad con el servidor
+                html = await page.inner_html(root)
+                # solo la tabla i-ésima de esta página nueva (las demás tablas del panel no cambiaron)
+                fragments.append((pane, Selector(text=html).css("table")[i]))
+        return fragments
 
     def parse_static(
         self, response: Response, extra: list[tuple[str, Selector]] | None = None
@@ -205,7 +215,7 @@ class PortafolioSpider(AcademicSpider):
                 yield self.item(
                     "tesis",
                     response,
-                    titulo=r.get("Titulo") or "",
+                    titulo=r.get("Titulo"),
                     anio=r.get("Año"),
                     estudiante=r.get("Autores/as"),
                     rol="guía",

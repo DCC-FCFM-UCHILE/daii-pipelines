@@ -201,6 +201,8 @@ class JavierRuizDelSolarSpider(AcademicSpider):
                 venue = t[ini:fin] if fin else None
                 titulo = t[m.start("resto") : ini] if fin else re.split(r"\.\s", resto)[0]
                 titulo = re.split(r"[.,]\s+In\s", titulo)[0].strip(" .,")  # capítulos: "Título. In X (Ed.), Libro"
+                if fin and not titulo:  # libros editados: la itálica ES el título, no hay venue
+                    titulo, venue = venue or "", None
             elif q and re.match(r"^\d+\.", t):  # 'Ruiz-del-Solar, J., ..., “Advances in Robotics ...,” Journal ...'
                 aut, titulo = re.sub(r"^\d+\.\s*", "", t[: q.start()]), q.group(1)
                 ini, fin = italica(el, t, q.end())

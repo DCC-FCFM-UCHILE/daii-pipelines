@@ -86,6 +86,10 @@ def test_cv_no_se_guarda():
 
 def test_publications():
     out = parse("ruizdelsolar_publications.html", "publications.html", "parse_publications")
+    assert all(p["titulo"] for p in out["publicacion"])  # libros editados: la itálica es el título
+    assert {"titulo": "RoboCup 2010: Robot Soccer World Cup XIV", "venue": None}.items() <= next(
+        p for p in out["publicacion"] if p["titulo"].startswith("RoboCup 2010")
+    ).items()
     pubs = out["publicacion"]
     assert len(pubs) >= 230
     p = pubs[0]

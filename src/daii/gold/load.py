@@ -206,10 +206,13 @@ def build() -> dict[str, int]:
 
     tesis = _read("tesis")
     if not tesis.is_empty():
-        # el estudiante entra en la clave: sin título, "nivel|año" no distingue a nadie
+        # Sin título, "nivel|año" no distingue a nadie: entonces entra el estudiante. Con título NO, porque una
+        # fuente puede traer estudiante y otra no (ucurriculum vs sitio personal) y la misma tesis se duplicaría.
         key = pl.concat_str(
             pl.col("titulo").map_elements(norm_text, return_dtype=pl.String),
-            pl.col("estudiante").map_elements(norm_text, return_dtype=pl.String),
+            pl.when(pl.col("titulo").is_null()).then(
+                pl.col("estudiante").map_elements(norm_text, return_dtype=pl.String)
+            ),
             pl.col("anio").cast(pl.String),
             separator="|",
             ignore_nulls=True,

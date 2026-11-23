@@ -105,7 +105,8 @@ def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
     # Clave: DOI; si no hay, el DOI que otra fuente asocia al mismo título; si no, el título normalizado.
     # Títulos cortos ("Preface", "Editorial", "On the cover") se repiten entre obras distintas: para ellos no se
     # hereda DOI por título y la clave incluye el año.
-    df = df.filter(pl.col("titulo_norm") != "").with_columns(
+    # sin título normalizable (vacío, o solo caracteres no latinos) y sin DOI no hay con qué identificarla
+    df = df.filter((pl.col("titulo_norm") != "") | pl.col("doi").is_not_null()).with_columns(
         titulo_largo=pl.col("titulo_norm").str.count_matches(" ") >= TITULO_MIN_PALABRAS - 1
     )
     doi_por_titulo = (

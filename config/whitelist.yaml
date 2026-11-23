@@ -1,6 +1,6 @@
 # Dominios a los que los spiders siguen links "relacionados" (profundidad 1).
 # Un link a un subdominio también cuenta (p. ej. comunicaciones.dcc.uchile.cl ⊂ uchile.cl).
-# Los links a otros dominios solo se registran como `link` en raw, para decidir después si merecen spider.
+# Los links a otros dominios solo se registran como `link` en bronze, para decidir después si merecen spider.
 dominios:
   - uchile.cl
   - u-cursos.cl
