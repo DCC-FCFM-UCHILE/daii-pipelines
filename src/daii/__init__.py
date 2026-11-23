@@ -19,11 +19,11 @@ def _load_env() -> None:
 def main() -> None:
     p = argparse.ArgumentParser(prog="daii")
     sub = p.add_subparsers(dest="cmd", required=True)
-    run = sub.add_parser("run", help="pipeline completo (raw → quality → silver → gold)")
+    run = sub.add_parser("run", help="pipeline completo (bronze → quality → silver → gold)")
     run.add_argument("--spiders", help="lista separada por comas (por defecto: todos)")
     serve = sub.add_parser("serve", help="deployment programado en Prefect")
     serve.add_argument("--cron", default="0 6 * * 1", help="cron (default: lunes 06:00)")
-    sub.add_parser("silver", help="reconstruir silver desde raw")
+    sub.add_parser("silver", help="reconstruir silver desde bronze")
     sub.add_parser("gold", help="reconstruir gold desde silver")
     sub.add_parser("spiders", help="listar spiders")
     args = p.parse_args()

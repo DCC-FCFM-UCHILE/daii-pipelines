@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.rodrigo_verschae import RodrigoVerschaeSpider
+from daii.bronze.spiders.sites.rodrigo_verschae import RodrigoVerschaeSpider
 
 URL = "https://rodrigo.verschae.org/"
 P = "rodrigo-verschae"

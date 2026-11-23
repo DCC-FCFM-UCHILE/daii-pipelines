@@ -2,7 +2,7 @@ import pytest
 from conftest import FIXTURES, fixture_response, run_parse
 from scrapy.http import Response
 
-from daii.raw.spiders.sites.doris_saez import BASE, PROJECTS, PUBLICATIONS, STUDENTS, TEACHING, DorisSaezSpider
+from daii.bronze.spiders.sites.doris_saez import BASE, PROJECTS, PUBLICATIONS, STUDENTS, TEACHING, DorisSaezSpider
 
 P = "doris-saez"
 CV = BASE + "wp-content/uploads/2025/08/CV_DSaez_Aug_2025.pdf"

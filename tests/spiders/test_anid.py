@@ -1,7 +1,7 @@
 from conftest import fixture_response, run_parse
 from scrapy import Request
 
-from daii.raw.spiders.anid import AnidSpider
+from daii.bronze.spiders.anid import AnidSpider
 
 URL = "https://investigadores.anid.cl/es/public_search/researcher?id=4406"
 WORK = "https://investigadores.anid.cl//es/public_search/work?id={}"

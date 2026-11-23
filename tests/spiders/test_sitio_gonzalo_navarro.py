@@ -1,7 +1,7 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import Response
 
-from daii.raw.spiders.sites.gonzalo_navarro import CV, EN_CURSO, HOME, REALIZADAS, SOFTWARE, GonzaloNavarroSpider
+from daii.bronze.spiders.sites.gonzalo_navarro import CV, EN_CURSO, HOME, REALIZADAS, SOFTWARE, GonzaloNavarroSpider
 
 P = "gonzalo-navarro"
 

@@ -17,27 +17,27 @@ uv run pytest                             # tests (parsers contra fixtures, sin 
 uv run ruff check --fix && uv run ruff format
 uv run ty check src
 uv run scrapy list                        # spiders disponibles
-uv run scrapy crawl <spider> [-a persona=<slug>]   # un spider; escribe en data/raw/<spider>/<run_id>/
-uv run daii run [--spiders a,b]           # pipeline completo: raw → quality → silver → gold (flow Prefect)
+uv run scrapy crawl <spider> [-a persona=<slug>]   # un spider; escribe en data/bronze/<spider>/<run_id>/
+uv run daii run [--spiders a,b]           # pipeline completo: bronze → quality → silver → gold (flow Prefect)
 uv run daii serve                         # deployment programado (cron) en Prefect
 ```
 
 ## Arquitectura (medallion, por capas)
 
 ```
-config/academicos.yaml  ──semillas──▶  src/daii/raw/      Scrapy (+Playwright) → data/raw/<spider>/<run_id>/
+config/academicos.yaml  ──semillas──▶  src/daii/bronze/      Scrapy (+Playwright) → data/bronze/<spider>/<run_id>/
                                         src/daii/quality/  checks por run → quality.json + email si falla
                                         src/daii/silver/   Polars: normaliza/deduplica → data/silver/<tipo>.parquet
                                         src/daii/gold/     SQLModel: modelo relacional → data/gold/daii.sqlite
                                         src/daii/flows/    Prefect: orquesta todo
 ```
 
-- **raw** = lo que dice la fuente, casi sin tocar. Cada run guarda `items.jsonl`, `pages/` (HTML/PDF gzip
+- **bronze** = lo que dice la fuente, casi sin tocar. Cada run guarda `items.jsonl`, `pages/` (HTML/PDF gzip
   original), `pages.jsonl` (índice), `stats.json` (stats Scrapy) y `quality.json`.
 - **silver** usa, por spider, el **último run que no falló quality**. Si un scraper se rompe, el dashboard
   sigue mostrando los últimos datos buenos.
 - **gold** se reconstruye completo cada vez desde silver (idempotente). No editar la SQLite a mano.
-- Las capas solo dependen hacia atrás (gold lee silver, silver lee raw). Nunca al revés.
+- Las capas solo dependen hacia atrás (gold lee silver, silver lee bronze). Nunca al revés.
 
 ## Cómo escribir un spider
 
@@ -53,11 +53,11 @@ Reglas:
 - Heredar de `AcademicSpider` (`spiders/base.py`). Pedir las páginas propias con `self.page(url, callback, persona)`
   desde `async def start(self)`. Así quedan registradas y `related()` no las duplica.
 - Emitir ítems **solo** con `self.item(tipo, response, **campos)`. Los campos válidos por tipo están en
-  `raw/items.py` (pydantic, `extra="forbid"`). Un ítem inválido se descarta y quality lo reporta.
+  `bronze/items.py` (pydantic, `extra="forbid"`). Un ítem inválido se descarta y quality lo reporta.
 - Llamar `yield from self.related(response)` en cada página propia: registra todos los links salientes (`link`)
   y sigue (profundidad 1) los del mismo dominio o de `config/whitelist.yaml` (`pagina`). Pasar `region=` si la
   página tiene menús de navegación ajenos al académico.
-- Raw guarda **texto como aparece**: no traducir, no mapear a catálogos, no inferir. Solo `clean()`/`texts()` y,
+- Bronze guarda **texto como aparece**: no traducir, no mapear a catálogos, no inferir. Solo `clean()`/`texts()` y,
   cuando sea obvio, separar campos (título/venue/año). Lo demás va en silver.
 - Declarar `expect = {"tipo": mínimo}` con los mínimos que una corrida sana debe traer (con margen, por ejemplo
   ~50% de lo que hay hoy). Es la alarma principal cuando un sitio cambia de estructura.
@@ -91,3 +91,15 @@ Reglas:
 - Código y nombres de dominio en español (como el modelo de datos). Nombres técnicos en inglés cuando son de librería.
 - `data/` no se versiona.
 - No scrapear Google Scholar (bloquea y sus términos lo prohíben). Respetar `robots.txt`.
+
+## Flujo de cambios y revisión
+
+1. Trabajar en una rama, nunca directo en `main`.
+2. Revisar el código con el revisor **ponytail** (`/ponytail-review`) mediante **handoffs independientes y sin
+   contexto previo**: un revisor por conjunto de módulos (núcleo bronze, spiders de plataforma, spiders de sitios,
+   quality/silver/gold/flows). Cada revisor recibe solo la lista de archivos; así no hereda los supuestos de quien
+   escribió el código.
+3. Aplicar las observaciones (o justificar por qué no) y volver a correr `pytest`, `ruff` y `ty`.
+4. Antes de mergear, revisar el diff final otra vez con ponytail.
+5. Abrir el PR y subir la revisión (hallazgos y cómo se resolvieron) como comentario del PR.
+

@@ -1,7 +1,7 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import TextResponse
 
-from daii.raw.spiders.orcid import OrcidSpider
+from daii.bronze.spiders.orcid import OrcidSpider
 
 
 def test_orcid_silva():

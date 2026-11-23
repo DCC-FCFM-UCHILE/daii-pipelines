@@ -3,7 +3,7 @@
 Datos para el dashboard de la **Dirección Académica, de Investigación e Innovación (DAII)** de la FCFM, U. de Chile:
 académicos, afiliaciones, áreas, publicaciones, tesis, proyectos y fondos, cursos, vinculación con el medio,
 productos y perfiles. Todo se obtiene con **scrapers custom por fuente** (Scrapy + Playwright) y se organiza
-en una arquitectura **medallion** (raw → silver → gold), orquestada con **Prefect**.
+en una arquitectura **medallion** (bronze → silver → gold), orquestada con **Prefect**.
 
 - Modelo conceptual: [`docs/modelo_datos.md`](docs/modelo_datos.md)
 - Guía para contribuir y para agentes de código: [`AGENTS.md`](AGENTS.md)
@@ -33,13 +33,13 @@ uv run pytest && uv run ruff check && uv run ty check src
 
 ```mermaid
 flowchart LR
-    cfg[config/academicos.yaml<br/>config/whitelist.yaml] --> raw
-    subgraph raw [raw · Scrapy]
+    cfg[config/academicos.yaml<br/>config/whitelist.yaml] --> bronze
+    subgraph bronze [bronze · Scrapy]
       p[Plataformas<br/>orcid · openalex · dblp · ucurriculum]
       s[Sitios personales<br/>sitio_&lt;slug&gt;]
       r[Links relacionados<br/>profundidad 1, lista blanca]
     end
-    raw -->|items.jsonl, pages/, stats.json| q[quality<br/>ok / warn / fail]
+    bronze -->|items.jsonl, pages/, stats.json| q[quality<br/>ok / warn / fail]
     q -->|último run bueno por spider| silver[silver · Polars<br/>parquet por tipo]
     silver --> gold[gold · SQLModel<br/>SQLite]
     q -->|problemas| mail[email]
@@ -48,7 +48,7 @@ flowchart LR
 
 | Capa | Dónde | Qué contiene |
 |---|---|---|
-| raw | `data/raw/<spider>/<run_id>/` | `items.jsonl` (ítems validados con pydantic, texto como en la fuente), `pages/` (respuestas originales gzip), `stats.json`, `quality.json` |
+| bronze | `data/bronze/<spider>/<run_id>/` | `items.jsonl` (ítems validados con pydantic, texto como en la fuente), `pages/` (respuestas originales gzip), `stats.json`, `quality.json` |
 | silver | `data/silver/<tipo>.parquet` | Por persona: normalizado (DOI, catálogos de tipo de publicación, nivel de formación, instrumento) y deduplicado entre fuentes, con `fuentes` y `confianza` |
 | gold | `data/gold/daii.sqlite` | Modelo relacional (`src/daii/gold/models.py`): entidades compartidas (publicación, proyecto, tesis, curso, producto) con tablas puente a `academico` y estado de cada scraper (`scraperun`) |
 
@@ -78,7 +78,7 @@ Notas:
 
 1. Agregar su entrada en `config/academicos.yaml` (slug, nombre, unidad, perfiles). Solo con eso los spiders
    de plataforma ya lo cubren.
-2. Si tiene sitio propio, escribir `src/daii/raw/spiders/sites/<slug>.py` y su test según `AGENTS.md`.
+2. Si tiene sitio propio, escribir `src/daii/bronze/spiders/sites/<slug>.py` y su test según `AGENTS.md`.
 
 ## Observabilidad
 

@@ -1,7 +1,7 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import Response
 
-from daii.raw.spiders.sites.susana_mondschein import CAMPANIA, CV, SITIO, SusanaMondscheinSpider
+from daii.bronze.spiders.sites.susana_mondschein import CAMPANIA, CV, SITIO, SusanaMondscheinSpider
 
 P = "susana-mondschein"
 

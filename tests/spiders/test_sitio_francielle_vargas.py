@@ -1,7 +1,7 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import Response
 
-from daii.raw.spiders.sites.francielle_vargas import FrancielleVargasSpider
+from daii.bronze.spiders.sites.francielle_vargas import FrancielleVargasSpider
 
 URL = "https://franciellevargas.github.io/"
 P = "francielle-vargas"

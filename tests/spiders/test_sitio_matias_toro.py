@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.matias_toro import MatiasToroSpider
+from daii.bronze.spiders.sites.matias_toro import MatiasToroSpider
 
 
 def test_home():

@@ -1,4 +1,4 @@
-"""Flow Prefect: raw (spiders en paralelo) → quality → silver → gold → alerta por email."""
+"""Flow Prefect: bronze (spiders en paralelo) → quality → silver → gold → alerta por email."""
 
 import subprocess
 import sys
@@ -11,7 +11,7 @@ from prefect.task_runners import ThreadPoolTaskRunner
 from scrapy.settings import Settings
 from scrapy.spiderloader import SpiderLoader
 
-from daii.config import RAW, ROOT
+from daii.config import BRONZE, ROOT
 from daii.gold.load import build as build_gold
 from daii.quality import checks, notify
 from daii.silver.transform import build as build_silver
@@ -19,7 +19,7 @@ from daii.silver.transform import build as build_silver
 
 def all_spiders() -> list[str]:
     s = Settings()
-    s.setmodule("daii.raw.settings")
+    s.setmodule("daii.bronze.settings")
     return sorted(SpiderLoader.from_settings(s).list())
 
 
@@ -35,7 +35,7 @@ def crawl(spider: str, run_id: str) -> dict:
     log = get_run_logger()
     if proc.returncode:
         log.error("scrapy terminó con código %s:\n%s", proc.returncode, proc.stderr[-3000:])
-    result = checks.check(spider, RAW / spider / run_id)
+    result = checks.check(spider, BRONZE / spider / run_id)
     (log.info if result["status"] == "ok" else log.warning)("%s: %s %s", spider, result["status"], result["problems"])
     return result
 

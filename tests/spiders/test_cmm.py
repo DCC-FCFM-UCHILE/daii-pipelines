@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.cmm import CmmSpider
+from daii.bronze.spiders.cmm import CmmSpider
 
 URL = "https://www.cmm.uchile.cl/?persona=alejandro-maass"
 

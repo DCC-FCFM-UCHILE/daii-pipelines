@@ -8,7 +8,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = Path(os.environ.get("DAII_DATA", ROOT / "data"))
-RAW, SILVER, GOLD = DATA / "raw", DATA / "silver", DATA / "gold"
+BRONZE, SILVER, GOLD = DATA / "bronze", DATA / "silver", DATA / "gold"
 GOLD_DB = GOLD / "daii.sqlite"
 
 

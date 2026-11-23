@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.claudia_lopez import ClaudiaLopezSpider
+from daii.bronze.spiders.sites.claudia_lopez import ClaudiaLopezSpider
 
 URL = "https://claudialopezmoncada.com/"
 P = "claudia-lopez"

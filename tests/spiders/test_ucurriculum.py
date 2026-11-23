@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.ucurriculum import UcurriculumSpider
+from daii.bronze.spiders.ucurriculum import UcurriculumSpider
 
 URL = "https://dcc.uchile.cl/nosotros/academico/mauricio-cerda/"
 

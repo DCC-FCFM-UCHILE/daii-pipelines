@@ -11,9 +11,9 @@ from collections import defaultdict
 
 import polars as pl
 
-from daii.config import RAW, SILVER
+from daii.bronze.items import TIPOS
+from daii.config import BRONZE, SILVER
 from daii.quality.checks import last_good
-from daii.raw.items import TIPOS
 
 # Prioridad de fuentes al consolidar campos (menor = más confiable). Fuentes curadas por la persona primero.
 PRIORIDAD = {"orcid": 0, "ucurriculum": 2, "dblp": 3, "openalex": 4}  # sitio_* = 1
@@ -63,7 +63,7 @@ def _prio(spider: str) -> int:
 def load_raw() -> dict[str, list[dict]]:
     """Ítems del último run bueno de cada spider, agrupados por tipo."""
     by_tipo: dict[str, list[dict]] = defaultdict(list)
-    for spider_dir in sorted(RAW.iterdir()) if RAW.exists() else []:
+    for spider_dir in sorted(BRONZE.iterdir()) if BRONZE.exists() else []:
         run = last_good(spider_dir.name)
         if run and (run / "items.jsonl").exists():
             for line in (run / "items.jsonl").open():

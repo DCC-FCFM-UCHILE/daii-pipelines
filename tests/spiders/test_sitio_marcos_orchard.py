@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.marcos_orchard import MarcosOrchardSpider
+from daii.bronze.spiders.sites.marcos_orchard import MarcosOrchardSpider
 
 SITIO = "https://www.morchard.cl/"
 P = "marcos-orchard"

@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.portafolio import PortafolioSpider
+from daii.bronze.spiders.portafolio import PortafolioSpider
 
 URL = "https://portafolio-academico.uchile.cl/perfil/27103-James-Peter-Mc-Phee-Torres"
 

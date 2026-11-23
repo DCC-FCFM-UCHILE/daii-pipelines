@@ -1,7 +1,7 @@
 import pytest
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.aidan_hogan import AidanHoganSpider
+from daii.bronze.spiders.sites.aidan_hogan import AidanHoganSpider
 
 
 @pytest.fixture(scope="module")

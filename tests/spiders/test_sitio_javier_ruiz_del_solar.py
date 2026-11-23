@@ -1,6 +1,6 @@
 from conftest import fixture_response, run_parse
 
-from daii.raw.spiders.sites.javier_ruiz_del_solar import JavierRuizDelSolarSpider
+from daii.bronze.spiders.sites.javier_ruiz_del_solar import JavierRuizDelSolarSpider
 
 SITIO = "https://www.cec.uchile.cl/~jruizd/"
 P = "javier-ruiz-del-solar"

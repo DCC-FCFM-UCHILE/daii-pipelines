@@ -1,7 +1,7 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import TextResponse
 
-from daii.raw.spiders.openalex import OpenalexSpider
+from daii.bronze.spiders.openalex import OpenalexSpider
 
 
 def test_author():

@@ -1,7 +1,7 @@
 from conftest import fixture_response, run_parse
 from scrapy.http import TextResponse
 
-from daii.raw.spiders.dblp import DblpSpider
+from daii.bronze.spiders.dblp import DblpSpider
 
 
 def test_dblp_toro():

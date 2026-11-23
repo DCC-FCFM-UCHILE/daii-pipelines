@@ -7,7 +7,7 @@ import polars as pl
 from sqlalchemy import insert
 from sqlmodel import Session, SQLModel, create_engine
 
-from daii.config import GOLD, GOLD_DB, SILVER, academicos
+from daii.config import BRONZE, GOLD, GOLD_DB, SILVER, academicos
 from daii.gold import models as m
 from daii.quality.checks import last_good, runs, status
 from daii.silver.transform import _prio, norm_text
@@ -252,9 +252,7 @@ def build() -> dict[str, int]:
             dict(producto_id="_key", rol="rol"),
         )
 
-    tables[m.ScrapeRun] = [
-        _run_row(d.name) for d in sorted((SILVER.parent / "raw").glob("*")) if d.is_dir() and runs(d.name)
-    ]
+    tables[m.ScrapeRun] = [_run_row(d.name) for d in sorted(BRONZE.glob("*")) if d.is_dir() and runs(d.name)]
 
     counts = {}
     with Session(engine) as s:
