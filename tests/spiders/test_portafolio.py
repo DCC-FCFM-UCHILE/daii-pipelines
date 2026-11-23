@@ -35,3 +35,31 @@ def test_portafolio_meruane_pestania_bio_opcional():
     out = run_parse(PortafolioSpider().parse_static(fixture_response("portafolio_meruane_rendered.html", url, "x")))
     assert out["persona"][0]["bio"].startswith("Soy Viviana Meruane, Profesora Titular")
     assert len(out["dictacion"]) == 10 and len(out["tesis"]) == 10  # página 1 de cada tabla
+
+
+def test_portafolio_reprocesa_fragmento_archivado(tmp_path, monkeypatch):
+    import gzip
+    import json
+
+    from parsel import Selector
+
+    from daii.bronze import middlewares
+
+    monkeypatch.setattr(middlewares, "BRONZE", tmp_path)
+    spider = PortafolioSpider(run_id="prueba")
+    resp = fixture_response("portafolio_mcphee_rendered.html", URL, "james-mcphee")
+    resp.meta["observacion_id"] = "inicial"
+    table = resp.css("#justify-tab-example-tabpane-docencia table")[0]
+    fragment = spider._archive_table(resp, "docencia", 0, 2, table)
+    run = tmp_path / "portafolio" / "prueba"
+    entry = json.loads((run / "pages.jsonl").read_text())
+    assert (entry["pestania"], entry["tabla"], entry["pagina"]) == ("docencia", 0, 2)
+    assert entry["observacion_padre"] == "inicial"
+    assert entry["observacion_id"] == fragment
+    saved = gzip.decompress((run / entry["file"]).read_bytes()).decode()
+    parsed = run_parse(spider.parse_static(resp, extra=[("docencia", Selector(text=saved), fragment)]))
+    courses = parsed["dictacion"]
+    assert len(courses) == 20
+    assert courses[0]["observacion_id"] == "inicial"
+    assert courses[10]["observacion_id"] == fragment
+    assert courses[10]["codigo_curso"] == "CD1100"

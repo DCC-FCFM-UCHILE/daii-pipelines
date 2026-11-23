@@ -14,7 +14,8 @@ from scrapy import Request
 from scrapy.http import Response
 from scrapy_playwright.page import PageMethod
 
-from daii.bronze.spiders.base import AcademicSpider, anio, clean, texts
+from daii.bronze.middlewares import archive_observation
+from daii.bronze.spiders.base import AcademicSpider, anio, clean, redact, texts
 
 PANES = [
     "informacion-personal",
@@ -69,32 +70,38 @@ class PortafolioSpider(AcademicSpider):
     async def parse(self, response: Response) -> AsyncIterator[dict | Request]:
         """Recorre todas las páginas de cada tabla (clic en '>') y luego parsea cada fragmento."""
         page = response.meta["playwright_page"]
-        fragments: list[tuple[str, Selector]] = []
+        fragments: list[tuple[str, Selector, str]] = []
         try:
             for pane in PANES:
+                coverage = f"daii/coverage/{response.meta['persona']}/{pane}"
                 try:
-                    fragments += await self._paginar(page, pane)
+                    if not await page.locator(f"#justify-tab-example-tab-{pane}").count():
+                        self.crawler.stats.set_value(coverage, "sin_pestania")
+                        continue
+                    fragments += await self._paginar(page, pane, response)
+                    self.crawler.stats.set_value(coverage, "completa")
                 except Exception:  # una pestaña rota no debe perder a la persona: queda la página 1 de cada tabla
                     self.logger.exception("portafolio %s: falló la paginación de %s", response.url, pane)
                     self.crawler.stats.inc_value("daii/page_error")
+                    self.crawler.stats.set_value(coverage, "incompleta")
         finally:
             await page.close()
 
         for item in self.parse_static(response, extra=fragments):
             yield item
 
-    async def _paginar(self, page, pane: str) -> list[tuple[str, Selector]]:
+    async def _paginar(self, page, pane: str, response: Response) -> list[tuple[str, Selector, str]]:
         """Páginas 2..n de cada tabla de una pestaña (clic en '>')."""
-        fragments: list[tuple[str, Selector]] = []
+        fragments: list[tuple[str, Selector, str]] = []
         root = f"#justify-tab-example-tabpane-{pane}"
-        if not await page.locator(f"#justify-tab-example-tab-{pane}").count():
-            return fragments  # no todos los perfiles tienen todas las pestañas
         await page.click(f"#justify-tab-example-tab-{pane}")
         for i in range(await page.locator(f"{root} [class*=paginadorTexto]").count()):
             pag = page.locator(f"{root} [class*=paginadorTexto]").nth(i)
             for _ in range(MAX_PAGES):
                 m = PAGINA.search(await pag.inner_text())
-                if not m or int(m.group(1)) >= int(m.group(2)):
+                if not m:
+                    raise ValueError(f"{pane}: contador de páginas irreconocible")
+                if int(m.group(1)) >= int(m.group(2)):
                     break
                 rows = page.locator(f"{root} table").nth(i).locator("tbody")
                 before = await rows.inner_text()
@@ -109,11 +116,34 @@ class PortafolioSpider(AcademicSpider):
                 await page.wait_for_timeout(300)  # amabilidad con el servidor
                 html = await page.inner_html(root)
                 # solo la tabla i-ésima de esta página nueva (las demás tablas del panel no cambiaron)
-                fragments.append((pane, Selector(text=html).css("table")[i]))
+                table = Selector(text=html).css("table")[i]
+                observation = self._archive_table(response, pane, i, int(m.group(1)) + 1, table)
+                fragments.append((pane, table, observation))
+            else:
+                m = PAGINA.search(await pag.inner_text())
+                if not m or int(m.group(1)) < int(m.group(2)):
+                    raise ValueError(f"{pane}: quedaron páginas sin leer")
         return fragments
 
+    def _archive_table(self, response: Response, pane: str, table_index: int, page_number: int, table: Selector) -> str:
+        return archive_observation(
+            self,
+            {
+                "url": redact(response.url),
+                "persona": response.meta["persona"],
+                "modo": "playwright_fragmento",
+                "status": response.status,
+                "content_type": "text/html; charset=utf-8",
+                "pestania": pane,
+                "tabla": table_index,
+                "pagina": page_number,
+                "observacion_padre": response.meta.get("observacion_id"),
+            },
+            table.get().encode(),
+        )
+
     def parse_static(
-        self, response: Response, extra: list[tuple[str, Selector]] | None = None
+        self, response: Response, extra: list[tuple[str, Selector, str]] | None = None
     ) -> Iterator[dict | Request]:
         """Parsea la página inicial (página 1 de cada tabla) + fragmentos de páginas siguientes."""
         yield self.item(
@@ -140,8 +170,11 @@ class PortafolioSpider(AcademicSpider):
             for p in response.css("div[role=tabpanel]")
             for t in p.css("table")
         ]
-        for pane, table in [*tables, *(extra or [])]:
+        for pane, table in tables:
             yield from self._table(pane, table, response)
+        for pane, table, observation in extra or []:
+            for item in self._table(pane, table, response):
+                yield item | {"observacion_id": observation}
 
         yield from self.related(response, region=".tab-content")
 

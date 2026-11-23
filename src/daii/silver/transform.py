@@ -8,6 +8,7 @@ import json
 import re
 import unicodedata
 from collections import defaultdict
+from pathlib import Path
 
 import polars as pl
 
@@ -75,11 +76,12 @@ def _prio(spider: str) -> int:
     return PRIORIDAD.get(spider, 1)
 
 
-def load_bronze() -> dict[str, list[dict]]:
+def load_bronze(selected: list[Path] | None = None) -> dict[str, list[dict]]:
     """Ítems del último run bueno de cada spider, agrupados por tipo."""
     by_tipo: dict[str, list[dict]] = defaultdict(list)
-    for spider_dir in sorted(BRONZE.iterdir()) if BRONZE.exists() else []:
-        run = last_good(spider_dir.name)
+    if selected is None:
+        selected = [run for d in sorted(BRONZE.glob("*")) if (run := last_good(d.name))]
+    for run in selected:
         if run and (run / "items.jsonl").exists():
             for line in (run / "items.jsonl").open():
                 try:
@@ -93,9 +95,14 @@ def load_bronze() -> dict[str, list[dict]]:
 
 
 def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
-    df = df.with_columns(
+    unrelated = (
+        (pl.col("persona") == "richard-weber")
+        & (pl.col("spider") == "openalex")
+        & ((pl.col("titulo").str.to_lowercase() == "on the cover") | (pl.col("anio") < 1950))
+    ).fill_null(False)
+    df = df.filter(~unrelated).with_columns(
         # extrae el DOI aunque venga como URL o con basura alrededor ("bar050\n10.1093/database/bar050")
-        doi=pl.col("doi").str.to_lowercase().str.extract(r"(10\.\d{4,9}/\S+)"),
+        doi=pl.col("doi").str.to_lowercase().str.extract(r"(10\.\d{4,9}/\S+)").str.strip_chars_end(";"),
         titulo_norm=pl.col("titulo").map_elements(norm_text, return_dtype=pl.String),
         tipo_publicacion=pl.col("tipo_publicacion").map_elements(
             lambda v: classify(v, TIPO_PUB), return_dtype=pl.String
@@ -112,7 +119,9 @@ def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
     doi_por_titulo = (
         df.filter(pl.col("doi").is_not_null() & pl.col("titulo_largo"))
         .group_by("titulo_norm")
-        .agg(doi_t=pl.col("doi").first())
+        .agg(doi_t=pl.col("doi").first(), doi_count=pl.col("doi").n_unique())
+        .filter(pl.col("doi_count") == 1)
+        .drop("doi_count")
     )
     clave_titulo = pl.lit("t:") + pl.col("titulo_norm")
     df = df.join(doi_por_titulo, on="titulo_norm", how="left").with_columns(
@@ -166,19 +175,20 @@ TRANSFORMS = {
     ),
 }
 # Campos que definen "la misma fila" para deduplicar (además de persona y tipo).
-DEDUP_IGNORA = {"url", "spider", "run_id", "scraped_at", "tipo"}
+DEDUP_IGNORA = {"url", "spider", "run_id", "scraped_at", "observacion_id", "tipo"}
 
 
-def build() -> dict[str, int]:
-    SILVER.mkdir(parents=True, exist_ok=True)
+def build(destination: Path | None = None, selected: list[Path] | None = None) -> dict[str, int]:
+    destination = destination or SILVER
+    destination.mkdir(parents=True, exist_ok=True)
     out = {}
-    for tipo, rows in load_bronze().items():
+    for tipo, rows in load_bronze(selected).items():
         df = pl.DataFrame(rows, infer_schema_length=None)
         if tipo != "publicacion":
             df = df.unique(subset=[c for c in df.columns if c not in DEDUP_IGNORA], keep="first", maintain_order=True)
         df = TRANSFORMS.get(tipo, lambda d: d)(df)
-        df.write_parquet(SILVER / f"{tipo}.parquet")
+        df.write_parquet(destination / f"{tipo}.parquet")
         out[tipo] = df.height
     for stale in set(TIPOS) - set(out):  # no dejar parquet viejos de tipos que ya no vienen
-        (SILVER / f"{stale}.parquet").unlink(missing_ok=True)
+        (destination / f"{stale}.parquet").unlink(missing_ok=True)
     return out

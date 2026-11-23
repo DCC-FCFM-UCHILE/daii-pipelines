@@ -6,6 +6,7 @@ import subprocess
 import sys
 import traceback
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from prefect import flow, get_run_logger, task
 from prefect.artifacts import create_markdown_artifact
@@ -14,9 +15,8 @@ from scrapy.settings import Settings
 from scrapy.spiderloader import SpiderLoader
 
 from daii.config import BRONZE, ROOT
-from daii.gold.load import build as build_gold
 from daii.quality import checks, notify
-from daii.silver.transform import build as build_silver
+from daii.versions import prepare, publish
 
 
 def all_spiders() -> list[str]:
@@ -55,13 +55,13 @@ def crawl(spider: str, run_id: str) -> dict:
 
 
 @task
-def silver() -> dict[str, int]:
-    return build_silver()
+def silver() -> str:
+    return prepare()
 
 
 @task
-def gold() -> dict[str, int]:
-    return build_gold()
+def gold(build_id: str) -> dict[str, int]:
+    return publish(build_id)
 
 
 def _result(spider: str, run_id: str, future) -> dict:
@@ -84,12 +84,13 @@ def _summary(results: list[dict]) -> str:
 def pipeline(spiders: list[str] | None = None) -> dict:
     if unknown := set(spiders or []) - set(all_spiders()):
         raise ValueError(f"spiders inexistentes: {sorted(unknown)}")  # antes de crear carpetas fantasma en bronze
-    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
     try:
         futures = {s: crawl.submit(s, run_id) for s in spiders or all_spiders()}
         # un spider que revienta (nombre mal escrito, error de import) es un `fail`, no aborta silver/gold
         results = [_result(s, run_id, f) for s, f in futures.items()]
-        counts = {"silver": silver(), "gold": gold()}
+        build_id = silver()
+        counts = {"build_id": build_id, "gold": gold(build_id)}
     except Exception:
         notify.send("[daii] pipeline con error", traceback.format_exc())
         raise
@@ -100,7 +101,7 @@ def pipeline(spiders: list[str] | None = None) -> dict:
         fails = sum(r["status"] == "fail" for r in bad)
         notify.send(
             f"[daii] {fails} fallas, {len(bad) - fails} avisos",
-            notify.report(bad, "Los spiders en 'fail' no se usaron: silver/gold usan su último run bueno."),
+            notify.report(bad, "Para spiders en 'warn' o 'fail', se conserva su último run ok."),
         )
     if failed := [r["spider"] for r in bad if r["status"] == "fail"]:
         raise RuntimeError(f"spiders con fallas de calidad: {failed}")  # el flow queda en Failed en Prefect

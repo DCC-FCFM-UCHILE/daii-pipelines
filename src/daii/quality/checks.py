@@ -1,7 +1,7 @@
 """Checks de calidad por run de spider. Resultado en bronze/<spider>/<run_id>/quality.json.
 
 fail → el run no se usa en silver (se mantiene el último bueno) y el flow termina en Failed.
-warn → el run se usa, pero se reporta.
+warn → se reporta y la publicación conserva el último run ok.
 """
 
 import contextlib

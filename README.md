@@ -97,3 +97,16 @@ Notas:
 - Coautores y estudiantes como personas propias (hoy son texto).
 - Montos de proyectos: ANID publica bases abiertas que se pueden cruzar por código.
 - Cursos: las fichas DCC cubren 7 años; para el resto hay que pedirle una exportación de U-Campus a la DAII.
+
+
+### Versiones locales
+
+`uv run daii silver` prepara un candidato e imprime su identificador.
+`uv run daii gold --build-id <id>` publica ese candidato bajo
+`DAII_DATA/versions/<id>/` y actualiza la SQLite vigente. El flow programado pasa
+el identificador automáticamente. `uv run daii versions` lista los manifiestos y
+`uv run daii diff <anterior> <posterior>` compara las filas de dos versiones.
+
+La publicación selecciona la última corrida `ok` de cada spider. Un `warn` o
+`fail` posterior queda visible en `scraperun` y se conserva la corrida `ok`
+previa. El manifiesto fija las corridas antes de leer los Parquet en Gold.

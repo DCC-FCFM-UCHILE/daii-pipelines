@@ -18,7 +18,12 @@ def main() -> None:
     serve = sub.add_parser("serve", help="deployment programado en Prefect")
     serve.add_argument("--cron", default="0 6 * * 1", help="cron (default: lunes 06:00)")
     sub.add_parser("silver", help="reconstruir silver desde bronze")
-    sub.add_parser("gold", help="reconstruir gold desde silver")
+    gold = sub.add_parser("gold", help="publicar un candidato Silver")
+    gold.add_argument("--build-id")
+    sub.add_parser("versions", help="listar versiones de datos")
+    diff = sub.add_parser("diff", help="comparar versiones de datos")
+    diff.add_argument("anterior")
+    diff.add_argument("posterior")
     sub.add_parser("spiders", help="listar spiders")
     args = p.parse_args()
 
@@ -30,12 +35,19 @@ def main() -> None:
         case "serve":
             pipeline.serve(name="semanal", cron=args.cron)
         case "silver":
-            from daii.silver.transform import build
+            from daii.versions import prepare
 
-            print(build())
+            print(prepare())
         case "gold":
-            from daii.gold.load import build
+            from daii.versions import publish
 
-            print(build())
+            print(publish(args.build_id))
+        case "versions" | "diff":
+            import json
+
+            from daii import versions
+
+            result = versions.versions() if args.cmd == "versions" else versions.diff(args.anterior, args.posterior)
+            print(json.dumps(result, indent=2, ensure_ascii=False))
         case "spiders":
             print("\n".join(all_spiders()))
