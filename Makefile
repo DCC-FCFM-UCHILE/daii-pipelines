@@ -57,4 +57,4 @@ ui: ## UI de Prefect en http://127.0.0.1:4200
 
 clean: ## Borra cachés (no toca data/)
 	rm -rf .pytest_cache .ruff_cache
-	find . -path ./.venv -prune -o -name __pycache__ -type d -exec rm -rf {} +
+	find . \( -path ./.venv -o -path ./data \) -prune -o -name __pycache__ -type d -exec rm -rf {} +

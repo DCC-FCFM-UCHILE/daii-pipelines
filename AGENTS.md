@@ -10,7 +10,7 @@ El modelo conceptual está en `docs/modelo_datos.md`.
 
 ## Comandos
 
-`make help` lista atajos para todo lo de abajo (`make install`, `make check`, `make run`, `make crawl SPIDER=… PERSONA=…`).
+`make help` lista atajos comunes (`make install`, `make check`, `make run`, `make crawl SPIDER=… PERSONA=…`).
 
 ```bash
 uv sync                                   # instalar
