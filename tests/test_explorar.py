@@ -57,8 +57,13 @@ def test_loaders_leen_la_version_publicada(data):
     assert embudo == {"bronze": 2, "silver": 2, "gold": 2}
     fila = datos.silver("area").filter(datos.pl.col("nombre") == "Knowledge Graphs").row(0, named=True)
     assert datos.origen(fila, "area")["nombre"].to_list() == ["Knowledge Graphs"]
-    nulos = datos.nulos(datos.capa("bronze", "area"))
+    # silver normalizó el texto: el rastro cae al título normalizado
+    assert datos.origen(fila | {"nombre": "knowledge  graphs"}, "area")["nombre"].to_list() == ["Knowledge Graphs"]
+    # las capas no se multiplican por fuente (silver y gold traen una fila por dato y persona)
+    assert datos.capa("gold", "area").height == datos.gold("area").height
+    nulos = datos.nulos(datos.con_fuente(datos.capa("bronze", "area")))
     assert nulos.filter(datos.pl.col("campo") == "nombre")["pct_nulos"].to_list() == [0.0]
+    assert datos.nulos(datos.con_fuente(datos.capa("gold", "publicacion"))).is_empty()  # tipo sin filas
 
 
 def _pagina(nombre: str, modo: str, persona: str | None = None) -> None:
@@ -96,6 +101,8 @@ def test_estados_vacios(tmp_path, monkeypatch):
     monkeypatch.setattr(datos, "GOLD_DB", tmp_path / "no.sqlite")
     monkeypatch.setattr(datos, "BRONZE", tmp_path / "bronze")
     monkeypatch.setattr(versions, "VERSIONS", tmp_path / "versions")
+    monkeypatch.setattr(datos, "VERSIONS", tmp_path / "versions")
+    monkeypatch.setattr(datos, "SILVER", tmp_path / "silver")
     monkeypatch.setattr(log, "DATA", tmp_path)
     st.cache_data.clear()
     for nombre in ("academicos", "agregados", "runs", "versiones", "logs"):

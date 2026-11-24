@@ -84,7 +84,7 @@ def pagina() -> None:
         ]
     )
     st.caption("Elige una versión para ver su manifiesto.")
-    fila = ui.tabla(tabla, key="versiones", seleccion=True)
+    fila = ui.tabla(tabla, key=f"versiones_{lista[-1]['build_id']}", seleccion=True)
     if fila:
         _detalle(next(m for m in lista if m["build_id"] == fila["build_id"]))
     _comparar(publicables)

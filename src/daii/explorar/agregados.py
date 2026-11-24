@@ -6,6 +6,7 @@ import streamlit as st
 
 from daii.explorar import datos, ui
 
+COMPARTIDAS = {"publicacion", "proyecto", "tesis", "producto"}
 AZUL = "#324366"  # azul FCFM: serie única (DESIGN.md)
 SECUENCIAL = ["#eef0f5", "#17203e"]
 
@@ -26,7 +27,11 @@ def _produccion(df: pl.DataFrame, tipo: str, nombres: dict[str, str]) -> None:
     if personas:
         df = df.filter(pl.col("persona").is_in(personas))
     # en gold una entidad compartida aparece una vez por académico: contar entidades distintas, no filas
-    clave = [c for c in ("titulo", "nombre", "codigo") if c in df.columns][:1] or ["persona"]
+    # solo las entidades compartidas entre académicos se cuentan una vez (métricas o dictaciones no se fusionan)
+    clave = [c for c in ("titulo", "nombre") if c in df.columns][:1] if tipo in COMPARTIDAS else []
+    if not clave:
+        df = df.with_row_index("_fila")
+        clave = ["_fila"]
     por_anio = (
         df.filter(pl.col(columna).is_not_null())
         .unique([columna, *clave])
@@ -135,7 +140,9 @@ def _embudo(tipo: str) -> None:
     st.altair_chart(chart, width="stretch")
     with st.expander("Todos los tipos"):
         ancho = todo.pivot("capa", index="tipo", values="filas").with_columns(
-            (100 - pl.col("silver") / pl.col("bronze") * 100).round(1).alias("% deduplicado en silver")
+            pl.when(pl.col("bronze") > 0)
+            .then((100 - pl.col("silver") / pl.col("bronze") * 100).round(1))
+            .alias("% deduplicado en silver")
         )
         ui.tabla(ancho, key="embudo_todo")
 
@@ -146,7 +153,7 @@ def pagina() -> None:
     if datos.gold_sql("SELECT 1 FROM academico LIMIT 1").is_empty():
         ui.sin_gold()
         return
-    etiquetas = {t: v[0] for t, v in datos.TIPOS.items() if t not in ("persona",)}
+    etiquetas = {t: v[0] for t, v in datos.TIPOS.items()}
     izquierda, derecha = st.columns([2, 3], vertical_alignment="bottom")
     tipo = izquierda.selectbox("Tipo de dato", list(etiquetas), format_func=lambda t: etiquetas[t], key="agr_tipo")
     capa = "gold"
@@ -159,6 +166,7 @@ def pagina() -> None:
     nombres = datos.nombres()
     _produccion(df, tipo, nombres)
     if pipeline:
-        _cobertura(df, nombres)
-        _calidad(df)
+        por_fuente = datos.con_fuente(df)  # una fila por fuente que reporta cada dato
+        _cobertura(por_fuente, nombres)
+        _calidad(por_fuente)
         _embudo(tipo)

@@ -38,13 +38,14 @@ def main() -> None:
     args = p.parse_args()
 
     if args.cmd == "explorar":  # antes de importar Prefect: la app no lo necesita
-        import subprocess
+        import os
         import sys
 
         from daii.config import ROOT
 
         app = Path(__file__).parent / "explorar" / "app.py"
-        raise SystemExit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(app)], cwd=ROOT))
+        os.chdir(ROOT)  # Streamlit lee .streamlit/config.toml del directorio actual
+        os.execv(sys.executable, [sys.executable, "-m", "streamlit", "run", str(app)])  # Ctrl+C lo maneja Streamlit
 
     from daii.flows.pipeline import all_spiders, pipeline  # import diferido: Prefect tarda en cargar
     from daii.log import setup

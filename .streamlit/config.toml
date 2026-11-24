@@ -1,6 +1,7 @@
 # Tema del explorador (`make explorar`). Valores y origen en DESIGN.md.
 [server]
 headless = true
+address = "localhost"  # herramienta local: no exponer data/ a la red
 
 [browser]
 gatherUsageStats = false

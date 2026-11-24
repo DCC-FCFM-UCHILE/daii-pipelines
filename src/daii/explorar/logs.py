@@ -54,7 +54,12 @@ def pagina() -> None:
         st.caption("Ningún registro con esos filtros.")
         return
     with st.container(horizontal=True):
-        for n, cantidad in df.group_by("nivel").len().sort("nivel").iter_rows():
+        for n, cantidad in (
+            df.group_by("nivel")
+            .len()
+            .sort(pl.col("nivel").replace_strict(NIVELES, list(range(len(NIVELES)))))
+            .iter_rows()
+        ):
             color, icono = NIVEL_BADGE.get(n, ("gray", ":material/info:"))
             st.badge(f"{cantidad} {n}", icon=icono, color=color)  # ty: ignore[invalid-argument-type]
     st.caption(f"{df.height} registros, del más reciente al más antiguo (máximo 2.000). Elige uno para ver su detalle.")
@@ -68,7 +73,13 @@ def pagina() -> None:
         "evento",
         "mensaje",
     )
-    fila = ui.tabla(vista, key="logs", seleccion=True, altura="content" if vista.height <= 15 else 560, ocultas=("n",))
+    fila = ui.tabla(
+        vista,
+        key=f"logs_{hash((nivel, spider, run_id, persona, evento, desde))}",
+        seleccion=True,
+        altura="content" if vista.height <= 15 else 560,
+        ocultas=("n",),
+    )
     if fila:
         registro = df.row(fila["n"], named=True)
         st.subheader(registro["evento"] or "log")

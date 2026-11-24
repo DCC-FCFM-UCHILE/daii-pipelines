@@ -13,12 +13,6 @@ ESTADOS = {
 }
 
 
-def estado(valor: str | None) -> None:
-    """Estado de calidad: siempre ícono + texto, nunca solo color."""
-    color, icono = ESTADOS.get(valor or "", ("gray", ":material/help:"))
-    st.badge(valor if valor in ESTADOS else "sin evaluar", icon=icono, color=color)  # ty: ignore[invalid-argument-type]
-
-
 def fecha_run(run_id: str, *, corta: bool = False) -> str:
     """`20261123T185212Z` → `2026-11-23 18:52 UTC` (o `23/11 18:52` para ejes); los run_id son timestamps UTC."""
     try:
@@ -41,7 +35,7 @@ ACENTOS = {
 }
 
 
-TECNICAS = ("fuente", "fuentes", "confianza", "spider", "url", "run_id", "scraped_at")
+TECNICAS = ("fuente", "fuentes", "confianza", "spider", "url", "run_id", "scraped_at", "observacion_id")
 
 
 def procedencia_al_final(df: pl.DataFrame) -> pl.DataFrame:
@@ -95,7 +89,8 @@ def tabla(
         on_select="rerun",
         selection_mode="single-row",
     )
-    return df.row(evento.selection.rows[0], named=True) if evento.selection.rows else None
+    filas = [i for i in evento.selection.rows if i < df.height]  # la selección sobrevive a cambios de datos
+    return df.row(filas[0], named=True) if filas else None
 
 
 def sin_gold() -> None:

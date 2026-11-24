@@ -63,10 +63,10 @@ def _capas(slug: str, tipo: str) -> None:
     if capa == "bronze":
         st.caption("Ítems del run en uso de cada spider, tal como los dijo la fuente.")
     if capa != "silver":
-        ui.tabla(df, key=f"t_{tipo}_{capa}")
+        ui.tabla(df, key=f"t_{slug}_{tipo}_{capa}")
         return
     st.caption("Elige una fila para ver los ítems bronze que la originan.")
-    fila = ui.tabla(df, key=f"t_{tipo}_silver", seleccion=True)
+    fila = ui.tabla(df, key=f"t_{slug}_{tipo}_silver", seleccion=True)
     if fila:
         origen = datos.origen({**fila, "persona": slug}, tipo)
         st.subheader("Origen en bronze")
@@ -75,7 +75,7 @@ def _capas(slug: str, tipo: str) -> None:
                 "No se encontró el ítem bronze: el run en uso cambió o silver transformó todos los campos en común."
             )
         else:
-            ui.tabla(ui.procedencia_al_final(origen.drop("persona", "tipo")), key=f"o_{tipo}")
+            ui.tabla(ui.procedencia_al_final(origen.drop("persona", "tipo")), key=f"o_{slug}_{tipo}")
 
 
 def _ficha(a: dict, pipeline: bool) -> None:

@@ -7,10 +7,12 @@ solo y la app no muestra datos viejos.
 import json
 import sqlite3
 from pathlib import Path
+from typing import get_args
 
 import polars as pl
 import streamlit as st
 
+from daii.bronze.items import RawItem
 from daii.config import BRONZE, GOLD_DB, SILVER, academicos
 from daii.gold.load import run_manifest
 from daii.log import NIVELES, logs_db
@@ -77,6 +79,8 @@ TIPOS: dict[str, tuple[str, str, str | None]] = {
     "pagina": ("Páginas", "SELECT academico_id, url, titulo FROM paginarelacionada", None),
 }
 CAPAS = ("bronze", "silver", "gold")
+# campos de cada tipo según el contrato bronze: un campo que ninguna fuente llena se ve (100% vacío), no se pierde
+CAMPOS_BRONZE = {m.model_fields["tipo"].default: list(m.model_fields) for m in get_args(get_args(RawItem)[0])}
 
 
 def _firma(path: Path) -> tuple[str, float]:
@@ -150,7 +154,7 @@ def _bronze(firmas: tuple[tuple[str, float], ...]) -> dict[str, pl.DataFrame]:
         return {}
     todo = pl.concat(frames, how="diagonal_relaxed")
     return {
-        tipo: df.select([c for c in df.columns if df[c].null_count() < df.height])  # columnas de otros tipos
+        tipo: df.select([c for c in df.columns if c in CAMPOS_BRONZE.get(tipo, df.columns)])
         for (tipo,), df in todo.partition_by("tipo", as_dict=True).items()
     }
 
@@ -191,9 +195,8 @@ def con_persona(df: pl.DataFrame) -> pl.DataFrame:
 
 
 def capa(nombre: str, tipo: str) -> pl.DataFrame:
-    """Filas de un tipo en una capa, con columnas comunes `persona` y `fuente`."""
-    df = {"bronze": bronze, "silver": silver, "gold": gold}[nombre](tipo)
-    return con_fuente(con_persona(df)) if not df.is_empty() else df
+    """Filas de un tipo en una capa, con la columna común `persona` (una fila por fila real de la capa)."""
+    return con_persona({"bronze": bronze, "silver": silver, "gold": gold}[nombre](tipo))
 
 
 def origen(fila: dict, tipo: str) -> pl.DataFrame:
@@ -241,7 +244,18 @@ def embudo() -> pl.DataFrame:
 
 def nulos(df: pl.DataFrame) -> pl.DataFrame:
     """% de nulos (o texto vacío) por campo y fuente, en formato largo para el heatmap."""
-    tecnicas = {"persona", "url", "spider", "run_id", "scraped_at", "tipo", "fuente", "fuentes", "academico_id"}
+    tecnicas = {
+        "persona",
+        "url",
+        "spider",
+        "run_id",
+        "scraped_at",
+        "tipo",
+        "fuente",
+        "fuentes",
+        "academico_id",
+        "observacion_id",
+    }
     campos = [c for c in df.columns if c not in tecnicas]
     if df.is_empty() or not campos:
         return pl.DataFrame(
