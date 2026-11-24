@@ -16,6 +16,7 @@ from scrapy_playwright.page import PageMethod
 
 from daii.bronze.middlewares import archive_observation
 from daii.bronze.spiders.base import AcademicSpider, anio, clean, redact, texts
+from daii.log import logger
 
 PANES = [
     "informacion-personal",
@@ -81,7 +82,9 @@ class PortafolioSpider(AcademicSpider):
                     await self._paginar(page, pane, response, fragments)
                     self.crawler.stats.set_value(coverage, "completa")
                 except Exception:  # conserva las páginas ya capturadas para diagnóstico
-                    self.logger.exception("portafolio %s: falló la paginación de %s", response.url, pane)
+                    logger.bind(evento="pestania_incompleta", persona=response.meta["persona"], url=response.url).opt(
+                        exception=True
+                    ).error(f"falló la paginación de {pane}")
                     self.crawler.stats.inc_value("daii/page_error")
                     self.crawler.stats.set_value(coverage, "incompleta")
         finally:

@@ -84,9 +84,12 @@ Notas:
 
 - **Prefect UI:** cada corrida, spider (`crawl-<spider>`), log y duración. Cada flow publica el artefacto
   `calidad-scrapers` con una tabla de estado por spider.
+- **Logs** (`src/daii/log.py`, loguru): un mismo formato para spiders, quality, silver, gold y el flow, con
+  `componente`, `evento`, `spider`, `persona` y `run_id`. Se ven en consola y Prefect, quedan en `log.jsonl` de cada
+  corrida y versión, y en `data/logs.sqlite`: `uv run daii logs --nivel WARNING` o `make logs`.
 - **Quality** (`src/daii/quality/checks.py`), por run:
   - `fail`: crash, 0 ítems o bajo el mínimo `expect` del spider. Ese run no se usa: silver y gold mantienen el último run `ok`.
-  - `warn`: caída >50% de algún tipo respecto al run bueno anterior, ítems inválidos, excepciones en parsers, páginas propias caídas o pestañas de Portafolio incompletas. Tampoco se publica. Los links externos caídos no alertan.
+  - `warn`: caída >50% de algún tipo, en total o para una persona, respecto al run ok anterior, ítems inválidos, excepciones en parsers, páginas propias caídas o pestañas de Portafolio incompletas. Tampoco se publica. Los links externos caídos no alertan.
 - **Email:** un solo correo por corrida con los spiders en `fail`/`warn` y el run que se publica de cada uno, más otro si el pipeline se cae.
   Se configura con las variables `SMTP_*` y `ALERT_*` de `.env`.
 - **Tabla `scraperun` en gold:** el dashboard puede mostrar la salud de cada fuente y la fecha de su último dato bueno.

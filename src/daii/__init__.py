@@ -25,9 +25,21 @@ def main() -> None:
     diff.add_argument("anterior")
     diff.add_argument("posterior")
     sub.add_parser("spiders", help="listar spiders")
+    accept = sub.add_parser("aceptar", help="aceptar un run en warn revisado a mano (caída legítima)")
+    accept.add_argument("spider")
+    accept.add_argument("run_id")
+    logs = sub.add_parser("logs", help="consultar data/logs.sqlite")
+    logs.add_argument("--run-id")
+    logs.add_argument("--spider")
+    logs.add_argument("--nivel", default="INFO", help="mínimo (default: INFO)")
+    logs.add_argument("--desde", help="fecha ISO en UTC, p. ej. 2026-11-01")
+    logs.add_argument("--limite", type=int, default=200)
     args = p.parse_args()
 
     from daii.flows.pipeline import all_spiders, pipeline  # import diferido: Prefect tarda en cargar
+    from daii.log import setup
+
+    setup("cli", db=args.cmd != "logs")  # después de importar Prefect, que configura `logging` al cargar
 
     match args.cmd:
         case "run":
@@ -51,3 +63,11 @@ def main() -> None:
             print(json.dumps(result, indent=2, ensure_ascii=False))
         case "spiders":
             print("\n".join(all_spiders()))
+        case "aceptar":
+            from daii.quality.checks import aceptar
+
+            print(aceptar(args.spider, args.run_id)["status"])
+        case "logs":
+            from daii.log import consultar
+
+            print("\n".join(consultar(**{k: v for k, v in vars(args).items() if k != "cmd"})))

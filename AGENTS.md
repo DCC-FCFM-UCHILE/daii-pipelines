@@ -66,6 +66,8 @@ Reglas:
 - Declarar `expect = {"tipo": mínimo}` con los mínimos que una corrida sana debe traer (con margen, por ejemplo
   ~50% de lo que hay hoy). Es la alarma principal cuando un sitio cambia de estructura.
 - Usar Playwright (`meta={"playwright": True}`) solo si hace falta JS o un desafío anti-bot (p. ej. DBLP/Anubis).
+- Logs con `daii.log.logger` y un `evento` (ver "Logs"), nunca `self.logger` ni `print`. Si el problema debe alertar,
+  además sumar una stat que `quality` lea (p. ej. `daii/page_error`): los logs no cambian el estado del run.
 - PDFs: el `Response` no es texto. Usar `pypdf` sobre `response.body`.
 - Helpers compartidos van en `spiders/base.py`, nunca se importan de otro spider. Ya existen: `clean`, `texts`,
   `plain`, `anio`/`anios`, `autores`, `email`, `abs_url`, `pdf_texto`, `latex_acentos`, `redact`.
@@ -91,10 +93,33 @@ Reglas:
 
 - Cada flow y task es visible en la UI de Prefect (`uv run prefect server start` → http://127.0.0.1:4200).
 - `quality` evalúa cada run: `fail` si el spider no terminó bien, si no trajo ítems o si no alcanzó `expect`;
-  `warn` si cayó >50% respecto al run bueno anterior, si hubo ítems inválidos, excepciones en parsers o páginas propias que no bajaron (los links relacionados caídos no alertan).
+  `warn` si cayó >50% respecto al run ok anterior (por tipo y por persona+tipo), si hubo ítems inválidos, excepciones
+  en parsers, páginas propias que no bajaron o pestañas incompletas (los links relacionados caídos no alertan).
 - Al final del flow se manda **un email** con la tabla de problemas (si hubo). Variables: `SMTP_HOST`,
   `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_FROM`, `ALERT_TO` (ver `.env.example`). Sin SMTP
   configurado solo se loguea.
+
+## Logs
+
+Todo el código emite con loguru vía `daii.log` (configuración única en `src/daii/log.py`):
+
+```python
+from daii.log import logger
+
+logger.bind(evento="pagina_fallida", persona=slug, url=url).error(f"página propia falló: {err}")
+```
+
+- **Campos estándar** (`log.CAMPOS`): `componente`, `evento`, `spider`, `persona`, `run_id`, `build_id`,
+  `flow_run_id`, `url`. Cualquier otro campo enlazado queda en `extra` (JSON). Pasar contexto con `bind()`, no con
+  kwargs del mensaje (loguru formatearía las llaves del texto).
+- **`evento`**: código estable en snake_case que describe qué pasó (`pagina_fallida`, `pestania_incompleta`,
+  `run_evaluado`, `silver_preparado`, `gold_publicado`…). Sin `evento` queda `log`. Reutilizar los existentes.
+- Solo los puntos de entrada llaman `setup()` (CLI, flow, extensión `Logs` de Scrapy); las librerías solo emiten.
+  `logging` estándar (Scrapy, Playwright, etc.) se intercepta y llega con `componente` = nombre del logger.
+- **Dónde queda:** consola (texto; dentro de Prefect, en su UI), `bronze/<spider>/<run_id>/log.jsonl` y
+  `versions/<build_id>/log.jsonl` (JSON por línea) y `data/logs.sqlite` (todo desde INFO; solo crece).
+  Consultar con `uv run daii logs [--run-id X] [--spider S] [--nivel WARNING] [--desde 2026-11-01]`.
+- `logs.sqlite` es persistente: su esquema cambia solo con una migración (`make migration ESQUEMA=logs MSG="..."`).
 
 ## Convenciones
 

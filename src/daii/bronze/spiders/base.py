@@ -13,6 +13,7 @@ from pypdf import PdfReader
 from scrapy.http import Response, TextResponse
 
 from daii.config import academicos, con_perfil, whitelist
+from daii.log import logger
 
 SKIP_EXT = (".pdf", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".zip", ".css", ".js", ".mp4", ".pptx", ".docx", ".xml")
 
@@ -128,12 +129,17 @@ class AcademicSpider(scrapy.Spider):
         if page := failure.request.meta.get("playwright_page"):  # con playwright_include_page la cierra el spider
             await page.close()
         self.crawler.stats.inc_value("daii/page_error")
-        self.logger.error("página propia falló: %s (%s)", failure.request.url, failure.value)
+        logger.bind(evento="pagina_fallida", persona=failure.request.meta["persona"], url=failure.request.url).error(
+            f"página propia falló: {failure.value}"
+        )
 
     def _related_failed(self, failure) -> None:
         """Links externos caídos son normales en sitios académicos: se cuentan, no se alertan."""
         self.crawler.stats.inc_value("daii/related_error")
-        self.logger.info("link relacionado falló: %s (%s)", failure.request.url, failure.value)
+        meta = failure.request.meta
+        logger.bind(evento="link_relacionado_fallido", persona=meta.get("persona"), url=failure.request.url).info(
+            f"link relacionado falló: {failure.value}"
+        )
 
     def item(self, tipo: str, response: Response, **fields: Any) -> dict:
         for k in URL_FIELDS:  # hrefs relativos → absolutos y vacíos → None, en un solo lugar

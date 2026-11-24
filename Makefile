@@ -1,11 +1,13 @@
 # Atajos del proyecto. `make` sin argumentos muestra la ayuda.
 .DEFAULT_GOAL := help
-.PHONY: help install env test lint format typecheck check run crawl spiders silver gold migration serve ui clean
+.PHONY: help install env test lint format typecheck check run crawl spiders silver gold migration logs serve ui clean
 
 SPIDERS ?=
 SPIDER ?=
 PERSONA ?=
 CRON ?=
+ESQUEMA ?= alembic
+ARGS ?=
 
 help: ## Muestra esta ayuda
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -49,10 +51,13 @@ silver: ## Prepara un candidato Silver desde bronze (imprime su build_id)
 gold: ## Publica el último candidato Silver en gold
 	uv run daii gold
 
-migration: ## Nueva migración de gold desde models.py: make migration MSG="..."
-	@test -n "$(MSG)" || { echo 'Uso: make migration MSG="descripción"'; exit 1; }
-	db=$$(mktemp -u --suffix=.sqlite); trap 'rm -f $$db' EXIT; uv run alembic -x db=$$db upgrade head \
-		&& uv run alembic -x db=$$db revision --autogenerate -m "$(MSG)"
+migration: ## Nueva migración desde los modelos: make migration MSG="..." [ESQUEMA=logs] (default: gold)
+	@test -n "$(MSG)" || { echo 'Uso: make migration MSG="descripción" [ESQUEMA=logs]'; exit 1; }
+	db=$$(mktemp -u --suffix=.sqlite); trap 'rm -f $$db' EXIT; uv run alembic -n $(ESQUEMA) -x db=$$db upgrade head \
+		&& uv run alembic -n $(ESQUEMA) -x db=$$db revision --autogenerate -m "$(MSG)"
+
+logs: ## Últimos logs de data/logs.sqlite (ARGS="--nivel WARNING --spider orcid ...")
+	uv run daii logs $(ARGS)
 
 serve: ## Deployment programado en Prefect (CRON="..." opcional; default del CLI: lunes 06:00)
 	uv run daii serve $(if $(CRON),--cron "$(CRON)")
