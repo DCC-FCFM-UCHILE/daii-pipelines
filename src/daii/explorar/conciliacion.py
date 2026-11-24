@@ -4,6 +4,7 @@ la tabla `scraperun` publicada; las reglas de identidad están escritas a mano y
 import polars as pl
 import streamlit as st
 
+from daii.config import academicos
 from daii.explorar import datos, ui
 from daii.silver.transform import PRIORIDAD, TITULO_MIN_PALABRAS, _prio
 
@@ -48,8 +49,8 @@ IDENTIDAD = [
 ]
 
 LIMITES = """
-- **Spiders sin prioridad propia** (marcados abajo) valen lo mismo que un sitio personal: si chocan, gana el que llegó
-  primero.
+- **Spiders sin prioridad propia** (marcados abajo) van después de todas las demás fuentes: si chocan entre ellos, gana
+  el que llegó primero.
 - **Formación, afiliaciones, distinciones y actividades** no se concilian: el mismo grado escrito distinto por dos
   fuentes aparece dos veces.
 - **Dictaciones:** se deduplica antes de normalizar el semestre, así que "Primer Semestre" y "Otoño" quedan como dos
@@ -69,12 +70,12 @@ def _prioridades() -> pl.DataFrame:
         {
             "prioridad": _prio(s),
             "fuente": legibles.get(s, s),
-            "nota": "propia" if s in PRIORIDAD else "sin prioridad propia: vale como un sitio personal",
+            "nota": "propia" if s in PRIORIDAD else "sin prioridad propia: va al final",
         }
         for s in nombres
         if not s.startswith("sitio_")
     ]
-    filas.append({"prioridad": 1, "fuente": f"Sitios personales ({len(sitios)})", "nota": "curado por la persona"})
+    filas.append({"prioridad": 0, "fuente": f"Sitios personales ({len(sitios)})", "nota": "curado por la persona"})
     return pl.DataFrame(filas).sort("prioridad", "fuente")
 
 
@@ -103,6 +104,11 @@ def pagina() -> None:
     st.subheader("Prioridad de fuentes")
     st.caption("Menor gana. Se aplica campo a campo (publicaciones, académico) o a la fila completa (proyecto, tesis).")
     ui.tabla(_prioridades(), key="conciliacion_prioridad", altura="content")
+    propias = [f"{a['nombre']}: {' > '.join(a['prioridad'])}" for a in academicos() if a.get("prioridad")]
+    st.caption(
+        "Orden propio (campo `prioridad` en config/academicos.yaml; esas fuentes van antes del orden global): "
+        + ("; ".join(propias) if propias else "nadie lo tiene.")
+    )
 
     st.subheader("Cómo se reconoce el mismo dato")
     ui.tabla(
