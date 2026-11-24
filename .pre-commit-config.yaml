@@ -16,5 +16,5 @@ repos:
         name: ty check
         entry: uv run ty check src
         language: system
-        types: [python]
+        types_or: [python, pyi]
         pass_filenames: false

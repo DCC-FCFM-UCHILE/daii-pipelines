@@ -12,10 +12,9 @@ ARGS ?=
 help: ## Muestra esta ayuda
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
-install: ## Instala dependencias, Chromium para Playwright y el hook de pre-commit
+install: ## Instala dependencias y Chromium para Playwright
 	uv sync
 	uv run playwright install chromium
-	uv run pre-commit install
 
 env: ## Crea .env desde .env.example (no pisa uno existente)
 	@test -f .env && echo ".env ya existe" || cp .env.example .env
