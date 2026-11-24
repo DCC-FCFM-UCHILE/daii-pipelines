@@ -137,7 +137,8 @@ logger.bind(evento="pagina_fallida", persona=slug, url=url).error(f"página prop
 
 ## Convenciones
 
-- Python 3.14, `uv`, `ruff` (line-length 120), `ty`. Polars, no pandas.
+- Python 3.14 (parche exacto en `.python-version`, nunca 3.15), `uv`, `ruff` (line-length 120), `ty`. Polars, no pandas. Al cambiar la versión de Python o las dependencias, correr `uv lock` y commitear `uv.lock`:
+  el CI usa `uv sync --locked`. Ver "Python y dependencias" en el README.
 - Identificadores estables: `slug` de persona (config), DOI, ORCID, código de proyecto.
 - Código y nombres de dominio en español (como el modelo de datos). Nombres técnicos en inglés cuando son de librería.
 - `data/` no se versiona.

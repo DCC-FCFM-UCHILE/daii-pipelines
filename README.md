@@ -30,6 +30,20 @@ uv run daii explorar                        # explorador de datos (Streamlit) en
 uv run pytest && uv run ruff check && uv run ty check src
 ```
 
+## Python y dependencias
+
+El proyecto usa **Python 3.14.10** (`.python-version`). `uv` lo descarga si no está instalado. `requires-python`
+solo acepta 3.14.10 o un parche posterior de 3.14 (`>=3.14.10,<3.15`), así que el lock no resuelve para 3.15.
+Las versiones de todas las dependencias, incluidas ruff y ty, quedan fijadas en `uv.lock`. Para actualizarlas:
+
+```bash
+uv lock --upgrade                       # dependencias
+uv run pre-commit autoupdate --freeze   # hooks remotos de pre-commit
+```
+
+Para subir el parche de Python, cambia `.python-version` y el mínimo de `requires-python` en `pyproject.toml`,
+y luego corre `uv lock`.
+
 ## Commits y releases
 
 Instala los hooks locales con `uv run pre-commit install --allow-missing-config`.
