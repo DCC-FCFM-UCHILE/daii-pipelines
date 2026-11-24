@@ -1,9 +1,12 @@
 """config/catalogos.yaml: todo código que produce el pipeline tiene nombre (si no, la interfaz muestra el código)."""
 
+import re
+from pathlib import Path
 from typing import get_args
 
 import pytest
 
+from daii.bronze import spiders
 from daii.bronze.items import TipoActividad
 from daii.config import academicos, catalogos
 from daii.flows.pipeline import all_spiders
@@ -32,3 +35,14 @@ def test_todo_spider_tiene_nombre():
     assert next(r["nombre"] for r in catalogo() if r["codigo"] == "sitio_felipe_bravo") == (
         "Sitio personal de Felipe Bravo-Marquez"
     )
+
+
+def test_plataformas_fijadas_por_spiders_tienen_nombre():
+    """Las claves de los diccionarios PERFILES/PLATAFORMAS y los `plataforma="..."` literales de los spiders."""
+    codigos = set()
+    for f in Path(spiders.__file__).parent.rglob("*.py"):
+        texto = f.read_text()
+        for dic in re.findall(r"(?:PERFILES|PLATAFORMAS) = \{(.*?)\}", texto, re.S):
+            codigos |= set(re.findall(r':\s*"([^"]+)"', dic))
+        codigos |= set(re.findall(r'plataforma="([^"]+)"', texto))
+    assert codigos and codigos - set(catalogos()["perfilexterno.plataforma"]) == set()

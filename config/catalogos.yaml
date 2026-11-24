@@ -1,8 +1,9 @@
 # Nombres legibles de las categorías fijas de gold: `<tabla>.<columna>` → código → nombre.
 # Los datos guardan el código; lo que se muestra sale de aquí (gold lo publica en la tabla `catalogo`).
 # Editar un nombre aquí cambia lo que se ve en todas partes desde la próxima publicación (`daii silver && daii gold`).
-# Un test exige que todo código que produce el pipeline tenga nombre. Los sitios personales (`sitio_<slug>`) no se
-# listan: gold los nombra "Sitio personal de <nombre>" desde academicos.yaml.
+# Un test exige nombre para todo código que fija el pipeline (vocabularios cerrados, unidades, spiders y plataformas
+# de los diccionarios de los spiders). Los sitios personales (`sitio_<slug>`) no se listan: gold los nombra
+# "Sitio personal de <nombre>" desde academicos.yaml.
 
 academico.unidad:
   DCC: Departamento de Ciencias de la Computación
@@ -86,15 +87,37 @@ metrica.nombre:
 metrica.plataforma:
   openalex: OpenAlex
 
-# Solo las claves que pone el código; las que la fuente escribe ("ResearcherID", "Scopus Author ID") se ven tal cual.
+# No es un vocabulario cerrado: unas claves las pone el código (diccionarios PERFILES/PLATAFORMAS de los spiders) y
+# otras son el texto de la fuente en minúscula (alt de íconos, url-name de ORCID). Aquí van las que nombran una
+# plataforma; las que ya vienen legibles ("ResearcherID", "Loop profile") o son un sitio cualquiera se ven tal cual.
 perfilexterno.plataforma:
   orcid: ORCID
   openalex: OpenAlex
   dblp: DBLP
   scholar: Google Scholar
+  google scholar: Google Scholar
+  semanticscholar: Semantic Scholar
+  semantic scholar: Semantic Scholar
+  researchgate: ResearchGate
+  researcherid: ResearcherID
   publons: Publons
+  scopus: Scopus
+  web of science: Web of Science
+  microsoftacademic: Microsoft Academic
+  ads: NASA ADS
+  acl anthology: ACL Anthology
+  academia: Academia.edu
   github: GitHub
   linkedin: LinkedIn
+  twitter: Twitter / X
+  bluesky: Bluesky
+  youtube: YouTube
+  portafolio: Portafolio Académico U. de Chile
+  uchile: U. de Chile
+  fcfm: FCFM
+  web: Sitio web
+  sitio web personal: Sitio web personal
+  personal web page: Sitio web personal
 
 itembronze.spider:
   orcid: ORCID
