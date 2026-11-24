@@ -15,6 +15,8 @@ El modelo conceptual está en `docs/modelo_datos.md`.
 ```bash
 uv sync                                   # instalar
 uv run playwright install chromium        # una vez, para spiders con Playwright
+uv run pre-commit install --allow-missing-config  # instala los hooks de código y de mensaje
+uv run pre-commit run --all-files          # Ruff, ty y checks estándar de pre-commit
 uv run pytest                             # tests (parsers contra fixtures, sin red)
 uv run ruff check --fix && uv run ruff format
 uv run ty check src
@@ -135,12 +137,15 @@ logger.bind(evento="pagina_fallida", persona=slug, url=url).error(f"página prop
 
 ## Flujo de cambios y revisión
 
+Usamos pre-commit para ejecutar Ruff, ty y los checks estándar de `pre-commit-hooks`.
+
 1. Trabajar en una rama, nunca directo en `main`.
 2. Revisar el código con el revisor **ponytail** (`/ponytail-review`) mediante **handoffs independientes y sin
    contexto previo**: un revisor por conjunto de módulos (núcleo bronze, spiders de plataforma, spiders de sitios,
    quality/silver/gold/flows). Cada revisor recibe solo la lista de archivos; así no hereda los supuestos de quien
    escribió el código.
-3. Aplicar las observaciones (o justificar por qué no) y volver a correr `pytest`, `ruff` y `ty`.
+3. Aplicar las observaciones (o justificar por qué no) y volver a correr `pre-commit` y `pytest`.
 4. Antes de mergear, revisar el diff final otra vez con ponytail.
 5. Abrir el PR y subir la revisión (hallazgos y cómo se resolvieron) como comentario del PR.
-
+6. El CI debe pasar siempre. Tras subir cambios o actualizar un PR, sigue sin esperar a que termine.
+   Si el usuario pide explícitamente mergear, espera a que el CI del último commit termine y pase antes de mergear.
