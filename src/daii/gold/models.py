@@ -208,3 +208,10 @@ class ScrapeRun(SQLModel, table=True):
     problemas: str  # JSON
     conteos: str  # JSON
     run_en_uso: str | None = None  # run que alimenta silver (último bueno)
+
+
+class DataRelease(SQLModel, table=True):
+    """Versión publicada (una fila): enlaza la SQLite con su manifiesto en data/versions/<build_id>/."""
+
+    build_id: str = Field(primary_key=True)
+    published_at: str

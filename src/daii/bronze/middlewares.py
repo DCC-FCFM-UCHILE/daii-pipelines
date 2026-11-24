@@ -1,9 +1,33 @@
 import gzip
 import hashlib
 import json
+from datetime import UTC, datetime
+from uuid import uuid4
 
 from daii.bronze.spiders.base import redact
 from daii.config import BRONZE
+
+
+def archive_observation(spider, entry: dict, body: bytes | None) -> str:
+    run = BRONZE / spider.name / spider.run_id
+    run.mkdir(parents=True, exist_ok=True)
+    observation = uuid4().hex
+    body_hash = filename = None
+    if body is not None:  # None = página con datos sensibles (guardar=False): solo queda en el índice
+        body_hash = hashlib.sha256(body).hexdigest()
+        filename = f"pages/{body_hash}.gz"
+        if not (run / filename).exists():
+            (run / "pages").mkdir(exist_ok=True)
+            (run / filename).write_bytes(gzip.compress(body, mtime=0))
+    record = entry | {
+        "observacion_id": observation,
+        "capturado_en": datetime.now(UTC).isoformat(),
+        "file": filename,
+        "sha256": body_hash,
+    }
+    with (run / "pages.jsonl").open("a") as f:
+        f.write(json.dumps(record) + "\n")
+    return observation
 
 
 class SavePagesMiddleware:
@@ -13,19 +37,19 @@ class SavePagesMiddleware:
     """
 
     def process_response(self, request, response, spider):
-        # robots.txt de Scrapy, o páginas marcadas page(..., guardar=False) (p. ej. CVs con RUT en la cabecera)
-        if request.meta.get("dont_obey_robotstxt") or request.meta.get("guardar") is False:
+        # Scrapy descarga robots.txt por separado.
+        if request.meta.get("dont_obey_robotstxt"):
             return response
-        run = BRONZE / spider.name / spider.run_id
-        (run / "pages").mkdir(parents=True, exist_ok=True)
-        name = hashlib.sha1(response.url.encode()).hexdigest() + ".gz"
-        (run / "pages" / name).write_bytes(gzip.compress(response.body))
+        redirects = request.meta.get("redirect_urls", [])
         entry = {
+            "url_solicitada": redact(redirects[0] if redirects else request.url),
+            "redirects": [redact(url) for url in redirects],
+            "persona": request.meta.get("persona"),
+            "modo": "playwright" if request.meta.get("playwright") else "http",
             "url": redact(response.url),
             "status": response.status,
             "content_type": response.headers.get("Content-Type", b"").decode(errors="replace"),
-            "file": f"pages/{name}",
         }
-        with (run / "pages.jsonl").open("a") as f:
-            f.write(json.dumps(entry) + "\n")
+        body = response.body if request.meta.get("guardar") is not False else None
+        request.meta["observacion_id"] = archive_observation(spider, entry, body)
         return response

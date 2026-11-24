@@ -40,7 +40,7 @@ flowchart LR
       r[Links relacionados<br/>profundidad 1, lista blanca]
     end
     bronze -->|items.jsonl, pages/, stats.json| q[quality<br/>ok / warn / fail]
-    q -->|último run bueno por spider| silver[silver · Polars<br/>parquet por tipo]
+    q -->|último run ok por spider| silver[silver · Polars<br/>parquet por tipo]
     silver --> gold[gold · SQLModel<br/>SQLite]
     q -->|problemas| mail[email]
     gold --> dash[dashboard]
@@ -49,7 +49,7 @@ flowchart LR
 | Capa | Dónde | Qué contiene |
 |---|---|---|
 | bronze | `data/bronze/<spider>/<run_id>/` | `items.jsonl` (ítems validados con pydantic, texto como en la fuente), `pages/` (respuestas originales gzip), `stats.json`, `quality.json` |
-| silver | `data/silver/<tipo>.parquet` | Por persona: normalizado (DOI, catálogos de tipo de publicación, nivel de formación, instrumento) y deduplicado entre fuentes, con `fuentes` y `confianza` |
+| silver | `data/versions/<build_id>/silver/<tipo>.parquet` | Por persona: normalizado (DOI, catálogos de tipo de publicación, nivel de formación, instrumento) y deduplicado entre fuentes, con `fuentes` y `confianza` |
 | gold | `data/gold/daii.sqlite` | Modelo relacional (`src/daii/gold/models.py`): entidades compartidas (publicación, proyecto, tesis, curso, producto) con tablas puente a `academico` y estado de cada scraper (`scraperun`) |
 
 ### Fuentes
@@ -85,9 +85,9 @@ Notas:
 - **Prefect UI:** cada corrida, spider (`crawl-<spider>`), log y duración. Cada flow publica el artefacto
   `calidad-scrapers` con una tabla de estado por spider.
 - **Quality** (`src/daii/quality/checks.py`), por run:
-  - `fail`: crash, 0 ítems o bajo el mínimo `expect` del spider. Ese run no se usa: silver y gold mantienen el último bueno.
-  - `warn`: caída >50% de algún tipo respecto al run bueno anterior, ítems inválidos, excepciones en parsers o páginas propias caídas. Los links externos caídos no alertan.
-- **Email:** un solo correo por corrida con los spiders en `fail`/`warn`, más otro si el pipeline se cae.
+  - `fail`: crash, 0 ítems o bajo el mínimo `expect` del spider. Ese run no se usa: silver y gold mantienen el último run `ok`.
+  - `warn`: caída >50% de algún tipo respecto al run bueno anterior, ítems inválidos, excepciones en parsers, páginas propias caídas o pestañas de Portafolio incompletas. Tampoco se publica. Los links externos caídos no alertan.
+- **Email:** un solo correo por corrida con los spiders en `fail`/`warn` y el run que se publica de cada uno, más otro si el pipeline se cae.
   Se configura con las variables `SMTP_*` y `ALERT_*` de `.env`.
 - **Tabla `scraperun` en gold:** el dashboard puede mostrar la salud de cada fuente y la fecha de su último dato bueno.
 
@@ -97,3 +97,21 @@ Notas:
 - Coautores y estudiantes como personas propias (hoy son texto).
 - Montos de proyectos: ANID publica bases abiertas que se pueden cruzar por código.
 - Cursos: las fichas DCC cubren 7 años; para el resto hay que pedirle una exportación de U-Campus a la DAII.
+
+
+### Versiones locales
+
+`uv run daii silver` prepara un candidato e imprime su identificador.
+`uv run daii gold --build-id <id>` publica ese candidato bajo
+`DAII_DATA/versions/<id>/` y actualiza la SQLite vigente. El flow programado pasa
+el identificador automáticamente. `uv run daii versions` lista los manifiestos y
+`uv run daii diff <anterior> <posterior>` compara las filas de dos versiones.
+`uv run daii gold --build-id <id>` con una versión ya publicada vuelve a ella (rollback) sin reconstruirla.
+Una versión anterior a la vigente que nunca se publicó se rechaza.
+
+El esquema de cada SQLite lo crean las migraciones de Alembic (`src/daii/gold/migrations/`); la tabla
+`alembic_version` dice con qué revisión se construyó. Al cambiar `gold/models.py`: `make migration MSG="..."`.
+
+La publicación selecciona la última corrida `ok` de cada spider. Un `warn` o
+`fail` posterior queda visible en `scraperun` y se conserva la corrida `ok`
+previa. El manifiesto fija las corridas antes de leer los Parquet en Gold.

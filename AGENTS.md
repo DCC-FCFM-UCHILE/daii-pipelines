@@ -29,16 +29,18 @@ uv run daii serve                         # deployment programado (cron) en Pref
 ```
 config/academicos.yaml  ──semillas──▶  src/daii/bronze/      Scrapy (+Playwright) → data/bronze/<spider>/<run_id>/
                                         src/daii/quality/  checks por run → quality.json + email si falla
-                                        src/daii/silver/   Polars: normaliza/deduplica → data/silver/<tipo>.parquet
-                                        src/daii/gold/     SQLModel: modelo relacional → data/gold/daii.sqlite
+                                        src/daii/silver/   Polars: normaliza/deduplica → data/versions/<build_id>/silver/
+                                        src/daii/gold/     SQLModel + Alembic → data/gold/daii.sqlite
                                         src/daii/flows/    Prefect: orquesta todo
 ```
 
 - **bronze** = lo que dice la fuente, casi sin tocar. Cada run guarda `items.jsonl`, `pages/` (HTML/PDF gzip
   original), `pages.jsonl` (índice), `stats.json` (stats Scrapy) y `quality.json`.
-- **silver** usa, por spider, el **último run que no falló quality**. Si un scraper se rompe, el dashboard
-  sigue mostrando los últimos datos buenos.
-- **gold** se reconstruye completo cada vez desde silver (idempotente). No editar la SQLite a mano.
+- **silver** usa, por spider, el **último run `ok`** de quality (`warn` y `fail` no se publican). Si un scraper se
+  rompe, el dashboard sigue mostrando los últimos datos buenos; el email dice qué run se está usando.
+- **gold** se reconstruye completo cada vez desde silver (idempotente). No editar la SQLite a mano. El esquema lo
+  crean las migraciones de Alembic (`src/daii/gold/migrations/`): al cambiar `gold/models.py`, correr
+  `make migration MSG="..."`, revisar el archivo generado y commitearlo (un test exige que coincidan).
 - Las capas solo dependen hacia atrás (gold lee silver, silver lee bronze). Nunca al revés.
 
 ## Cómo escribir un spider

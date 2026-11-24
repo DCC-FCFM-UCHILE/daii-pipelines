@@ -41,6 +41,7 @@ class _Base(BaseModel):
     spider: str
     run_id: str
     scraped_at: str
+    observacion_id: str | None = None
 
 
 class Persona(_Base):

@@ -1,13 +1,14 @@
 """Checks de calidad por run de spider. Resultado en bronze/<spider>/<run_id>/quality.json.
 
-fail → el run no se usa en silver (se mantiene el último bueno) y el flow termina en Failed.
-warn → el run se usa, pero se reporta.
+Silver solo usa runs `ok`: ante `warn` o `fail` se publica el último run ok del spider (puede quedar viejo; el email
+dice cuál se está usando). `fail` además deja el flow en Failed.
 """
 
 import contextlib
 import json
 from collections import Counter
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from daii.config import BRONZE
 
@@ -27,9 +28,14 @@ def status(run: Path) -> str | None:
 
 
 def last_good(spider: str, before: Path | None = None) -> Path | None:
-    """Último run evaluado que no falló (opcionalmente, anterior a `before`)."""
+    """Último run `ok` con ítems (opcionalmente, anterior a `before`)."""
     return next(
-        (r for r in runs(spider) if (before is None or r.name < before.name) and status(r) in ("ok", "warn")), None
+        (
+            r
+            for r in runs(spider)
+            if (before is None or r.name < before.name) and status(r) == "ok" and (r / "items.jsonl").is_file()
+        ),
+        None,
     )
 
 
@@ -68,6 +74,12 @@ def check(spider: str, run: Path) -> dict:
         warns.append(f"{exc} excepciones en parsers")
     if perr := stats.get("daii/page_error"):
         warns.append(f"{perr} páginas propias fallaron")
+    if partial := sorted(
+        k.removeprefix("daii/coverage/")
+        for k, v in stats.items()
+        if k.startswith("daii/coverage/") and v == "incompleta"
+    ):
+        warns.append(f"pestañas incompletas: {partial}")
     if prev := last_good(spider, before=run):
         before = counts(prev)
         for tipo, n in before.items():
@@ -81,5 +93,8 @@ def check(spider: str, run: Path) -> dict:
         "problems": fails + warns,
         "counts": dict(got),
     }
-    (run / "quality.json").write_text(json.dumps(result, indent=1, ensure_ascii=False))
+    with NamedTemporaryFile(mode="w", encoding="utf-8", dir=run, delete_on_close=False) as pending:
+        json.dump(result, pending, indent=1, ensure_ascii=False)
+        pending.close()
+        Path(pending.name).replace(run / "quality.json")
     return result

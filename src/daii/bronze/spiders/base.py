@@ -145,6 +145,7 @@ class AcademicSpider(scrapy.Spider):
             "url": redact(response.url),
             "spider": self.name,
             "run_id": self.run_id,
+            "observacion_id": response.meta.get("observacion_id"),
             "scraped_at": datetime.now(UTC).isoformat(timespec="seconds"),
             **fields,
         }
