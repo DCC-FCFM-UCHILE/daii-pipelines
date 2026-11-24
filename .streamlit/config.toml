@@ -1,0 +1,29 @@
+# Tema del explorador (`make explorar`). Valores y origen en DESIGN.md.
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#324366"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f5f8"
+textColor = "#2d2d2d"
+linkColor = "#324366"
+borderColor = "#e6e6e6"
+redColor = "#da291c"
+font = "Lato:https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=swap, sans-serif"
+headingFont = "Barlow:https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&display=swap, sans-serif"
+headingFontWeights = [700, 600, 600, 600, 600, 600]
+baseRadius = "0.375rem"
+showWidgetBorder = true
+chartCategoricalColors = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6"]
+chartSequentialColors = ["#eef0f5", "#d5dae6", "#b9c1d5", "#9ca8c3", "#7f8fb1", "#63769e", "#4a5d88", "#324366", "#243155", "#17203e"]
+
+[theme.sidebar]
+backgroundColor = "#f4f5f8"
+
+[client]
+toolbarMode = "minimal"

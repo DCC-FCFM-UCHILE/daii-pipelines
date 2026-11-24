@@ -26,6 +26,7 @@ uv run scrapy crawl sitio_marcos_orchard -a persona=marcos-orchard   # un spider
 uv run daii silver && uv run daii gold      # reconstruir capas sin volver a scrapear
 uv run prefect server start                 # UI en http://127.0.0.1:4200
 uv run daii serve --cron "0 6 * * 1"        # ejecución programada (lunes 06:00)
+uv run daii explorar                        # explorador de datos (Streamlit) en http://localhost:8501
 uv run pytest && uv run ruff check && uv run ty check src
 ```
 

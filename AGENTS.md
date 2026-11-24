@@ -22,6 +22,7 @@ uv run scrapy list                        # spiders disponibles
 uv run scrapy crawl <spider> [-a persona=<slug>]   # un spider; escribe en data/bronze/<spider>/<run_id>/
 uv run daii run [--spiders a,b]           # pipeline completo: bronze → quality → silver → gold (flow Prefect)
 uv run daii serve                         # deployment programado (cron) en Prefect
+uv run daii explorar                      # explorador local (Streamlit) de bronze, silver y gold: http://localhost:8501
 ```
 
 ## Arquitectura (medallion, por capas)
@@ -32,6 +33,7 @@ config/academicos.yaml  ──semillas──▶  src/daii/bronze/      Scrapy (+
                                         src/daii/silver/   Polars: normaliza/deduplica → data/versions/<build_id>/silver/
                                         src/daii/gold/     SQLModel + Alembic → data/gold/daii.sqlite
                                         src/daii/flows/    Prefect: orquesta todo
+                                        src/daii/explorar/ Streamlit: explorador local, solo lee data/
 ```
 
 - **bronze** = lo que dice la fuente, casi sin tocar. Cada run guarda `items.jsonl`, `pages/` (HTML/PDF gzip
@@ -42,6 +44,8 @@ config/academicos.yaml  ──semillas──▶  src/daii/bronze/      Scrapy (+
   crean las migraciones de Alembic (`src/daii/gold/migrations/`): al cambiar `gold/models.py`, correr
   `make migration MSG="..."`, revisar el archivo generado y commitearlo (un test exige que coincidan).
 - Las capas solo dependen hacia atrás (gold lee silver, silver lee bronze). Nunca al revés.
+- `explorar/` es solo presentación: lee las tres capas y nunca escribe en `data/`; nada del pipeline lo importa. Su
+  diseño (identidad FCFM, estados, gráficos) está en `DESIGN.md` y el producto en `PRODUCT.md`.
 
 ## Cómo escribir un spider
 

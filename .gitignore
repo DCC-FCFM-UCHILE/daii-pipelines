@@ -8,3 +8,4 @@ __pycache__/
 
 # Fixtures con datos personales sensibles que no se pueden censurar (se descargan localmente)
 tests/fixtures/saez_cv.pdf
+.playwright-mcp/
