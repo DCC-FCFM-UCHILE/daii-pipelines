@@ -78,7 +78,7 @@ def _pagina(nombre: str, modo: str, persona: str | None = None) -> None:
 
 
 @pytest.mark.parametrize("modo", ["DAII", "Pipeline"])
-@pytest.mark.parametrize("nombre", ["academicos", "agregados", "runs", "versiones", "logs"])
+@pytest.mark.parametrize("nombre", ["academicos", "agregados", "modelo", "runs", "versiones", "logs"])
 def test_paginas_sin_errores(data, nombre, modo):
     at = AppTest.from_function(_pagina, args=(nombre, modo), default_timeout=30).run()
     assert not at.exception
@@ -105,7 +105,19 @@ def test_estados_vacios(tmp_path, monkeypatch):
     monkeypatch.setattr(datos, "SILVER", tmp_path / "silver")
     monkeypatch.setattr(log, "DATA", tmp_path)
     st.cache_data.clear()
-    for nombre in ("academicos", "agregados", "runs", "versiones", "logs"):
+    for nombre in ("academicos", "agregados", "modelo", "runs", "versiones", "logs"):
         at = AppTest.from_function(_pagina, args=(nombre, "Pipeline"), default_timeout=30).run()
         assert not at.exception, nombre
         assert at.info, f"{nombre} debe explicar qué falta"
+
+
+def test_modelo_desde_el_codigo():
+    from daii.bronze.items import Publicacion
+    from daii.explorar import modelo
+
+    assert modelo.comentarios(modelo.models.Publicacion)["id"] == 'DOI o "t:<título normalizado>"'
+    assert modelo.comentarios(Publicacion)["persona"] == "slug de config/academicos.yaml"  # heredado de _Base
+    cols = modelo._columnas_gold("publicacionacademico", modelo.models.PublicacionAcademico)
+    assert cols.filter(modelo.pl.col("campo") == "academico_id")["clave"].to_list() == ["PK · → academico"]
+    dot = modelo._diagrama()
+    assert "publicacionacademico -> academico;" in dot and "scraperun" not in dot

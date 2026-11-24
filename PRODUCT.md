@@ -17,6 +17,8 @@ bronze (lo que dijo cada fuente), silver (normalizado) y gold (la SQLite publica
 3. Ver agregados por tipo y capa: cobertura por fuente, producción en el tiempo, calidad de campos, embudo de capas.
 4. (Pipeline) Saber qué spider falló, desde cuándo, y qué run alimenta lo publicado.
 5. (Pipeline) Comparar dos versiones publicadas y leer los logs de un run.
+6. Entender el modelo de datos: tablas gold y sus relaciones (ambos modos); contrato bronze y esquema silver (Pipeline).
+   Se genera desde el código, así que no se desactualiza.
 
 ## Tono y principios
 
