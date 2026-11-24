@@ -1,5 +1,6 @@
 """Clase base de todos los spiders: semillas por persona, ítems con metadatos y links relacionados."""
 
+import csv
 import io
 import re
 import unicodedata
@@ -12,7 +13,7 @@ import scrapy
 from pypdf import PdfReader
 from scrapy.http import Response, TextResponse
 
-from daii.config import academicos, con_perfil, whitelist
+from daii.config import academico, academicos, con_perfil, whitelist
 from daii.log import logger
 
 SKIP_EXT = (".pdf", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".zip", ".css", ".js", ".mp4", ".pptx", ".docx", ".xml")
@@ -188,3 +189,97 @@ class AcademicSpider(scrapy.Spider):
         if isinstance(response, TextResponse):
             body = " ".join(response.css("body :not(script):not(style)::text").getall())
             yield self.item("pagina", response, titulo=clean(response.css("title::text").get()), texto=clean(body))
+
+
+class DieSpider(AcademicSpider):
+    """Perfiles DIE que cargan publicaciones, proyectos y memorias desde CSV públicos."""
+
+    slug: ClassVar[str]
+
+    async def start(self):
+        if not self.only or self.only == self.slug:
+            yield self.page(academico(self.slug)["perfiles"]["sitio"], self.parse, self.slug)
+
+    def parse(self, response: Response) -> Iterator:
+        ficha = response.css("article .et_pb_text_1")
+        if nombre := next(filter(None, map(texts, ficha.css("h1"))), None):
+            yield self.item(
+                "persona",
+                response,
+                nombre=nombre,
+                cargo=texts(ficha.css("p")),
+                email=texts(response.css("article .et_pb_text_2 p")),
+                foto_url=response.css("article .et_pb_image_0 img::attr(src)").get(),
+            )
+        if grado := texts(ficha.css("h3")):
+            yield self.item("formacion", response, grado=grado)
+
+        scripts = "\n".join(response.css("article .et_pb_code_inner script::text").getall())
+        profesor = re.search(r'const NOMBRE_PROFESOR\s*=\s*"([^"]+)"', scripts)
+        urls = dict(re.findall(r'const CSV_URL_(PUBLICACIONES|PROYECTOS|TESIS)\s*=\s*"([^"]+)"', scripts))
+        if profesor:
+            for clave, callback in (
+                ("PUBLICACIONES", self.parse_publicaciones),
+                ("PROYECTOS", self.parse_proyectos),
+                ("TESIS", self.parse_tesis),
+            ):
+                if url := urls.get(clave):
+                    yield self.page(response.urljoin(url), callback, self.slug, profesor=profesor[1])
+        yield from self.related(response, region="article .et_pb_all_tabs")
+
+    def _filas_die(self, response: Response, separador: str, columna: str) -> Iterator[dict[str, str]]:
+        def normalizar(nombre: str) -> str:
+            return re.sub(r"[\u0300-\u036f]", "", unicodedata.normalize("NFD", nombre)).lower().strip()
+
+        profesor = normalizar(response.meta["profesor"])
+        filas = csv.DictReader(
+            io.StringIO(response.body.decode("utf-8-sig"), newline=""), delimiter=separador, strict=True
+        )
+        if columna not in (filas.fieldnames or []):
+            raise ValueError(f"CSV DIE sin columna {columna}: {response.url}")
+        for fila in filas:
+            if profesor in normalizar(fila[columna] or ""):
+                yield fila
+
+    def parse_publicaciones(self, response: Response) -> Iterator:
+        for fila in self._filas_die(response, ",", "nombres_die"):
+            enlace = clean(fila["link"])
+            url = urlparse(enlace or "")
+            doi = re.fullmatch(r"10\.\d{4,9}/\S+", url.path.lstrip("/"))
+            creditos = fila["Autores"] or ""
+            nombres = [a.strip() for a in creditos.split(";")] if ";" in creditos else autores(creditos)
+            yield self.item(
+                "publicacion",
+                response,
+                titulo=clean(fila["Publicación"]) or clean(fila["Cita"]),
+                autores=[nombre for nombre in nombres if nombre not in ("", "...", "…")],
+                anio=anio(fila["Año"]),
+                venue=clean(fila["Título revista"]),
+                url_destino=enlace,
+                doi=doi[0] if doi and url.hostname in (None, "doi.org", "dx.doi.org") else None,
+            )
+        yield from self.related(response)
+
+    def parse_proyectos(self, response: Response) -> Iterator:
+        for fila in self._filas_die(response, ";", "nombre"):
+            yield self.item(
+                "proyecto",
+                response,
+                titulo=clean(fila["Title"]) or clean(fila["Título"]),
+                codigo=clean(fila["Código"]),
+                fuente=clean(fila["Fuente"]),
+                anio_inicio=anio(fila["Inicio"]),
+                anio_fin=anio(fila["Fin"]),
+            )
+        yield from self.related(response)
+
+    def parse_tesis(self, response: Response) -> Iterator:
+        for fila in self._filas_die(response, ";", "nombre"):
+            yield self.item(
+                "tesis",
+                response,
+                titulo=clean(fila["Título"]),
+                estudiante=clean(fila["Autores"]),
+                anio=anio(fila["Año"]),
+            )
+        yield from self.related(response)

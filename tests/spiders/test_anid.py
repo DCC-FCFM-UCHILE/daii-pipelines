@@ -2,6 +2,7 @@ from conftest import fixture_response, run_parse
 from scrapy import Request
 
 from daii.bronze.spiders.anid import AnidSpider
+from daii.config import academico
 
 URL = "https://investigadores.anid.cl/es/public_search/researcher?id=4406"
 WORK = "https://investigadores.anid.cl//es/public_search/work?id={}"
@@ -84,3 +85,16 @@ def test_obra_proyecto():
         "anio_fin": 2017,
         "codigo": None,
     }
+
+
+def test_ficha_palza():
+    persona = "humberto-palza"
+    url = academico(persona)["perfiles"]["anid"]
+    assert url.endswith("/es/public_search/researcher?id=229")
+    gen = list(AnidSpider().parse(fixture_response("palza.html", url, persona)))
+    out = run_parse(gen)
+    assert out["persona"][0]["nombre"] == "Humberto Cristian Palza Cordero"
+    assert len(out["formacion"]) == 3
+    assert out["formacion"][0]["grado"] == "Materials science"
+    assert out["formacion"][0]["anio"] == 2006
+    assert sum(isinstance(r, Request) and "/es/public_search/work?id=" in r.url for r in gen) >= 20
