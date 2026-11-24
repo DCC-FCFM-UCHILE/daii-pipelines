@@ -95,6 +95,8 @@ def load_bronze(selected: list[Path] | None = None) -> dict[str, list[dict]]:
 
 
 def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
+    # OpenAlex le atribuye a Richard Weber obras de homónimos: física de 1931 y portadas "On the Cover" de Annals of
+    # Allergy. shortcut: excepción en código; pasarla a config/ si aparecen más casos.
     unrelated = (
         (pl.col("persona") == "richard-weber")
         & (pl.col("spider") == "openalex")

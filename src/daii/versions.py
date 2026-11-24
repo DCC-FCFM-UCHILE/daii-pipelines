@@ -33,13 +33,18 @@ def parquet_hashes(directory: Path) -> dict[str, str]:
 
 
 def code_provenance() -> dict:
-    return {
-        "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
-        "dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
-        "lockfile": digest(ROOT / "uv.lock"),
-    }
+    # Fuera de un checkout (contenedor, wheel) no hay git: la procedencia queda incompleta pero se publica igual.
+    try:
+        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+        dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT))
+    except OSError, subprocess.CalledProcessError:
+        commit, dirty = None, None
+    lockfile = ROOT / "uv.lock"
+    return {"commit": commit, "dirty": dirty, "lockfile": digest(lockfile) if lockfile.exists() else None}
 
 
+# shortcut: cada versión (~8 MB) y cada candidato sin publicar se guardan para siempre; agregar un `prune`
+# cuando data/versions pese.
 def prepare() -> str:
     VERSIONS.mkdir(parents=True, exist_ok=True)
     build_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ") + "-" + uuid4().hex[:8]
@@ -74,9 +79,7 @@ def _version(build_id: str) -> Path:
 
 
 def versions() -> list[dict]:
-    return [
-        json.loads(p.read_text()) for p in sorted(VERSIONS.glob("*/manifest.json")) if not p.parent.name.startswith(".")
-    ]
+    return [json.loads(p.read_text()) for p in sorted(VERSIONS.glob("*/manifest.json"))]
 
 
 def publish(build_id: str | None = None) -> dict[str, int]:
@@ -88,19 +91,20 @@ def publish(build_id: str | None = None) -> dict[str, int]:
     with (GOLD_DB.parent / ".publish.lock").open("a") as lock:
         flock(lock, LOCK_EX)
         manifest = json.loads((directory / "manifest.json").read_text())
-        if GOLD_DB.exists():
+        snapshot = directory / "daii.sqlite"
+        # Volver a una versión anterior solo con su SQLite ya publicada; reconstruirla mezclaría código nuevo.
+        if GOLD_DB.exists() and not snapshot.exists():
             with sqlite3.connect(GOLD_DB) as current:
                 has_version = current.execute("SELECT 1 FROM sqlite_master WHERE name='datarelease'").fetchone()
                 active = current.execute("SELECT build_id FROM datarelease").fetchone() if has_version else None
                 if active and active[0] > manifest["build_id"]:
-                    raise ValueError("El candidato es anterior a la versión vigente")
-        if config_hashes() != manifest["config"]:
+                    raise ValueError("El candidato es anterior a la versión vigente y nunca se publicó")
+        if not snapshot.exists() and config_hashes() != manifest["config"]:
             raise ValueError("La configuración cambió; vuelva a generar Silver")
-        if parquet_hashes(directory / "silver") != manifest["silver"]:
+        if not snapshot.exists() and parquet_hashes(directory / "silver") != manifest["silver"]:
             raise ValueError("El candidato Silver cambió")
         with tempfile.TemporaryDirectory(dir=GOLD_DB.parent) as temporary:
             db = Path(temporary) / "daii.sqlite"
-            snapshot = directory / "daii.sqlite"
             if snapshot.exists():
                 if digest(snapshot) != manifest.get("gold_sha256"):
                     raise ValueError("La SQLite histórica cambió o su publicación quedó incompleta")
@@ -111,9 +115,6 @@ def publish(build_id: str | None = None) -> dict[str, int]:
                 counts = load.build(directory / "silver", db, manifest["runs"])
                 published_at = datetime.now(UTC).isoformat()
                 with sqlite3.connect(db) as connection:
-                    connection.execute(
-                        "CREATE TABLE datarelease (build_id TEXT PRIMARY KEY, published_at TEXT NOT NULL)"
-                    )
                     connection.execute("INSERT INTO datarelease VALUES (?, ?)", (manifest["build_id"], published_at))
                     if (
                         connection.execute("PRAGMA integrity_check").fetchone() != ("ok",)
@@ -136,12 +137,14 @@ def publish(build_id: str | None = None) -> dict[str, int]:
 def diff(before: str, after: str) -> dict:
     def read(build_id: str) -> tuple[dict, dict[str, Counter]]:
         directory = _version(build_id)
+        if not (directory / "daii.sqlite").exists():
+            raise ValueError(f"La versión {build_id} no existe o nunca se publicó")
         manifest = json.loads((directory / "manifest.json").read_text())
         with sqlite3.connect((directory / "daii.sqlite").resolve().as_uri() + "?mode=ro", uri=True) as db:
             tables = db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
             data = {}
             for (table,) in tables:
-                if table == "datarelease":
+                if table in ("datarelease", "alembic_version"):
                     continue
                 columns = [
                     r[1] for r in db.execute(f'PRAGMA table_info("{table}")') if (r[1], r[2]) != ("id", "INTEGER")

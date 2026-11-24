@@ -128,7 +128,6 @@ class AcademicSpider(scrapy.Spider):
         if page := failure.request.meta.get("playwright_page"):  # con playwright_include_page la cierra el spider
             await page.close()
         self.crawler.stats.inc_value("daii/page_error")
-        self.crawler.stats.inc_value(f"daii/page_error/{failure.request.meta['persona']}")
         self.logger.error("página propia falló: %s (%s)", failure.request.url, failure.value)
 
     def _related_failed(self, failure) -> None:

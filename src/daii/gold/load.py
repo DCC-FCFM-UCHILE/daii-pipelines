@@ -6,14 +6,27 @@ import os
 from pathlib import Path
 
 import polars as pl
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import insert
+from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
 from daii.config import BRONZE, GOLD_DB, SILVER, academicos
-from daii.config import GOLD as GOLD
 from daii.gold import models as m
 from daii.quality.checks import last_good, runs, status
 from daii.silver.transform import _prio, norm_text
+
+MIGRATIONS = Path(__file__).parent / "migrations"
+
+
+def migrate(engine: Engine) -> None:
+    """Crea el esquema con las migraciones de Alembic (deja `alembic_version` en la SQLite)."""
+    cfg = Config()
+    cfg.set_main_option("script_location", str(MIGRATIONS))
+    with engine.begin() as connection:
+        cfg.attributes["connection"] = connection
+        command.upgrade(cfg, "head")
 
 
 def _hid(*parts: object) -> str:
@@ -91,7 +104,7 @@ def build(
     tmp = destination.with_suffix(".tmp")
     tmp.unlink(missing_ok=True)
     engine = create_engine(f"sqlite:///{tmp}")
-    SQLModel.metadata.create_all(engine)
+    migrate(engine)
     tables: dict[type[SQLModel], list[dict]] = {m.Academico: _academicos(silver)}
 
     tables[m.PerfilExterno] = _cols(

@@ -1,6 +1,6 @@
 # Atajos del proyecto. `make` sin argumentos muestra la ayuda.
 .DEFAULT_GOAL := help
-.PHONY: help install env test lint format typecheck check run crawl spiders silver gold serve ui clean
+.PHONY: help install env test lint format typecheck check run crawl spiders silver gold migration serve ui clean
 
 SPIDERS ?=
 SPIDER ?=
@@ -43,11 +43,16 @@ crawl: ## Un spider suelto: make crawl SPIDER=orcid [PERSONA=slug]
 spiders: ## Lista los spiders
 	uv run daii spiders
 
-silver: ## Reconstruye silver desde bronze
+silver: ## Prepara un candidato Silver desde bronze (imprime su build_id)
 	uv run daii silver
 
-gold: ## Reconstruye gold desde silver
+gold: ## Publica el último candidato Silver en gold
 	uv run daii gold
+
+migration: ## Nueva migración de gold desde models.py: make migration MSG="..."
+	@test -n "$(MSG)" || { echo 'Uso: make migration MSG="descripción"'; exit 1; }
+	db=$$(mktemp -u --suffix=.sqlite) && uv run alembic -x db=$$db upgrade head \
+		&& uv run alembic -x db=$$db revision --autogenerate -m "$(MSG)"; rm -f $$db
 
 serve: ## Deployment programado en Prefect (CRON="..." opcional; default del CLI: lunes 06:00)
 	uv run daii serve $(if $(CRON),--cron "$(CRON)")

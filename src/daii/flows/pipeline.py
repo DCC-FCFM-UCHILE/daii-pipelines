@@ -16,6 +16,7 @@ from scrapy.spiderloader import SpiderLoader
 
 from daii.config import BRONZE, ROOT
 from daii.quality import checks, notify
+from daii.quality.checks import last_good
 from daii.versions import prepare, publish
 
 
@@ -71,6 +72,12 @@ def _result(spider: str, run_id: str, future) -> dict:
     return {"spider": spider, "run_id": run_id, "status": "fail", "problems": [repr(out)], "counts": {}}
 
 
+def _en_uso(bad: list[dict]) -> str:
+    """Qué run publica cada spider con problemas: un warn crónico deja datos viejos sin otro aviso."""
+    lines = [f"  {r['spider']}: {run.name if (run := last_good(r['spider'])) else 'ninguno (no aparece)'}" for r in bad]
+    return "\n".join(["Para spiders en 'warn' o 'fail' se publica su último run ok:", *lines])
+
+
 def _summary(results: list[dict]) -> str:
     rows = ["| spider | estado | ítems | problemas |", "|---|---|---|---|"]
     rows += [
@@ -101,7 +108,7 @@ def pipeline(spiders: list[str] | None = None) -> dict:
         fails = sum(r["status"] == "fail" for r in bad)
         notify.send(
             f"[daii] {fails} fallas, {len(bad) - fails} avisos",
-            notify.report(bad, "Para spiders en 'warn' o 'fail', se conserva su último run ok."),
+            notify.report(bad, _en_uso(bad)),
         )
     if failed := [r["spider"] for r in bad if r["status"] == "fail"]:
         raise RuntimeError(f"spiders con fallas de calidad: {failed}")  # el flow queda en Failed en Prefect

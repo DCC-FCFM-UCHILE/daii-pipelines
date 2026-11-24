@@ -31,3 +31,11 @@ def test_check_statuses(tmp_path, monkeypatch):
     r5 = _run(tmp_path, "20260105T000000Z", ["publicacion"] * 3, ok)
     assert checks.check("spi", r5)["status"] == "warn"
     assert checks.last_good("spi") == r1
+
+
+def test_pestania_incompleta_es_warn_con_detalle(tmp_path, monkeypatch):
+    monkeypatch.setattr(checks, "BRONZE", tmp_path)
+    stats = {"finish_reason": "finished", "daii/page_error": 1, "daii/coverage/ana/docencia": "incompleta"}
+    stats |= {"daii/coverage/ana/publicaciones": "completa"}
+    res = checks.check("spi", _run(tmp_path, "20260101T000000Z", ["persona"], stats))
+    assert res["status"] == "warn" and "pestañas incompletas: ['ana/docencia']" in res["problems"]

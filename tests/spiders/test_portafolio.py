@@ -1,3 +1,4 @@
+import pytest
 from conftest import fixture_response, run_parse
 
 from daii.bronze.spiders.portafolio import PortafolioSpider
@@ -63,3 +64,58 @@ def test_portafolio_reprocesa_fragmento_archivado(tmp_path, monkeypatch):
     assert courses[0]["observacion_id"] == "inicial"
     assert courses[10]["observacion_id"] == fragment
     assert courses[10]["codigo_curso"] == "CD1100"
+
+
+class _Locator:
+    def __init__(self, n: int, text: str = ""):
+        self.n, self.text = n, text
+
+    async def count(self):
+        return self.n
+
+    def nth(self, _):
+        return self
+
+    async def inner_text(self):
+        return self.text
+
+
+class _Page:
+    """Lo mínimo de una página Playwright que usa `_paginar` antes de pasar de página."""
+
+    def __init__(self, tables: int, paginators: int, counter: str):
+        self.tables, self.paginators, self.counter = tables, paginators, counter
+
+    async def click(self, _):
+        pass
+
+    def locator(self, selector: str):
+        if selector.endswith(" table"):
+            return _Locator(self.tables)
+        if "paginadorTexto" in selector:
+            return _Locator(self.paginators, self.counter)
+        return _Locator(1)  # el panel
+
+
+def _paginar(page: _Page) -> list:
+    import asyncio
+
+    fragments: list = []
+    asyncio.run(PortafolioSpider()._paginar(page, "docencia", None, fragments))
+    return fragments
+
+
+def test_paginar_tabla_de_una_pagina_no_falla():
+    assert _paginar(_Page(tables=2, paginators=2, counter="Página 1 de 1")) == []
+
+
+@pytest.mark.parametrize(
+    ("page", "error"),
+    [
+        (_Page(tables=2, paginators=1, counter="Página 1 de 1"), "paginadores irreconocibles"),
+        (_Page(tables=1, paginators=1, counter="Sin resultados"), "contador de páginas irreconocible"),
+    ],
+)
+def test_paginar_detecta_estructura_desconocida(page, error):
+    with pytest.raises(ValueError, match=error):
+        _paginar(page)

@@ -40,12 +40,41 @@ def test_publica_la_corrida_fijada_y_preserva_historial(tmp_path, monkeypatch):
     assert (tmp_path / "versions" / first / "daii.sqlite").exists()
     assert "area" not in versions.diff(first, second)["cambios"]
 
-    with pytest.raises(ValueError, match="anterior"):
-        versions.publish(first)
     with monkeypatch.context() as patch:
         patch.setattr(load, "build", lambda *_: pytest.fail("La republicación debe reutilizar el snapshot"))
         versions.publish(second)
-    added = tmp_path / "versions" / second / "silver" / "proyecto.parquet"
-    added.write_bytes(b"archivo imprevisto")
+        versions.publish(first)  # rollback a una versión ya publicada
+    with sqlite3.connect(gold) as db:
+        assert db.execute("SELECT build_id FROM datarelease").fetchone() == (first,)
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone() is not None
+
+    stale, newest = versions.prepare(), versions.prepare()
+    versions.publish(newest)
+    with pytest.raises(ValueError, match="nunca se publicó"):
+        versions.publish(stale)
+    with pytest.raises(ValueError, match="nunca se publicó"):
+        versions.diff(first, stale)
+
+    tampered = versions.prepare()
+    (tmp_path / "versions" / tampered / "silver" / "proyecto.parquet").write_bytes(b"archivo imprevisto")
     with pytest.raises(ValueError, match="Silver cambió"):
-        versions.publish(second)
+        versions.publish(tampered)
+
+
+def test_procedencia_sin_git(monkeypatch):
+    def sin_git(*_, **__):
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr(versions.subprocess, "check_output", sin_git)
+    assert versions.code_provenance()["commit"] is None
+
+
+def test_migraciones_coinciden_con_los_modelos(tmp_path):
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+    from sqlmodel import SQLModel, create_engine
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'g.sqlite'}")
+    load.migrate(engine)
+    with engine.connect() as connection:
+        assert compare_metadata(MigrationContext.configure(connection), SQLModel.metadata) == []

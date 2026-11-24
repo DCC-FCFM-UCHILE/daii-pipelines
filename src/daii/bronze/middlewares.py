@@ -12,11 +12,13 @@ def archive_observation(spider, entry: dict, body: bytes | None) -> str:
     run = BRONZE / spider.name / spider.run_id
     run.mkdir(parents=True, exist_ok=True)
     observation = uuid4().hex
-    body_hash = hashlib.sha256(body).hexdigest() if body is not None else None
-    filename = f"pages/{body_hash}.gz" if body_hash else None
-    if filename and body is not None and not (run / filename).exists():
-        (run / "pages").mkdir(exist_ok=True)
-        (run / filename).write_bytes(gzip.compress(body, mtime=0))
+    body_hash = filename = None
+    if body is not None:  # None = página con datos sensibles (guardar=False): solo queda en el índice
+        body_hash = hashlib.sha256(body).hexdigest()
+        filename = f"pages/{body_hash}.gz"
+        if not (run / filename).exists():
+            (run / "pages").mkdir(exist_ok=True)
+            (run / filename).write_bytes(gzip.compress(body, mtime=0))
     record = entry | {
         "observacion_id": observation,
         "capturado_en": datetime.now(UTC).isoformat(),

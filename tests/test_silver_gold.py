@@ -53,7 +53,6 @@ def test_gold_se_construye_y_respeta_config(tmp_path, monkeypatch):
     silver, gold_db = tmp_path / "silver", tmp_path / "gold" / "daii.sqlite"
     silver.mkdir()
     monkeypatch.setattr(load, "SILVER", silver)
-    monkeypatch.setattr(load, "GOLD", gold_db.parent)
     monkeypatch.setattr(load, "GOLD_DB", gold_db)
     monkeypatch.setattr(load, "BRONZE", tmp_path / "bronze")
     tesis = {"titulo": None, "anio": None, "nivel": "PhD", "programa": None, "estado": None, "url_destino": None}
@@ -95,3 +94,17 @@ def test_publicacion_sin_doi_en_corrida_parcial():
     out = _pubs({"persona": "a", "spider": "sitio_x", "titulo": "Una publicación", "doi": None, "anio": None})
     assert out["doi"].to_list() == [None]
     assert out["pub_key"].to_list() == ["t:una publicacion|?"]
+
+
+def test_obras_de_homonimos_de_weber_en_openalex_se_descartan():
+    weber = {"persona": "richard-weber", "spider": "openalex", "doi": None}
+    out = _pubs(
+        weber | {"titulo": "On the Cover", "anio": 2009},
+        weber | {"titulo": "Dielektrizitätskonstanten wässriger Lösungen", "anio": 1931},
+        weber | {"titulo": "Data mining for credit scoring models", "anio": 2010},
+        {"persona": "otra", "spider": "openalex", "titulo": "On the Cover", "doi": None, "anio": 2009},
+    )
+    assert sorted(zip(out["persona"], out["titulo"], strict=True)) == [
+        ("otra", "On the Cover"),
+        ("richard-weber", "Data mining for credit scoring models"),
+    ]
