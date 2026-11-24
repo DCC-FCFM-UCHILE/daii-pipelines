@@ -14,6 +14,7 @@ from uuid import uuid4
 
 from daii.config import BRONZE, DATA, GOLD_DB, ROOT
 from daii.gold import load
+from daii.log import archivo, logger
 from daii.silver import transform
 
 VERSIONS = DATA / "versions"
@@ -63,11 +64,14 @@ def prepare() -> str:
     }
     with tempfile.TemporaryDirectory(dir=VERSIONS) as temporary:
         candidate = Path(temporary) / "candidate"
-        transform.build(candidate / "silver", selected)
-        if any(digest(DATA / name) != expected for name, expected in inputs.items()):
-            raise ValueError("Bronze cambió durante Silver")
-        manifest["silver"] = parquet_hashes(candidate / "silver")
-        (candidate / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
+        with logger.contextualize(componente="silver", build_id=build_id), archivo(candidate / "log.jsonl"):
+            transform.build(candidate / "silver", selected)
+            if any(digest(DATA / name) != expected for name, expected in inputs.items()):
+                raise ValueError("Bronze cambió durante Silver")
+            manifest["silver"] = parquet_hashes(candidate / "silver")
+            (candidate / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
+            fijadas = ", ".join(f"{r['spider']}={r['run_en_uso']}" for r in runs if r["run_en_uso"])
+            logger.bind(evento="silver_preparado").info(f"corridas fijadas: {fijadas}")
         candidate.rename(VERSIONS / build_id)
     return build_id
 
@@ -87,11 +91,17 @@ def publish(build_id: str | None = None) -> dict[str, int]:
     if not candidates:
         raise ValueError("Ejecute daii silver para generar un candidato")
     directory = _version(build_id or candidates[-1]["build_id"])
+    with logger.contextualize(componente="gold", build_id=directory.name), archivo(directory / "log.jsonl"):
+        return _publish(directory)
+
+
+def _publish(directory: Path) -> dict[str, int]:
     GOLD_DB.parent.mkdir(parents=True, exist_ok=True)
     with (GOLD_DB.parent / ".publish.lock").open("a") as lock:
         flock(lock, LOCK_EX)
         manifest = json.loads((directory / "manifest.json").read_text())
         snapshot = directory / "daii.sqlite"
+        restored = snapshot.exists()
         # Volver a una versión anterior solo con su SQLite ya publicada; reconstruirla mezclaría código nuevo.
         if GOLD_DB.exists() and not snapshot.exists():
             with sqlite3.connect(GOLD_DB) as current:
@@ -138,6 +148,10 @@ def publish(build_id: str | None = None) -> dict[str, int]:
                 shutil.copyfile(db, staged)
                 staged.replace(snapshot)
             db.replace(GOLD_DB)
+    if restored:
+        logger.bind(evento="gold_rollback").warning(f"se volvió a la versión publicada el {published_at}")
+    else:
+        logger.bind(evento="gold_publicado").info(f"{sum(counts.values())} filas: {counts}")
     return counts
 
 

@@ -25,9 +25,10 @@ DOWNLOAD_HANDLERS = {
 # ya descomprimido, sin 3xx ni reintentos fallidos.
 DOWNLOADER_MIDDLEWARES = {"daii.bronze.middlewares.SavePagesMiddleware": 540}
 ITEM_PIPELINES = {"daii.bronze.pipelines.ValidatePipeline": 100}
-EXTENSIONS = {"daii.bronze.extensions.DumpStats": 500}
+EXTENSIONS = {"daii.bronze.extensions.DumpStats": 500, "daii.bronze.extensions.Logs": 0}
 
 FEEDS = {
     str(BRONZE / "%(name)s" / "%(run_id)s" / "items.jsonl"): {"format": "jsonlines", "encoding": "utf8"},
 }
-LOG_LEVEL = "INFO"
+# Scrapy no instala su handler: daii.log intercepta `logging` y lo manda a consola, log.jsonl y logs.sqlite.
+LOG_ENABLED = False

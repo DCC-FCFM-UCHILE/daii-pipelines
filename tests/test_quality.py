@@ -6,7 +6,8 @@ from daii.quality import checks
 def _run(root, name, items, stats):
     run = root / "spi" / name
     run.mkdir(parents=True)
-    (run / "items.jsonl").write_text("".join(json.dumps({"tipo": t}) + "\n" for t in items))
+    rows = ({"tipo": t} if isinstance(t, str) else {"persona": t[0], "tipo": t[1]} for t in items)
+    (run / "items.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
     (run / "stats.json").write_text(json.dumps(stats))
     return run
 
@@ -39,3 +40,13 @@ def test_pestania_incompleta_es_warn_con_detalle(tmp_path, monkeypatch):
     stats |= {"daii/coverage/ana/publicaciones": "completa"}
     res = checks.check("spi", _run(tmp_path, "20260101T000000Z", ["persona"], stats))
     assert res["status"] == "warn" and "pestañas incompletas: ['ana/docencia']" in res["problems"]
+
+
+def test_caida_de_una_persona_alerta_aunque_el_total_no_caiga(tmp_path, monkeypatch):
+    monkeypatch.setattr(checks, "BRONZE", tmp_path)
+    ok = {"finish_reason": "finished"}
+    otros = [("ana", "proyecto")] * 40 + [("ana", "link")] * 10
+    checks.check("spi", _run(tmp_path, "20260101T000000Z", [("beto", "proyecto")] * 31 + otros, ok))
+    res = checks.check("spi", _run(tmp_path, "20260102T000000Z", otros, ok))  # total 71 → 40: cae 44%
+    assert res["status"] == "warn"
+    assert res["problems"] == ["beto/proyecto: cayó de 31 a 0 vs run 20260101T000000Z"]

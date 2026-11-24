@@ -1,11 +1,10 @@
 """Alerta por email (SMTP, stdlib). Sin SMTP_HOST configurado solo se loguea."""
 
-import logging
 import os
 import smtplib
 from email.message import EmailMessage
 
-log = logging.getLogger(__name__)
+from daii.log import logger
 
 
 def report(results: list[dict], extra: str = "") -> str:
@@ -16,7 +15,7 @@ def report(results: list[dict], extra: str = "") -> str:
 def send(subject: str, body: str) -> bool:
     host = os.environ.get("SMTP_HOST")
     if not host:
-        log.warning("SMTP_HOST no configurado; alerta no enviada:\n%s", body)
+        logger.bind(evento="alerta_no_enviada").warning(f"SMTP_HOST no configurado:\n{body}")
         return False
     msg = EmailMessage()
     msg["Subject"], msg["From"], msg["To"] = subject, os.environ.get("ALERT_FROM", ""), os.environ.get("ALERT_TO", "")
@@ -28,6 +27,7 @@ def send(subject: str, body: str) -> bool:
                 s.login(user, os.environ["SMTP_PASSWORD"])
             s.send_message(msg)
     except Exception:  # un SMTP caído no debe tapar el error original ni fallar un pipeline sano
-        log.exception("no se pudo enviar la alerta por email:\n%s", body)
+        logger.bind(evento="alerta_no_enviada").opt(exception=True).error(f"falló el envío por email:\n{body}")
         return False
+    logger.bind(evento="alerta_enviada").info(subject)
     return True

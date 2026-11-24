@@ -8,13 +8,15 @@ import traceback
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from prefect import flow, get_run_logger, task
+from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
+from prefect.runtime import flow_run
 from prefect.task_runners import ThreadPoolTaskRunner
 from scrapy.settings import Settings
 from scrapy.spiderloader import SpiderLoader
 
 from daii.config import BRONZE, ROOT
+from daii.log import logger, setup
 from daii.quality import checks, notify
 from daii.quality.checks import last_good
 from daii.versions import prepare, publish
@@ -32,7 +34,7 @@ CRAWL_TIMEOUT_S = 4200  # > CLOSESPIDER_TIMEOUT (3600) de bronze/settings.py
 @task(task_run_name="crawl-{spider}")
 def crawl(spider: str, run_id: str) -> dict:
     """Corre un spider en su propio proceso (el reactor de Twisted no se puede reiniciar) y evalúa el run."""
-    log = get_run_logger()
+    log = logger.bind(componente="flow", spider=spider)
     # grupo de procesos propio: si hay que matarlo, también mueren sus hijos (Chromium de Playwright)
     proc = subprocess.Popen(
         [sys.executable, "-m", "scrapy", "crawl", spider, "-a", f"run_id={run_id}"],
@@ -45,13 +47,18 @@ def crawl(spider: str, run_id: str) -> dict:
     try:
         _, stderr = proc.communicate(timeout=CRAWL_TIMEOUT_S)  # respaldo de CLOSESPIDER_TIMEOUT
         if proc.returncode:
-            log.error("scrapy terminó con código %s:\n%s", proc.returncode, stderr[-3000:])
+            # el detalle está en log.jsonl / logs.sqlite; la cola de stderr cubre fallas antes de abrir el spider
+            log.bind(evento="scrapy_terminado").error(
+                f"código {proc.returncode}; log en {BRONZE / spider / run_id / 'log.jsonl'}\n{stderr[-3000:]}"
+            )
     except subprocess.TimeoutExpired:
         os.killpg(proc.pid, signal.SIGKILL)
         proc.wait()
-        log.error("scrapy no terminó en %s s; se mató el proceso y sus hijos", CRAWL_TIMEOUT_S)
+        log.bind(evento="scrapy_terminado").error(f"no terminó en {CRAWL_TIMEOUT_S} s; se mató el proceso y sus hijos")
     result = checks.check(spider, BRONZE / spider / run_id)
-    (log.info if result["status"] == "ok" else log.warning)("%s: %s %s", spider, result["status"], result["problems"])
+    log.bind(evento="run_evaluado").log(
+        "INFO" if result["status"] == "ok" else "WARNING", "; ".join([result["status"], *result["problems"]])
+    )
     return result
 
 
@@ -92,6 +99,7 @@ def pipeline(spiders: list[str] | None = None) -> dict:
     if unknown := set(spiders or []) - set(all_spiders()):
         raise ValueError(f"spiders inexistentes: {sorted(unknown)}")  # antes de crear carpetas fantasma en bronze
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ-%f") + "-" + uuid4().hex[:8]
+    setup("flow", prefect=True, run_id=run_id, flow_run_id=flow_run.id)
     try:
         futures = {s: crawl.submit(s, run_id) for s in spiders or all_spiders()}
         # un spider que revienta (nombre mal escrito, error de import) es un `fail`, no aborta silver/gold
