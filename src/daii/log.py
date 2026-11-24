@@ -88,7 +88,7 @@ class _DbSink:
                 self.db.execute("PRAGMA journal_mode=WAL")
             self.db.execute(self.SQL, _row(message.record))
             self.db.commit()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             sys.stderr.write(f"daii.log: no se pudo guardar en {self.path}: {e}\n")
 
 
@@ -112,7 +112,7 @@ def _en_prefect() -> bool:
 
         get_run_context()
         return True
-    except Exception:  # noqa: BLE001  fuera de un flow o task
+    except Exception:  # fuera de un flow o task
         return False
 
 
@@ -164,7 +164,7 @@ def setup(componente: str, *, prefect: bool = False, db: bool = True, **contexto
         try:
             migrate(path)
             logger.add(_DbSink(path), level="INFO", enqueue=True, catch=True)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             sys.stderr.write(f"daii.log: logs.sqlite no disponible ({e}); solo consola y archivos\n")
     root = logging.getLogger()
     for handler in root.handlers:  # la consola de Prefect sigue mostrando lo de Prefect; el resto va por loguru
