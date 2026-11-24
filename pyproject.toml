@@ -5,7 +5,7 @@ description = "Pipeline de datos del dashboard DAII (FCFM, U. de Chile): scraper
 authors = [
     { name = "Pablo Badilla", email = "pablo.badilla@uchile.cl" }
 ]
-requires-python = "==3.14.*"
+requires-python = ">=3.14.10,<3.15"
 dependencies = [
     "alembic>=1.20.1",
     "loguru>=0.8.0",
