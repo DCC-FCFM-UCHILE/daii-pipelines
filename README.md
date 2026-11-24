@@ -30,6 +30,24 @@ uv run daii explorar                        # explorador de datos (Streamlit) en
 uv run pytest && uv run ruff check && uv run ty check src
 ```
 
+## Commits y releases
+
+Instala los hooks locales con `uv run pre-commit install --allow-missing-config`.
+Usa Conventional Commits en los commits y en el título de cada PR, por ejemplo `fix(bronze): valida el código de proyecto`.
+GitHub solo permite squash merge y propone el título del PR como mensaje del commit en `main`.
+
+Tras pasar el CI en `main`, Commitizen actualiza la versión del proyecto y crea un tag `vX.Y.Z`. GitHub publica
+la release con un changelog generado a partir de los PR fusionados desde la release anterior.
+
+| Título del PR | Versión |
+|---|---|
+| `tipo!:` o `tipo(ámbito)!:` | Major |
+| `feat:`, `perf:` | Minor |
+| `fix:`, `refactor:` | Patch |
+| `chore:`, `docs:`, `style:`, otros | Se incluyen en la próxima release |
+
+Si la publicación falla después de subir el tag, ejecuta el workflow **CI** manualmente sobre `main` para completarla.
+
 ## Arquitectura
 
 ```mermaid

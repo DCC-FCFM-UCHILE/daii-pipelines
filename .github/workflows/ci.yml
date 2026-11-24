@@ -3,15 +3,16 @@ name: CI
 on:
   push:
     branches: [main]
+  workflow_dispatch:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
+    types: [opened, synchronize, reopened, edited, ready_for_review, converted_to_draft]
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -29,5 +30,54 @@ jobs:
           prune-cache: true
           cache-dependency-glob: uv.lock
       - run: uv sync --locked
+      - if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: uv run cz check --message="$PR_TITLE" --allowed-prefixes
       - run: uv run pre-commit run --all-files --show-diff-on-failure
       - run: make test
+
+  release:
+    if: github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      UV_NO_SYNC: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          prune-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --locked --only-group dev
+      - name: Publicar release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          main=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [[ "$main" != "$GITHUB_SHA" ]]; then
+            echo "main avanzó. La corrida del nuevo commit se encargará de la release."
+            exit 0
+          fi
+
+          current_tag="v$(uv run cz version --project)"
+          # Completa una release si su tag se publicó en una corrida anterior.
+          if git show-ref --verify --quiet "refs/tags/$current_tag" && ! gh release view "$current_tag" >/dev/null; then
+            gh release create "$current_tag" --verify-tag --generate-notes
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          uv run cz --no-raise 3,21 -n cz_customize bump --yes
+          tag="v$(uv run cz version --project)"
+          if [[ "$tag" != "$current_tag" ]]; then
+            uv lock --check
+            git push --atomic origin HEAD:refs/heads/main "refs/tags/$tag"
+            gh release create "$tag" --verify-tag --generate-notes
+          fi

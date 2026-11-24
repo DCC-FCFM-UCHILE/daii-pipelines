@@ -1,4 +1,6 @@
-# Hooks locales vía `uv run`: usan las versiones de ruff/ty fijadas en uv.lock.
+# Los hooks locales usan las versiones fijadas en uv.lock.
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
 repos:
   - repo: local
     hooks:
@@ -18,3 +20,8 @@ repos:
         language: system
         types_or: [python, pyi]
         pass_filenames: false
+      - id: conventional-commit
+        name: Conventional Commit
+        entry: uv run cz check --allow-abort --commit-msg-file
+        language: system
+        stages: [commit-msg]

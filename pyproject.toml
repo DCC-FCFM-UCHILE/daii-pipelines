@@ -29,6 +29,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "commitizen>=4.20.1",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
     "ruff>=0.17.6",
@@ -55,3 +56,18 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.ty.rules]
 # Scrapy declara `Spider.parse` como atributo (CallbackT); sobreescribirlo es el patrón idiomático.
 incompatible-mutable-override = "ignore"
+
+[tool.commitizen]
+version_provider = "uv"
+version_scheme = "semver"
+tag_format = "v$version"
+bump_message = "chore(release): $new_version"
+
+# Solo el bump usa cz_customize. El hook y el CI usan el validador convencional.
+[tool.commitizen.customize.bump_map]
+'.+!$' = "MAJOR"
+'^BREAKING[ -]CHANGE$' = "MAJOR"
+'^feat(\(|$)' = "MINOR"
+'^perf(\(|$)' = "MINOR"
+'^fix(\(|$)' = "PATCH"
+'^refactor(\(|$)' = "PATCH"
