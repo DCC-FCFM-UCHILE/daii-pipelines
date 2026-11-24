@@ -167,7 +167,7 @@ def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
             tipo_publicacion=_de(pl.col("tipo_publicacion") != "otro"),
             venue=_de(pl.col("venue").is_not_null()),
             autores=_de(pl.col("autores").list.len() > 0),
-            doi=_de(pl.coalesce("doi", "doi_t").is_not_null()),
+            doi=_de(pl.col("doi").is_not_null()),  # el ítem que trae el DOI, no el que lo heredó por título
             url_destino=_de(pl.col("url_destino").is_not_null()),
             estado=_de(pl.col("estado").is_not_null()),
             citas=_de(pl.col("citas") == pl.col("citas").max()),

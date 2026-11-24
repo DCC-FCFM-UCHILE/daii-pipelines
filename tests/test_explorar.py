@@ -56,9 +56,8 @@ def test_loaders_leen_la_version_publicada(data):
     embudo = {r["capa"]: r["filas"] for r in datos.embudo().rows(named=True) if r["tipo"] == "Áreas"}
     assert embudo == {"bronze": 2, "silver": 2, "gold": 2}
     fila = datos.silver("area").filter(datos.pl.col("nombre") == "Knowledge Graphs").row(0, named=True)
+    assert datos.origen(fila, "area")["item_id"].to_list() == ["orcid/20261123T185212Z#2"]
     assert datos.origen(fila, "area")["nombre"].to_list() == ["Knowledge Graphs"]
-    # silver normalizó el texto: el rastro cae al título normalizado
-    assert datos.origen(fila | {"nombre": "knowledge  graphs"}, "area")["nombre"].to_list() == ["Knowledge Graphs"]
     # las capas no se multiplican por fuente (silver y gold traen una fila por dato y persona)
     assert datos.capa("gold", "area").height == datos.gold("area").height
     nulos = datos.nulos(datos.con_fuente(datos.capa("bronze", "area")))

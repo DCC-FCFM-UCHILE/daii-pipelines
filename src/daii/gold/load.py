@@ -120,7 +120,7 @@ def _academicos(silver: Path | None = None) -> tuple[list[dict], list[dict]]:
         rows.append(row)
         fila = _fila(a["slug"])
         respaldo = dict.fromkeys([CONFIG_ITEM, *(i for r in cand for i in r["item_ids"])], "")
-        campos = {(o, f) for f, o in origen.items() if f != "id" and row[f] is not None and o}
+        campos = [(o, f) for f, o in origen.items() if f != "id" and row[f] is not None and o]
         ev += [dict(tabla="academico", fila_id=fila, item_id=i, campo=c) for i, c in [*respaldo.items(), *campos]]
     return rows, ev
 
