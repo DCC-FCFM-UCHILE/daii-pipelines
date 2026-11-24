@@ -7,12 +7,11 @@ solo y la app no muestra datos viejos.
 import json
 import sqlite3
 from pathlib import Path
-from typing import get_args
 
 import polars as pl
 import streamlit as st
 
-from daii.bronze.items import RawItem
+from daii.bronze.items import MODELOS
 from daii.config import BRONZE, GOLD_DB, SILVER, academicos
 from daii.gold.load import run_manifest
 from daii.log import NIVELES, logs_db
@@ -80,7 +79,7 @@ TIPOS: dict[str, tuple[str, str, str | None]] = {
 }
 CAPAS = ("bronze", "silver", "gold")
 # campos de cada tipo según el contrato bronze: un campo que ninguna fuente llena se ve (100% vacío), no se pierde
-CAMPOS_BRONZE = {m.model_fields["tipo"].default: list(m.model_fields) for m in get_args(get_args(RawItem)[0])}
+CAMPOS_BRONZE = {tipo: list(m.model_fields) for tipo, m in MODELOS.items()}
 
 
 def _firma(path: Path) -> tuple[str, float]:

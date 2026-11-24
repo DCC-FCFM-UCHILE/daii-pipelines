@@ -121,3 +121,14 @@ def test_modelo_desde_el_codigo():
     assert cols.filter(modelo.pl.col("campo") == "academico_id")["clave"].to_list() == ["PK · → academico"]
     dot = modelo._diagrama()
     assert "publicacionacademico -> academico;" in dot and "scraperun" not in dot
+
+
+def test_modelo_con_gold_mas_viejo_que_el_codigo(data):
+    import sqlite3
+
+    with sqlite3.connect(datos.GOLD_DB) as db:  # p. ej. un modelo nuevo antes de `make gold`
+        db.execute("DROP TABLE metrica")
+    st.cache_data.clear()
+    for modo in ("DAII", "Pipeline"):
+        at = AppTest.from_function(_pagina, args=("modelo", modo), default_timeout=30).run()
+        assert not at.exception, modo

@@ -4,13 +4,12 @@ silver publicados. Así el visor nunca queda desactualizado respecto de lo que e
 import inspect
 import re
 from html import escape
-from typing import get_args
 
 import polars as pl
 import streamlit as st
 from sqlmodel import SQLModel
 
-from daii.bronze.items import RawItem
+from daii.bronze.items import MODELOS
 from daii.explorar import datos, ui
 from daii.gold import models
 
@@ -106,8 +105,10 @@ def _gold() -> None:
     with st.expander("Decisiones y simplificaciones del modelo"):
         st.markdown(inspect.getdoc(models) or "")
     clases = _clases_gold()
-    conteos = {t: datos.gold_sql(f'SELECT COUNT(*) AS n FROM "{t}"') for t in clases} if datos.GOLD_DB.exists() else {}
-    filas = {t: df["n"][0] for t, df in conteos.items() if not df.is_empty()}
+    # la base publicada puede ser más vieja que el código: contar solo las tablas que existen
+    existentes = datos.gold_sql("SELECT name FROM sqlite_master WHERE type = 'table'")
+    existentes = set(existentes["name"]) if not existentes.is_empty() else set()
+    filas = {t: datos.gold_sql(f'SELECT COUNT(*) AS n FROM "{t}"')["n"][0] for t in clases if t in existentes}
     tabla = st.selectbox(
         "Tabla",
         sorted(clases),
@@ -119,12 +120,15 @@ def _gold() -> None:
     ui.tabla(_columnas_gold(tabla, clases[tabla]), key=f"modelo_cols_{tabla}", altura="content")
 
 
+def _etiqueta(tipo: str) -> str:
+    return datos.TIPOS[tipo][0] if tipo in datos.TIPOS else "Personas" if tipo == "persona" else tipo.capitalize()
+
+
 def _tipo_python(anotacion: object) -> str:
     """`str | None` → `texto`: lo opcional ya lo dice la columna «obligatorio»; mismo vocabulario que gold."""
     texto = re.sub(r"<class '(\w+)'>", r"\1", str(anotacion)).replace("typing.", "").replace(" | None", "")
-    if valores := re.fullmatch(
-        r"Literal\[(.*)\]", texto
-    ):  # vocabulario cerrado: lo que el lector necesita son los valores
+    # vocabulario cerrado: lo que el lector necesita son los valores
+    if valores := re.fullmatch(r"Literal\[(.*)\]", texto):
         return "uno de: " + valores[1].replace("'", "")
     return TIPOS_PY.get(texto, texto)
 
@@ -134,10 +138,8 @@ def _bronze() -> None:
         "Contrato de los ítems que emiten los spiders (`bronze/items.py`). Un ítem con campos fuera del contrato se "
         "descarta y quality lo reporta."
     )
-    clases = {m.model_fields["tipo"].default: m for m in get_args(get_args(RawItem)[0])}
-    tipo = st.selectbox(
-        "Tipo de ítem", list(clases), format_func=lambda t: datos.TIPOS.get(t, (t,))[0], key="modelo_bronze"
-    )
+    clases = MODELOS
+    tipo = st.selectbox("Tipo de ítem", list(clases), format_func=_etiqueta, key="modelo_bronze")
     clase, notas = clases[tipo], comentarios(clases[tipo])
     filas = [
         {
@@ -160,7 +162,7 @@ def _silver() -> None:
         return
     st.caption(f"Esquema de los parquet de `{directorio.relative_to(datos.BRONZE.parent)}`.")
     nombre = st.selectbox(
-        "Tabla", [a.stem for a in archivos], format_func=lambda t: datos.TIPOS.get(t, (t,))[0], key="modelo_silver"
+        "Tabla", sorted((a.stem for a in archivos), key=_etiqueta), format_func=_etiqueta, key="modelo_silver"
     )
     esquema = pl.read_parquet_schema(directorio / f"{nombre}.parquet")
     ui.tabla(
