@@ -15,6 +15,7 @@ El modelo conceptual está en `docs/modelo_datos.md`.
 ```bash
 uv sync                                   # instalar
 uv run playwright install chromium        # una vez, para spiders con Playwright
+uv run pre-commit install                 # una vez: ruff + ty en cada commit (el CI corre lo mismo)
 uv run pytest                             # tests (parsers contra fixtures, sin red)
 uv run ruff check --fix && uv run ruff format
 uv run ty check src

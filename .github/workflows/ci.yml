@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      # ruff + ty, los mismos hooks que corren localmente al commitear
+      - run: uv run pre-commit run --all-files --show-diff-on-failure
+      # tests con fixtures, sin red ni Playwright
+      - run: make test
