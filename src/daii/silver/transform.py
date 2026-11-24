@@ -2,6 +2,9 @@
 
 Silver sigue siendo "por persona": una fila dice "según la fuente X, la persona P tiene Y".
 La consolidación entre personas (p. ej. un paper compartido por dos académicos) ocurre en gold.
+
+Trazabilidad: cada ítem bronze tiene `item_id = "<spider>/<run_id>#<línea>"` (item.parquet guarda su procedencia).
+Cada fila silver lleva `item_ids` (los ítems que fusiona); publicaciones además `origen` (campo → item_id).
 """
 
 import json
@@ -83,15 +86,21 @@ def load_bronze(selected: list[Path] | None = None) -> dict[str, list[dict]]:
         selected = [run for d in sorted(BRONZE.glob("*")) if (run := last_good(d.name))]
     for run in selected:
         if run and (run / "items.jsonl").exists():
-            for line in (run / "items.jsonl").open():
+            for n, line in enumerate((run / "items.jsonl").open(), 1):
                 try:
                     it = json.loads(line)
                 except json.JSONDecodeError:  # última línea a medio escribir (proceso matado)
                     continue
+                it["item_id"] = f"{run.parent.name}/{run.name}#{n}"
                 if "ids" in it:
                     it["ids"] = json.dumps(it["ids"], sort_keys=True)
                 by_tipo[it["tipo"]].append(it)
     return by_tipo
+
+
+def _de(cond: pl.Expr) -> pl.Expr:
+    """item_id de la primera fila que cumple `cond`: de dónde sale un valor elegido con filter/drop_nulls().first()."""
+    return pl.col("item_id").filter(cond).first()
 
 
 def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
@@ -151,6 +160,20 @@ def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
         pl.col("ids").str.contains(r'"indexacion": "[^"]*WOS').any().alias("indexada_wos"),
         pl.col("ids").str.contains(r'"indexacion": "[^"]*SCOPUS').any().alias("indexada_scopus"),
         pl.col("spider").unique().sort().alias("fuentes"),
+        pl.col("item_id").alias("item_ids"),
+        pl.struct(
+            titulo=pl.col("item_id").first(),
+            anio=_de(pl.col("anio").is_not_null()),
+            tipo_publicacion=_de(pl.col("tipo_publicacion") != "otro"),
+            venue=_de(pl.col("venue").is_not_null()),
+            autores=_de(pl.col("autores").list.len() > 0),
+            doi=_de(pl.coalesce("doi", "doi_t").is_not_null()),
+            url_destino=_de(pl.col("url_destino").is_not_null()),
+            estado=_de(pl.col("estado").is_not_null()),
+            citas=_de(pl.col("citas") == pl.col("citas").max()),
+            indexada_wos=_de(pl.col("ids").str.contains(r'"indexacion": "[^"]*WOS')),
+            indexada_scopus=_de(pl.col("ids").str.contains(r'"indexacion": "[^"]*SCOPUS')),
+        ).alias("origen"),
     )
     # Lo que solo reporta OpenAlex puede ser un homónimo mal desambiguado.
     return out.with_columns(confianza=pl.when(pl.col("fuentes") == ["openalex"]).then(0.5).otherwise(1.0))
@@ -177,20 +200,32 @@ TRANSFORMS = {
     ),
 }
 # Campos que definen "la misma fila" para deduplicar (además de persona y tipo).
-DEDUP_IGNORA = {"url", "spider", "run_id", "scraped_at", "observacion_id", "tipo"}
+DEDUP_IGNORA = {"url", "spider", "run_id", "scraped_at", "observacion_id", "tipo", "item_id"}
+# Procedencia de cada ítem bronze (item.parquet): gold la publica como ItemBronze.
+PROCEDENCIA = ["item_id", "spider", "run_id", "persona", "url", "observacion_id", "scraped_at"]
 
 
 def build(destination: Path | None = None, selected: list[Path] | None = None) -> dict[str, int]:
     destination = destination or SILVER
     destination.mkdir(parents=True, exist_ok=True)
     out = {}
+    items = []
     for tipo, rows in load_bronze(selected).items():
         df = pl.DataFrame(rows, infer_schema_length=None)
+        items.append(df.select(pl.col(c) if c in df.columns else pl.lit(None, pl.String).alias(c) for c in PROCEDENCIA))
         if tipo != "publicacion":
-            df = df.unique(subset=[c for c in df.columns if c not in DEDUP_IGNORA], keep="first", maintain_order=True)
+            # filas idénticas salvo procedencia → una, con todos sus ítems (la técnica queda la de la primera)
+            claves = [c for c in df.columns if c not in DEDUP_IGNORA]
+            df = df.group_by(claves, maintain_order=True).agg(pl.exclude(claves).first(), item_ids=pl.col("item_id"))
         df = TRANSFORMS.get(tipo, lambda d: d)(df)
         df.write_parquet(destination / f"{tipo}.parquet")
         out[tipo] = df.height
+    item = (
+        pl.concat(items, how="vertical_relaxed")
+        if items
+        else pl.DataFrame(schema=dict.fromkeys(PROCEDENCIA, pl.String))
+    )
+    item.write_parquet(destination / "item.parquet")
     for stale in set(TIPOS) - set(out):  # no dejar parquet viejos de tipos que ya no vienen
         (destination / f"{stale}.parquet").unlink(missing_ok=True)
     return out

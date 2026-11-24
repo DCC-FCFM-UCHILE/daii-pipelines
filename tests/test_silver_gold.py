@@ -1,8 +1,14 @@
+import json
+import sqlite3
+
 import polars as pl
 import pytest
+from sqlmodel import SQLModel
 
-from daii.gold import load
+from daii.bronze.items import bronze_item
+from daii.gold import load  # registra los modelos gold en SQLModel.metadata
 from daii.quality import checks
+from daii.silver import transform
 from daii.silver.transform import ROL_TESIS, classify, publicaciones
 
 BASE = {"url": "u", "run_id": "r", "scraped_at": "s", "tipo": "publicacion", "tipo_publicacion": None, "venue": None}
@@ -10,7 +16,9 @@ BASE |= {"autores": [], "url_destino": None, "estado": None, "citas": None, "ids
 
 
 def _pubs(*rows: dict) -> pl.DataFrame:
-    return publicaciones(pl.DataFrame([BASE | r for r in rows], infer_schema_length=None))
+    return publicaciones(
+        pl.DataFrame([BASE | {"item_id": f"x#{i}"} | r for i, r in enumerate(rows)], infer_schema_length=None)
+    )
 
 
 def test_titulos_genericos_no_se_funden_entre_obras():
@@ -55,7 +63,16 @@ def test_gold_se_construye_y_respeta_config(tmp_path, monkeypatch):
     monkeypatch.setattr(load, "SILVER", silver)
     monkeypatch.setattr(load, "GOLD_DB", gold_db)
     monkeypatch.setattr(load, "BRONZE", tmp_path / "bronze")
-    tesis = {"titulo": None, "anio": None, "nivel": "PhD", "programa": None, "estado": None, "url_destino": None}
+    tesis = {
+        "item_id": "s/r#1",
+        "item_ids": ["s/r#1"],
+        "titulo": None,
+        "anio": None,
+        "nivel": "PhD",
+        "programa": None,
+        "estado": None,
+        "url_destino": None,
+    }
     pl.DataFrame(
         [
             {"persona": "aidan-hogan", "spider": "s", "estudiante": "Ana", "rol_norm": "guia", **tesis},
@@ -78,6 +95,7 @@ def test_gold_se_construye_y_respeta_config(tmp_path, monkeypatch):
         how="vertical_relaxed",
     ).write_parquet(silver / "tesis.parquet")
 
+    pl.DataFrame(schema=dict.fromkeys(transform.PROCEDENCIA, pl.String)).write_parquet(silver / "item.parquet")
     counts = load.build()
     assert gold_db.exists() and not gold_db.with_suffix(".tmp").exists()
     # sin título el estudiante distingue (Ana ≠ Beto); con título no (1 sola); fuera de config no entra
@@ -108,3 +126,71 @@ def test_obras_de_homonimos_de_weber_en_openalex_se_descartan():
         ("otra", "On the Cover"),
         ("richard-weber", "Data mining for credit scoring models"),
     ]
+
+
+META = {"scraperun", "datarelease"}  # tablas de metadatos, sin evidencia
+
+
+def test_trazabilidad_de_bronze_a_gold(tmp_path):
+    """Toda fila de gold tiene evidencia que lleva a una línea de items.jsonl; los campos fusionados, a su ítem."""
+    base = {"persona": "aidan-hogan", "url": "https://x", "scraped_at": "s", "observacion_id": "obs1"}
+    pub = {"tipo": "publicacion", "titulo": "Knowledge graphs for the semantic web", "doi": "10.1/kg", "autores": []}
+    items = {
+        "orcid": [
+            pub | {"anio": 2021, "venue": None},  # orcid gana: año de orcid, venue (vacío aquí) de dblp
+            {"tipo": "area", "nombre": "Semantic Web"},
+            {"tipo": "persona", "nombre": "Aidan Hogan", "cargo": "Profesor"},
+        ],
+        "dblp": [
+            pub | {"anio": 2020, "venue": "ESWC"},
+            {"tipo": "area", "nombre": "Semantic Web"},  # idéntica a la de orcid: una fila, dos ítems
+            {"tipo": "dictacion", "nombre_curso": "Bases de datos", "codigo_curso": "cc3201", "anio": 2024},
+            {"tipo": "proyecto", "titulo": "Grafos", "codigo": "1221926", "rol": "IR"},
+        ],
+    }
+    runs = []
+    for spider, rows in items.items():
+        run = tmp_path / "bronze" / spider / "r1"
+        run.mkdir(parents=True)
+        # como los escribe ValidatePipeline: el ítem validado con todos sus campos
+        lines = [
+            bronze_item.validate_python(base | {"spider": spider, "run_id": "r1"} | r).model_dump_json() for r in rows
+        ]
+        (run / "items.jsonl").write_text("\n".join(lines) + "\n")
+        runs.append(run)
+    silver, db = tmp_path / "silver", tmp_path / "daii.sqlite"
+    transform.build(silver, runs)
+
+    area = pl.read_parquet(silver / "area.parquet")
+    assert area.height == 1 and sorted(area["item_ids"][0]) == ["dblp/r1#2", "orcid/r1#2"]
+    origen = pl.read_parquet(silver / "publicacion.parquet")["origen"][0]
+    assert origen["anio"] == "orcid/r1#1" and origen["venue"] == "dblp/r1#1"
+
+    load.build(silver, db, run_rows=[])
+    con = sqlite3.connect(db)
+    q = lambda sql: con.execute(sql).fetchall()  # noqa: E731
+    # cada fila de cada tabla de datos (también las que se agreguen) está respaldada, y cada ítem citado existe
+    datos = [t for t in SQLModel.metadata.sorted_tables if t.name not in {"evidencia", "itembronze"} | META]
+    con_filas = {"academico", "area", "publicacion", "publicacionacademico", "curso", "dictacion", "proyecto"}
+    for t in datos:
+        fila = ", ".join(f"t.{c.name}" for c in t.primary_key.columns)
+        huerfanas = f"SELECT COUNT(*) FROM {t.name} t WHERE NOT EXISTS (SELECT 1 FROM evidencia e"
+        huerfanas += f" WHERE e.tabla = '{t.name}' AND e.campo = '' AND e.fila_id = json_array({fila}))"
+        assert q(huerfanas) == [(0,)], t.name
+    assert all(q(f"SELECT COUNT(*) FROM {t}")[0][0] > 0 for t in con_filas)
+    # el explorador arma `fuentes` desde la evidencia: un PK mal escrito en su SQL dejaría la lista vacía
+    from daii.explorar import datos as explorador
+
+    for tipo, (_, sql, _) in explorador.TIPOS.items():
+        assert "[]" not in {r[-1] for r in q(sql)}, tipo
+    assert q("SELECT COUNT(*) FROM evidencia WHERE item_id NOT IN (SELECT id FROM itembronze)") == [(0,)]
+    # campo a campo: año de orcid, venue de dblp; nombre del académico de config
+    assert q("SELECT campo, item_id FROM evidencia WHERE tabla = 'publicacion' AND campo IN ('anio', 'venue')"
+             " ORDER BY campo") == [("anio", "orcid/r1#1"), ("venue", "dblp/r1#1")]  # fmt: skip
+    assert q("SELECT item_id FROM evidencia WHERE tabla = 'academico' AND fila_id = '[\"aidan-hogan\"]'"
+             " AND campo = 'nombre'") == [("config:academicos.yaml",)]  # fmt: skip
+    assert q("SELECT item_id FROM evidencia WHERE tabla = 'academico' AND campo = 'cargo'") == [("orcid/r1#3",)]
+    # item_id → línea exacta de bronze, con su página archivada
+    spider, run_id, url, obs = q("SELECT spider, run_id, url, observacion_id FROM itembronze WHERE id = 'dblp/r1#3'")[0]
+    linea = (tmp_path / "bronze" / spider / run_id / "items.jsonl").read_text().splitlines()[3 - 1]
+    assert json.loads(linea)["nombre_curso"] == "Bases de datos" and (url, obs) == ("https://x", "obs1")

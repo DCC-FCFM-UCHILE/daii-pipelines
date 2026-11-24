@@ -51,7 +51,7 @@ def test_loaders_leen_la_version_publicada(data):
     assert datos.silver_dir() == versions.VERSIONS / data / "silver"
     gold = datos.capa("gold", "area")
     assert sorted(gold["nombre"].to_list()) == ["Knowledge Graphs", "Semantic Web"]
-    assert gold["fuente"].unique().to_list() == ["orcid"]
+    assert datos.con_fuente(gold)["fuente"].unique().to_list() == ["orcid"]
     assert datos.bronze("area").height == 2  # solo el run en uso, no el anterior
     embudo = {r["capa"]: r["filas"] for r in datos.embudo().rows(named=True) if r["tipo"] == "Áreas"}
     assert embudo == {"bronze": 2, "silver": 2, "gold": 2}

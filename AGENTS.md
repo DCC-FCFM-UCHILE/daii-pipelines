@@ -43,6 +43,10 @@ config/academicos.yaml  ──semillas──▶  src/daii/bronze/      Scrapy (+
 - **gold** se reconstruye completo cada vez desde silver (idempotente). No editar la SQLite a mano. El esquema lo
   crean las migraciones de Alembic (`src/daii/gold/migrations/`): al cambiar `gold/models.py`, correr
   `make migration MSG="..."`, revisar el archivo generado y commitearlo (un test exige que coincidan).
+- **Trazabilidad:** toda fila de gold tiene filas en `evidencia` que apuntan a `itembronze`, cuyo id es la línea `n`
+  de `bronze/<spider>/<run_id>/items.jsonl`. Si la fila fusiona fuentes, también se registra de qué ítem salió cada
+  campo. Una tabla o fusión nueva en gold debe generar su evidencia con `_evidencia()` (`gold/load.py`); un test verifica que no queden
+  filas sin evidencia.
 - Las capas solo dependen hacia atrás (gold lee silver, silver lee bronze). Nunca al revés.
 - `explorar/` es solo presentación: lee las tres capas y nunca escribe en `data/`; nada del pipeline lo importa. Su
   diseño (identidad FCFM, estados, gráficos) está en `DESIGN.md` y el producto en `PRODUCT.md`.

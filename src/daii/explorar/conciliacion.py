@@ -18,10 +18,12 @@ flowchart LR
     subgraph Gold["Gold, entre personas"]
         G1["Académico: config + campos<br/>de la fuente más prioritaria"]
         G2["Entidades compartidas<br/>publicación, proyecto, tesis,<br/>curso, producto: una fila por clave"]
-        G3["Puente persona ↔ entidad<br/>con la lista de fuentes"]
+        G3["Puente persona ↔ entidad"]
+        G4["Evidencia: ítems bronze<br/>de cada fila y campo"]
     end
     S2 --> G1 & G2
     G2 --> G3
+    G1 & G2 & G3 --> G4
 """
 
 IDENTIDAD = [
@@ -78,8 +80,9 @@ def _prioridades() -> pl.DataFrame:
 
 def _publicaciones_por_fuente() -> pl.DataFrame:
     return datos.gold_sql(
-        "SELECT fuentes, COUNT(*) AS filas, ROUND(AVG(confianza), 2) AS confianza "
-        "FROM publicacionacademico GROUP BY fuentes ORDER BY filas DESC"
+        "SELECT fuentes, COUNT(*) AS filas, ROUND(AVG(confianza), 2) AS confianza FROM (SELECT confianza, "
+        + datos.fuentes("publicacionacademico", "pa.publicacion_id", "pa.academico_id")
+        + " FROM publicacionacademico pa) GROUP BY fuentes ORDER BY filas DESC"
     )
 
 

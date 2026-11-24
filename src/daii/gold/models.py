@@ -7,6 +7,10 @@
 
 Entidades compartidas (publicación, proyecto, tesis, curso, producto) tienen clave estable (DOI, código o hash)
 y una tabla puente hacia `Academico`. Así se arma la red de colaboración.
+
+Trazabilidad: toda fila (salvo `ScrapeRun` y `DataRelease`) tiene `Evidencia` hacia los ítems bronze que la respaldan
+y, cuando hubo que elegir entre fuentes, hacia el ítem del que salió cada campo. Fusionar dos filas (deduplicador) es
+unir sus evidencias.
 """
 
 from sqlmodel import Field, SQLModel
@@ -29,7 +33,6 @@ class PerfilExterno(SQLModel, table=True):
     plataforma: str
     url: str | None = None
     identificador: str | None = None
-    fuente: str
 
 
 class Afiliacion(SQLModel, table=True):
@@ -40,7 +43,6 @@ class Afiliacion(SQLModel, table=True):
     desde: str | None = None
     hasta: str | None = None
     url_organizacion: str | None = None
-    fuente: str
 
 
 class Formacion(SQLModel, table=True):
@@ -51,14 +53,12 @@ class Formacion(SQLModel, table=True):
     institucion: str | None = None
     anio: int | None = None
     titulo_tesis: str | None = None
-    fuente: str
 
 
 class Area(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     academico_id: str = Field(foreign_key="academico.id", index=True)
     nombre: str
-    fuente: str
 
 
 class Publicacion(SQLModel, table=True):
@@ -79,7 +79,6 @@ class Publicacion(SQLModel, table=True):
 class PublicacionAcademico(SQLModel, table=True):
     publicacion_id: str = Field(foreign_key="publicacion.id", primary_key=True)
     academico_id: str = Field(foreign_key="academico.id", primary_key=True)
-    fuentes: str  # JSON list de spiders que la reportan
     confianza: float  # 0.5 si solo la reporta OpenAlex (posible homónimo)
 
 
@@ -98,7 +97,6 @@ class ParticipacionProyecto(SQLModel, table=True):
     proyecto_id: str = Field(foreign_key="proyecto.id", primary_key=True)
     academico_id: str = Field(foreign_key="academico.id", primary_key=True)
     rol: str | None = None
-    fuentes: str
 
 
 class Tesis(SQLModel, table=True):
@@ -116,7 +114,6 @@ class DireccionTesis(SQLModel, table=True):
     tesis_id: str = Field(foreign_key="tesis.id", primary_key=True)
     academico_id: str = Field(foreign_key="academico.id", primary_key=True)
     rol: str  # guia|coguia|comision|otro
-    fuentes: str
 
 
 class Curso(SQLModel, table=True):
@@ -133,7 +130,6 @@ class Dictacion(SQLModel, table=True):
     semestre: str | None = None
     rol: str | None = None
     institucion: str | None = None
-    fuente: str
 
 
 class Actividad(SQLModel, table=True):
@@ -146,7 +142,6 @@ class Actividad(SQLModel, table=True):
     fecha: str | None = None
     rol: str | None = None
     url: str | None = None
-    fuente: str
 
 
 class Producto(SQLModel, table=True):
@@ -169,7 +164,6 @@ class Distincion(SQLModel, table=True):
     nombre: str
     otorgante: str | None = None
     anio: int | None = None
-    fuente: str
 
 
 class Metrica(SQLModel, table=True):
@@ -188,7 +182,6 @@ class LinkDescubierto(SQLModel, table=True):
     url_destino: str = Field(index=True)
     texto: str | None = None
     seguido: bool
-    fuente: str
 
 
 class PaginaRelacionada(SQLModel, table=True):
@@ -197,6 +190,27 @@ class PaginaRelacionada(SQLModel, table=True):
     url: str
     titulo: str | None = None
     texto: str | None = None
+
+
+class ItemBronze(SQLModel, table=True):
+    """Un ítem bronze usado en esta versión: línea `n` de bronze/<spider>/<run_id>/items.jsonl."""
+
+    id: str = Field(primary_key=True)  # "<spider>/<run_id>#<n>" o "config:academicos.yaml"
+    spider: str = Field(index=True)
+    run_id: str | None = None
+    persona: str | None = None
+    url: str | None = None
+    observacion_id: str | None = None  # → bronze/<spider>/<run_id>/pages.jsonl (página archivada)
+    scraped_at: str | None = None
+
+
+class Evidencia(SQLModel, table=True):
+    """Qué ítem respalda qué fila (`campo=""`) o de qué ítem salió el valor de un campo (`campo="venue"`)."""
+
+    tabla: str = Field(primary_key=True)  # __tablename__ de la fila
+    fila_id: str = Field(primary_key=True)  # json_array(PK): '["10.1/x"]', '[3]', '["10.1/x","slug"]'
+    item_id: str = Field(primary_key=True, foreign_key="itembronze.id", index=True)
+    campo: str = Field(default="", primary_key=True)
 
 
 class ScrapeRun(SQLModel, table=True):
