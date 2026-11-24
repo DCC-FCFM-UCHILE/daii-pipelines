@@ -35,7 +35,7 @@ TIPO_EXTENSION = {
     "Prestaciones": "asesoria",
     "Proyectos": "vinculacion",
 }
-MAX_PAGES = 60  # tope de seguridad por tabla
+MAX_PAGES = 200  # tope de seguridad por tabla (docencia de perfiles grandes pasa de 60)
 WAIT_MS = 120_000  # las esperas de página usan 30 s por defecto; perfiles grandes con carga paralela tardan más
 
 
@@ -114,7 +114,7 @@ class PortafolioSpider(AcademicSpider):
                 before = await rows.inner_text()
                 await pag.locator("label", has_text=re.compile(r"^\s*>\s*$")).click()
                 # el contador "Página n" cambia antes que las filas: esperar a que cambien las filas
-                for _ in range(50):
+                for _ in range(150):  # hasta 30 s: con el servidor cargado 10 s no alcanzaban
                     await page.wait_for_timeout(200)
                     if await rows.inner_text() != before:
                         break
