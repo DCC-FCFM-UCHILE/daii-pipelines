@@ -73,9 +73,10 @@ def pagina() -> None:
         "evento",
         "mensaje",
     )
+    # la clave cambia con filtros o registros nuevos: una selección vieja no apunta a otra fila
     fila = ui.tabla(
         vista,
-        key=f"logs_{hash((nivel, spider, run_id, persona, evento, desde))}",
+        key=f"logs_{hash((nivel, spider, run_id, persona, evento, desde, df['ts'][0]))}",
         seleccion=True,
         altura="content" if vista.height <= 15 else 560,
         ocultas=("n",),

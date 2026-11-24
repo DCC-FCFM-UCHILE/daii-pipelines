@@ -101,6 +101,6 @@ def pagina() -> None:
         ]
     )
     st.caption("Elige un spider para ver su historial.")
-    fila = ui.tabla(tabla, key="spiders", seleccion=True, altura="content")
+    fila = ui.tabla(tabla, key=f"spiders_{hash(tuple(tabla.rows()))}", seleccion=True, altura="content")
     if fila:
         _historial(fila["spider"])
