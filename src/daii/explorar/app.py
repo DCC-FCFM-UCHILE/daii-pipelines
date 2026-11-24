@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from daii.explorar import academicos, agregados, datos, logs, modelo, runs, versiones
+from daii.explorar import academicos, agregados, conciliacion, datos, logs, modelo, runs, versiones
 
 st.set_page_config(page_title="Explorador DAII", page_icon=":material/school:", layout="wide")
 
@@ -39,6 +39,7 @@ paginas = {
         ),
         st.Page(agregados.pagina, title="Agregados", icon=":material/bar_chart:", url_path="agregados"),
         st.Page(modelo.pagina, title="Modelo de datos", icon=":material/schema:", url_path="modelo"),
+        st.Page(conciliacion.pagina, title="Conciliación", icon=":material/merge:", url_path="conciliacion"),
     ]
 }
 paginas["Pipeline"] = [
