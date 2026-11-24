@@ -215,3 +215,84 @@
     orcid: 0000-0003-3164-2682
     sitio: https://franciellevargas.github.io/
     cv: https://franciellevargas.github.io/doc/cv.pdf
+
+- slug: rodrigo-palma
+  nombre: Rodrigo Ernesto Eduardo Palma Behnke
+  unidad: DIE
+  perfiles:
+    sitio: https://www.die.cl/rodrigo-palma-2/
+
+- slug: humberto-palza
+  nombre: Humberto Cristian Palza Cordero
+  unidad: DIQBM
+  perfiles:
+    portafolio: https://portafolio-academico.uchile.cl/perfil/31024-Humberto-Cristian-Palza-Cordero
+    anid: https://investigadores.anid.cl/es/public_search/researcher?id=229
+
+- slug: diego-morata
+  nombre: Diego Antonio Morata Céspedes
+  unidad: DG
+  perfiles:
+    portafolio: https://portafolio-academico.uchile.cl/perfil/57221-Diego-Antonio-Morata-C%C3%A9spedes
+
+- slug: francisco-gracia
+  nombre: Francisco Javier Esteban Gracia Caroca
+  unidad: DIQBM
+  perfiles:
+    portafolio: https://portafolio-academico.uchile.cl/perfil/17870-Francisco-Javier-Esteban-Gracia-Caroca
+
+- slug: patricio-felmer
+  nombre: Patricio Luis Felmer Aichele
+  unidad: DIM
+  perfiles:
+    sitio: https://uchile.cl/presentacion/historia/grandes-figuras/premios-nacionales/ciencias/patricio-felmer-aichele
+    portafolio: https://portafolio-academico.uchile.cl/perfil/14633-Patricio-Luis-Felmer-Aichele
+    cv: https://intranet.ciae.cl/uploads/cv/CV_Patricio_Felmer.pdf
+
+- slug: roberto-cardenas
+  nombre: Jesús Roberto Pedro Alejandro Cárdenas Dobson
+  unidad: DIE
+  perfiles:
+    sitio: https://www.die.cl/roberto-cardenas/
+    portafolio: https://portafolio-academico.uchile.cl/perfil/19657-Jes%C3%BAs-Roberto-Pedro-Alejandro-C%C3%A1rdenas-Dobson
+
+- slug: juan-velasquez
+  nombre: Juan Domingo Velásquez Silva
+  unidad: DII
+  perfiles:
+    sitio: https://www.dii.uchile.cl/quien/juan-valasquez/
+    portafolio: https://portafolio-academico.uchile.cl/perfil/32847-Juan-Domingo-Velasquez-Silva
+
+- slug: marcel-clerc
+  nombre: Marcel Gabriel Clerc Gavilán
+  unidad: DFI
+  perfiles:
+    sitio: https://www.cec.uchile.cl/~mclerc/DatosPersonales.html
+    portafolio: https://portafolio-academico.uchile.cl/perfil/35700-Marcel-Gabriel-Clerc-Gavilan
+
+- slug: pablo-estevez
+  nombre: Pablo Antonio Estévez Valencia
+  unidad: DIE
+  perfiles:
+    sitio: https://www.cec.uchile.cl/~pestevez/
+    portafolio: https://portafolio-academico.uchile.cl/perfil/13815-Pablo-Antonio-Estevez-Valencia
+
+- slug: rodrigo-espinoza
+  nombre: Rodrigo Andrés Espinoza González
+  unidad: DIQBM
+  perfiles:
+    portafolio: https://portafolio-academico.uchile.cl/perfil/36339-Rodrigo-Andres-Espinoza-Gonzalez
+
+- slug: claudio-perez
+  nombre: Claudio Andrés Pérez Flores
+  unidad: DIE
+  perfiles:
+    sitio: https://www.conicyt.cl/wp-content/themes/fondef/encuentra_proyectos/INVEST/7625940.html
+    portafolio: https://portafolio-academico.uchile.cl/perfil/15352-Claudio-Andres-Perez-Flores
+
+- slug: leonardo-bronfman
+  nombre: Leonardo Jaime Bronfman Aguiló
+  unidad: DAS
+  perfiles:
+    sitio: https://das.uchile.cl/integrantes/leonardo-bronfman/
+    portafolio: https://portafolio-academico.uchile.cl/perfil/9876-Leonardo-Jaime-Bronfman-Aguilo
