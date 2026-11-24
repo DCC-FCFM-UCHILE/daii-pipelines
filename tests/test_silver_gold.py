@@ -6,6 +6,8 @@ import pytest
 from sqlmodel import SQLModel
 
 from daii.bronze.items import bronze_item
+from daii.config import academicos
+from daii.flows.pipeline import all_spiders
 from daii.gold import load  # registra los modelos gold en SQLModel.metadata
 from daii.quality import checks
 from daii.silver import transform
@@ -45,6 +47,26 @@ def test_titulo_largo_hereda_doi_y_doi_se_limpia():
 def test_prioridad_sitio_luego_portafolio_luego_resto():
     spiders = ["openalex", "cmm", "orcid", "portafolio", "sitio_x"]
     assert sorted(spiders, key=transform._prio) == ["sitio_x", "portafolio", "orcid", "openalex", "cmm"]
+    # orden propio de la persona: esas fuentes primero, el resto sigue el orden global
+    propia = sorted(spiders, key=lambda s: transform._prio(s, ["cmm", "sitio"]))
+    assert propia == ["cmm", "sitio_x", "portafolio", "orcid", "openalex"]
+
+
+def test_prioridad_por_persona_decide_el_campo(monkeypatch):
+    monkeypatch.setattr(transform, "academicos", lambda: [{"slug": "a", "prioridad": ["cmm"]}])
+    out = _pubs(
+        {"persona": "a", "spider": "sitio_x", "titulo": "Una obra cualquiera de prueba", "anio": 2020, "doi": None},
+        {"persona": "a", "spider": "cmm", "titulo": "Una obra cualquiera de prueba", "anio": 2021, "doi": None},
+        {"persona": "b", "spider": "sitio_x", "titulo": "Una obra cualquiera de prueba", "anio": 2020, "doi": None},
+        {"persona": "b", "spider": "cmm", "titulo": "Una obra cualquiera de prueba", "anio": 2021, "doi": None},
+    )  # fmt: skip
+    assert dict(zip(out["persona"], out["anio"], strict=True)) == {"a": 2021, "b": 2020}
+
+
+def test_prioridad_en_config_usa_spiders_existentes():
+    validos = {s for s in all_spiders() if not s.startswith("sitio_")} | {"sitio"}
+    for a in academicos():
+        assert set(a.get("prioridad", [])) <= validos, a["slug"]
 
 
 @pytest.mark.parametrize(

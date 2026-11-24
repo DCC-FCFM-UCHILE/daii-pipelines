@@ -15,7 +15,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from daii.config import BRONZE, GOLD_DB, SILVER, academicos, catalogos
 from daii.gold import models as m
 from daii.quality.checks import last_good, runs, status
-from daii.silver.transform import _prio, norm_text
+from daii.silver.transform import _prio, norm_text, prio_expr
 
 MIGRATIONS = Path(__file__).parent / "migrations"
 
@@ -104,7 +104,7 @@ def _academicos(silver: Path | None = None) -> tuple[list[dict], list[dict]]:
     rows, ev = [], []
     for a in academicos():
         cand = personas.filter(pl.col("persona") == a["slug"]).to_dicts() if not personas.is_empty() else []
-        cand.sort(key=lambda r: _prio(r["spider"]))
+        cand.sort(key=lambda r: _prio(r["spider"], a.get("prioridad")))
         row = {
             "id": a["slug"],
             "nombre": a["nombre"],
@@ -130,9 +130,7 @@ def _shared(
     """Separa una tabla silver por persona en (entidad compartida, puente persona↔entidad, evidencia de ambas)."""
     if df.is_empty():
         return [], [], []
-    df = df.with_columns(_key=key, _prio=pl.col("spider").map_elements(_prio, return_dtype=pl.Int64)).sort(
-        "_prio", maintain_order=True
-    )
+    df = df.with_columns(_key=key, _prio=prio_expr()).sort("_prio", maintain_order=True)
     # la entidad es la fila de la fuente más prioritaria (cada campo sale de ese ítem) con los ítems de todas sus filas
     todos = df.group_by("_key").agg(pl.col("item_ids").explode())
     ent = (

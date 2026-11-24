@@ -16,7 +16,7 @@ from pathlib import Path
 import polars as pl
 
 from daii.bronze.items import TIPOS
-from daii.config import BRONZE, SILVER
+from daii.config import BRONZE, SILVER, academicos
 from daii.quality.checks import last_good
 
 # Prioridad de fuentes al consolidar campos (menor = más confiable). Fuentes curadas por la persona primero.
@@ -75,8 +75,20 @@ def classify(value: str | None, rules: list[tuple[str, str]], default: str = "ot
     return next((k for k, rx in rules if re.search(rx, v)), default)
 
 
-def _prio(spider: str) -> int:
-    return 0 if spider.startswith("sitio_") else PRIORIDAD.get(spider, 9)
+def _prio(spider: str, orden: list[str] | None = None) -> int:
+    """Menor = más confiable. `orden` (campo `prioridad` de la persona en academicos.yaml) adelanta esas fuentes."""
+    clave = "sitio" if spider.startswith("sitio_") else spider
+    if orden and clave in orden:
+        return orden.index(clave) - len(orden)  # negativo: antes que cualquier fuente del orden global
+    return 0 if clave == "sitio" else PRIORIDAD.get(spider, 9)
+
+
+def prio_expr() -> pl.Expr:
+    """`_prio` por fila (columnas `spider` y `persona`), con el orden propio de cada persona."""
+    ordenes = {a["slug"]: a.get("prioridad") for a in academicos()}
+    return pl.struct("spider", "persona").map_elements(
+        lambda r: _prio(r["spider"], ordenes.get(r["persona"])), return_dtype=pl.Int64
+    )
 
 
 def load_bronze(selected: list[Path] | None = None) -> dict[str, list[dict]]:
@@ -118,7 +130,7 @@ def publicaciones(df: pl.DataFrame) -> pl.DataFrame:
         tipo_publicacion=pl.col("tipo_publicacion").map_elements(
             lambda v: classify(v, TIPO_PUB), return_dtype=pl.String
         ),
-        prio=pl.col("spider").map_elements(_prio, return_dtype=pl.Int64),
+        prio=prio_expr(),
     )
     # Clave: DOI; si no hay, el DOI que otra fuente asocia al mismo título; si no, el título normalizado.
     # Títulos cortos ("Preface", "Editorial", "On the cover") se repiten entre obras distintas: para ellos no se

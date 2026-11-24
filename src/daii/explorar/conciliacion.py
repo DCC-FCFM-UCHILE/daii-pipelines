@@ -4,6 +4,7 @@ la tabla `scraperun` publicada; las reglas de identidad están escritas a mano y
 import polars as pl
 import streamlit as st
 
+from daii.config import academicos
 from daii.explorar import datos, ui
 from daii.silver.transform import PRIORIDAD, TITULO_MIN_PALABRAS, _prio
 
@@ -103,6 +104,11 @@ def pagina() -> None:
     st.subheader("Prioridad de fuentes")
     st.caption("Menor gana. Se aplica campo a campo (publicaciones, académico) o a la fila completa (proyecto, tesis).")
     ui.tabla(_prioridades(), key="conciliacion_prioridad", altura="content")
+    propias = [f"{a['nombre']}: {' > '.join(a['prioridad'])}" for a in academicos() if a.get("prioridad")]
+    st.caption(
+        "Orden propio (campo `prioridad` en config/academicos.yaml; esas fuentes van antes del orden global): "
+        + ("; ".join(propias) if propias else "nadie lo tiene.")
+    )
 
     st.subheader("Cómo se reconoce el mismo dato")
     ui.tabla(
