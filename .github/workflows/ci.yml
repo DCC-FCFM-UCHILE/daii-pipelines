@@ -17,6 +17,8 @@ jobs:
   check:
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    env:
+      UV_NO_SYNC: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -24,7 +26,5 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - run: uv sync --locked
-      # Lint, tipos y tests usan el entorno que ya preparó uv sync.
-      - run: make check
-        env:
-          UV_NO_SYNC: "1"
+      - run: uv run pre-commit run --all-files --show-diff-on-failure
+      - run: make test
