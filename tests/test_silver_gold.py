@@ -39,6 +39,12 @@ def test_titulo_largo_hereda_doi_y_doi_se_limpia():
     )  # fmt: skip
     assert out.height == 1 and out["pub_key"][0] == "10.1109/csf.2025.21"
     assert out["fuentes"][0].to_list() == ["orcid", "sitio_x"]
+    assert out["anio"][0] == 2024  # el sitio personal gana a orcid
+
+
+def test_prioridad_sitio_luego_portafolio_luego_resto():
+    spiders = ["openalex", "cmm", "orcid", "portafolio", "sitio_x"]
+    assert sorted(spiders, key=transform._prio) == ["sitio_x", "portafolio", "orcid", "openalex", "cmm"]
 
 
 @pytest.mark.parametrize(

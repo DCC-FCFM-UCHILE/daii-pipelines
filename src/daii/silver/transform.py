@@ -20,7 +20,7 @@ from daii.config import BRONZE, SILVER
 from daii.quality.checks import last_good
 
 # Prioridad de fuentes al consolidar campos (menor = más confiable). Fuentes curadas por la persona primero.
-PRIORIDAD = {"orcid": 0, "ucurriculum": 2, "dblp": 3, "openalex": 4}  # sitio_* = 1
+PRIORIDAD = {"portafolio": 1, "orcid": 2, "ucurriculum": 3, "dblp": 4, "openalex": 5}  # sitio_* = 0; otros = 9
 
 TIPO_PUB = [
     ("revista", r"journal|^article$|revista"),
@@ -76,7 +76,7 @@ def classify(value: str | None, rules: list[tuple[str, str]], default: str = "ot
 
 
 def _prio(spider: str) -> int:
-    return PRIORIDAD.get(spider, 1)
+    return 0 if spider.startswith("sitio_") else PRIORIDAD.get(spider, 9)
 
 
 def load_bronze(selected: list[Path] | None = None) -> dict[str, list[dict]]:

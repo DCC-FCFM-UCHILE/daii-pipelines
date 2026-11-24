@@ -48,8 +48,8 @@ IDENTIDAD = [
 ]
 
 LIMITES = """
-- **Spiders sin prioridad propia** (marcados abajo) valen lo mismo que un sitio personal: si chocan, gana el que llegó
-  primero.
+- **Spiders sin prioridad propia** (marcados abajo) van después de todas las demás fuentes: si chocan entre ellos, gana
+  el que llegó primero.
 - **Formación, afiliaciones, distinciones y actividades** no se concilian: el mismo grado escrito distinto por dos
   fuentes aparece dos veces.
 - **Dictaciones:** se deduplica antes de normalizar el semestre, así que "Primer Semestre" y "Otoño" quedan como dos
@@ -69,12 +69,12 @@ def _prioridades() -> pl.DataFrame:
         {
             "prioridad": _prio(s),
             "fuente": legibles.get(s, s),
-            "nota": "propia" if s in PRIORIDAD else "sin prioridad propia: vale como un sitio personal",
+            "nota": "propia" if s in PRIORIDAD else "sin prioridad propia: va al final",
         }
         for s in nombres
         if not s.startswith("sitio_")
     ]
-    filas.append({"prioridad": 1, "fuente": f"Sitios personales ({len(sitios)})", "nota": "curado por la persona"})
+    filas.append({"prioridad": 0, "fuente": f"Sitios personales ({len(sitios)})", "nota": "curado por la persona"})
     return pl.DataFrame(filas).sort("prioridad", "fuente")
 
 
