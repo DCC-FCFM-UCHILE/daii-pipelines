@@ -16,66 +16,108 @@ from daii.config import BRONZE, GOLD_DB, SILVER, academicos
 from daii.gold.load import run_manifest
 from daii.log import NIVELES, logs_db
 from daii.quality.checks import runs
-from daii.silver.transform import norm_text
 from daii.versions import VERSIONS
+
+
+def fuentes(tabla: str, *pk: str) -> str:
+    """Spiders que respaldan la fila (lista JSON ordenada), desde la evidencia de gold. `pk` en el orden de la PK."""
+    return (
+        "(SELECT json_group_array(DISTINCT i.spider ORDER BY i.spider) FROM evidencia e"
+        f" JOIN itembronze i ON i.id = e.item_id WHERE e.tabla = '{tabla}' AND e.campo = ''"
+        f" AND e.fila_id = json_array({', '.join(pk)})) AS fuentes"
+    )
+
 
 # tipo (nombre en bronze/silver) → (etiqueta, SQL gold con una fila por académico, columna de año)
 TIPOS: dict[str, tuple[str, str, str | None]] = {
     "publicacion": (
         "Publicaciones",
-        "SELECT pa.academico_id, p.titulo, p.anio, p.tipo, p.venue, p.doi, p.url, p.citas, pa.fuentes, pa.confianza"
-        " FROM publicacionacademico pa JOIN publicacion p ON p.id = pa.publicacion_id",
+        "SELECT pa.academico_id, p.titulo, p.anio, p.tipo, p.venue, p.doi, p.url, p.citas, pa.confianza, "
+        + fuentes("publicacionacademico", "pa.publicacion_id", "pa.academico_id")
+        + " FROM publicacionacademico pa JOIN publicacion p ON p.id = pa.publicacion_id",
         "anio",
     ),
     "proyecto": (
         "Proyectos",
-        "SELECT pp.academico_id, p.titulo, p.codigo, p.instrumento, pp.rol, p.anio_inicio, p.anio_fin, p.monto,"
-        " pp.fuentes FROM participacionproyecto pp JOIN proyecto p ON p.id = pp.proyecto_id",
+        "SELECT pp.academico_id, p.titulo, p.codigo, p.instrumento, pp.rol, p.anio_inicio, p.anio_fin, p.monto, "
+        + fuentes("participacionproyecto", "pp.proyecto_id", "pp.academico_id")
+        + " FROM participacionproyecto pp JOIN proyecto p ON p.id = pp.proyecto_id",
         "anio_inicio",
     ),
     "tesis": (
         "Tesis",
-        "SELECT d.academico_id, t.titulo, t.estudiante, t.nivel, t.anio, t.programa, d.rol, t.url, d.fuentes"
-        " FROM direcciontesis d JOIN tesis t ON t.id = d.tesis_id",
+        "SELECT d.academico_id, t.titulo, t.estudiante, t.nivel, t.anio, t.programa, d.rol, t.url, "
+        + fuentes("direcciontesis", "d.tesis_id", "d.academico_id")
+        + " FROM direcciontesis d JOIN tesis t ON t.id = d.tesis_id",
         "anio",
     ),
     "dictacion": (
         "Docencia",
-        "SELECT d.academico_id, c.codigo, c.nombre, d.anio, d.semestre, d.rol, d.institucion, d.fuente"
-        " FROM dictacion d JOIN curso c ON c.id = d.curso_id",
+        "SELECT d.academico_id, c.codigo, c.nombre, d.anio, d.semestre, d.rol, d.institucion, "
+        + fuentes("dictacion", "d.id")
+        + " FROM dictacion d JOIN curso c ON c.id = d.curso_id",
         "anio",
     ),
     "actividad": (
         "Actividades",
-        "SELECT academico_id, tipo, titulo, evento, fecha, rol, descripcion, url, fuente FROM actividad",
+        "SELECT academico_id, tipo, titulo, evento, fecha, rol, descripcion, url, "
+        + fuentes("actividad", "actividad.id")
+        + " FROM actividad",
         None,
     ),
     "producto": (
         "Productos",
-        "SELECT pa.academico_id, p.nombre, p.tipo, pa.rol, p.descripcion, p.url"
-        " FROM productoacademico pa JOIN producto p ON p.id = pa.producto_id",
+        "SELECT pa.academico_id, p.nombre, p.tipo, pa.rol, p.descripcion, p.url, "
+        + fuentes("productoacademico", "pa.producto_id", "pa.academico_id")
+        + " FROM productoacademico pa JOIN producto p ON p.id = pa.producto_id",
         None,
     ),
-    "distincion": ("Distinciones", "SELECT academico_id, nombre, otorgante, anio, fuente FROM distincion", "anio"),
+    "distincion": (
+        "Distinciones",
+        "SELECT academico_id, nombre, otorgante, anio, " + fuentes("distincion", "distincion.id") + " FROM distincion",
+        "anio",
+    ),
     "formacion": (
         "Formación",
-        "SELECT academico_id, nivel, grado, institucion, anio, titulo_tesis, fuente FROM formacion",
+        "SELECT academico_id, nivel, grado, institucion, anio, titulo_tesis, "
+        + fuentes("formacion", "formacion.id")
+        + " FROM formacion",
         "anio",
     ),
     "afiliacion": (
         "Afiliaciones",
-        "SELECT academico_id, organizacion, rol, desde, hasta, url_organizacion, fuente FROM afiliacion",
+        "SELECT academico_id, organizacion, rol, desde, hasta, url_organizacion, "
+        + fuentes("afiliacion", "afiliacion.id")
+        + " FROM afiliacion",
         None,
     ),
-    "area": ("Áreas", "SELECT academico_id, nombre, fuente FROM area", None),
-    "metrica": ("Métricas", "SELECT academico_id, plataforma, nombre, valor, anio FROM metrica", "anio"),
-    "perfil": ("Perfiles", "SELECT academico_id, plataforma, url, identificador, fuente FROM perfilexterno", None),
+    "area": ("Áreas", "SELECT academico_id, nombre, " + fuentes("area", "area.id") + " FROM area", None),
+    "metrica": (
+        "Métricas",
+        "SELECT academico_id, plataforma, nombre, valor, anio, " + fuentes("metrica", "metrica.id") + " FROM metrica",
+        "anio",
+    ),
+    "perfil": (
+        "Perfiles",
+        "SELECT academico_id, plataforma, url, identificador, "
+        + fuentes("perfilexterno", "perfilexterno.id")
+        + " FROM perfilexterno",
+        None,
+    ),
     "link": (
         "Links",
-        "SELECT academico_id, url_origen, url_destino, texto, seguido, fuente FROM linkdescubierto",
+        "SELECT academico_id, url_origen, url_destino, texto, seguido, "
+        + fuentes("linkdescubierto", "linkdescubierto.id")
+        + " FROM linkdescubierto",
         None,
     ),
-    "pagina": ("Páginas", "SELECT academico_id, url, titulo FROM paginarelacionada", None),
+    "pagina": (
+        "Páginas",
+        "SELECT academico_id, url, titulo, "
+        + fuentes("paginarelacionada", "paginarelacionada.id")
+        + " FROM paginarelacionada",
+        None,
+    ),
 }
 CAPAS = ("bronze", "silver", "gold")
 # campos de cada tipo según el contrato bronze: un campo que ninguna fuente llena se ve (100% vacío), no se pierde
@@ -148,12 +190,16 @@ def silver(tipo: str) -> pl.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def _bronze(firmas: tuple[tuple[str, float], ...]) -> dict[str, pl.DataFrame]:
-    frames = [pl.read_ndjson(f, infer_schema_length=None) for f, _ in firmas]
+    frames = []
+    for f, _ in firmas:  # item_id = "<spider>/<run_id>#<línea>", igual que silver.load_bronze
+        run = Path(f).parent
+        df = pl.read_ndjson(f, infer_schema_length=None).with_row_index("n", offset=1)
+        frames.append(df.select(pl.format(f"{run.parent.name}/{run.name}#{{}}", "n").alias("item_id"), pl.exclude("n")))
     if not frames:
         return {}
     todo = pl.concat(frames, how="diagonal_relaxed")
     return {
-        tipo: df.select([c for c in df.columns if c in CAMPOS_BRONZE.get(tipo, df.columns)])
+        tipo: df.select([c for c in df.columns if c in CAMPOS_BRONZE.get(tipo, df.columns) or c == "item_id"])
         for (tipo,), df in todo.partition_by("tipo", as_dict=True).items()
     }
 
@@ -199,37 +245,11 @@ def capa(nombre: str, tipo: str) -> pl.DataFrame:
 
 
 def origen(fila: dict, tipo: str) -> pl.DataFrame:
-    """Ítems bronze que originan una fila silver, del más exacto al más amplio: todos los campos en común iguales; el
-    mismo título normalizado; la misma página. Siempre dentro de la persona (y del spider, si la fila lo trae).
-
-    shortcut: silver no guarda el id del ítem bronze, así que el rastro es por contenido, no exacto. Guardar un
-    `item_id` en bronze cuando haga falta un rastro exacto.
-    """
+    """Ítems bronze que fusiona una fila silver (`item_ids`), si siguen en el run en uso."""
     df = bronze(tipo)
-    if df.is_empty():
-        return df
-    df = df.filter(pl.col("persona") == fila.get("persona"))
-    if fila.get("spider"):
-        df = df.filter(pl.col("spider") == fila["spider"])
-    comunes = [c for c in df.columns if c in fila and c not in ("persona", "tipo", "spider", "run_id", "scraped_at")]
-    candidatos = [
-        pl.all_horizontal(  # bronze puede traer el año como texto: se compara como texto
-            pl.col(c).cast(pl.String).eq_missing(None if fila[c] is None else str(fila[c])) for c in comunes
-        )
-        if comunes and not any(isinstance(fila[c], list | dict) for c in comunes)
-        else None
-    ]
-    titulo = fila.get("titulo") or fila.get("nombre")
-    campo = next((c for c in ("titulo", "nombre") if c in df.columns), None)
-    if titulo and campo:
-        candidatos.append(pl.col(campo).map_elements(norm_text, return_dtype=pl.String) == norm_text(titulo))
-    if fila.get("url"):
-        candidatos.append(pl.col("url") == fila["url"])
-    for condicion in candidatos:
-        encontrados = df.filter(condicion) if condicion is not None else df.clear()
-        if not encontrados.is_empty():
-            return encontrados
-    return df.clear()
+    if df.is_empty() or not fila.get("item_ids"):
+        return df.clear()
+    return df.filter(pl.col("item_id").is_in(list(fila["item_ids"])))
 
 
 def embudo() -> pl.DataFrame:

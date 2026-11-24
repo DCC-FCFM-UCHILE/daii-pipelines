@@ -71,9 +71,7 @@ def _capas(slug: str, tipo: str) -> None:
         origen = datos.origen({**fila, "persona": slug}, tipo)
         st.subheader("Origen en bronze")
         if origen.is_empty():
-            st.caption(
-                "No se encontró el ítem bronze: el run en uso cambió o silver transformó todos los campos en común."
-            )
+            st.caption("No se encontró el ítem bronze: el run en uso ya no es el que alimentó esta versión de silver.")
         else:
             ui.tabla(ui.procedencia_al_final(origen.drop("persona", "tipo")), key=f"o_{slug}_{tipo}")
 

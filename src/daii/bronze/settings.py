@@ -4,7 +4,7 @@ from daii.config import BRONZE
 
 BOT_NAME = "daii"
 SPIDER_MODULES = ["daii.bronze.spiders"]
-USER_AGENT = "daii-bot/0.1 (+https://github.com/idia-tt/daii; IDIA FCFM U. de Chile)"
+USER_AGENT = "daii-bot/0.1 (+https://github.com/DCC-FCFM-UCHILE/daii-pipelines; IDIA FCFM U. de Chile)"
 ROBOTSTXT_OBEY = True
 
 # Sitios personales pequeños: ser amables (claudialopezmoncada.com devuelve 429 si se apura).

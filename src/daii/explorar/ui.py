@@ -34,7 +34,19 @@ ACENTOS = {
 }
 
 
-TECNICAS = ("fuente", "fuentes", "confianza", "spider", "url", "run_id", "scraped_at", "observacion_id")
+TECNICAS = (
+    "fuente",
+    "fuentes",
+    "confianza",
+    "spider",
+    "url",
+    "run_id",
+    "scraped_at",
+    "observacion_id",
+    "item_id",
+    "item_ids",
+    "origen",
+)
 
 
 def procedencia_al_final(df: pl.DataFrame) -> pl.DataFrame:

@@ -51,14 +51,13 @@ def test_loaders_leen_la_version_publicada(data):
     assert datos.silver_dir() == versions.VERSIONS / data / "silver"
     gold = datos.capa("gold", "area")
     assert sorted(gold["nombre"].to_list()) == ["Knowledge Graphs", "Semantic Web"]
-    assert gold["fuente"].unique().to_list() == ["orcid"]
+    assert datos.con_fuente(gold)["fuente"].unique().to_list() == ["orcid"]
     assert datos.bronze("area").height == 2  # solo el run en uso, no el anterior
     embudo = {r["capa"]: r["filas"] for r in datos.embudo().rows(named=True) if r["tipo"] == "Áreas"}
     assert embudo == {"bronze": 2, "silver": 2, "gold": 2}
     fila = datos.silver("area").filter(datos.pl.col("nombre") == "Knowledge Graphs").row(0, named=True)
+    assert datos.origen(fila, "area")["item_id"].to_list() == ["orcid/20261123T185212Z#2"]
     assert datos.origen(fila, "area")["nombre"].to_list() == ["Knowledge Graphs"]
-    # silver normalizó el texto: el rastro cae al título normalizado
-    assert datos.origen(fila | {"nombre": "knowledge  graphs"}, "area")["nombre"].to_list() == ["Knowledge Graphs"]
     # las capas no se multiplican por fuente (silver y gold traen una fila por dato y persona)
     assert datos.capa("gold", "area").height == datos.gold("area").height
     nulos = datos.nulos(datos.con_fuente(datos.capa("bronze", "area")))
@@ -78,7 +77,7 @@ def _pagina(nombre: str, modo: str, persona: str | None = None) -> None:
 
 
 @pytest.mark.parametrize("modo", ["DAII", "Pipeline"])
-@pytest.mark.parametrize("nombre", ["academicos", "agregados", "modelo", "runs", "versiones", "logs"])
+@pytest.mark.parametrize("nombre", ["academicos", "agregados", "modelo", "conciliacion", "runs", "versiones", "logs"])
 def test_paginas_sin_errores(data, nombre, modo):
     at = AppTest.from_function(_pagina, args=(nombre, modo), default_timeout=30).run()
     assert not at.exception
@@ -105,7 +104,7 @@ def test_estados_vacios(tmp_path, monkeypatch):
     monkeypatch.setattr(datos, "SILVER", tmp_path / "silver")
     monkeypatch.setattr(log, "DATA", tmp_path)
     st.cache_data.clear()
-    for nombre in ("academicos", "agregados", "modelo", "runs", "versiones", "logs"):
+    for nombre in ("academicos", "agregados", "modelo", "conciliacion", "runs", "versiones", "logs"):
         at = AppTest.from_function(_pagina, args=(nombre, "Pipeline"), default_timeout=30).run()
         assert not at.exception, nombre
         assert at.info, f"{nombre} debe explicar qué falta"

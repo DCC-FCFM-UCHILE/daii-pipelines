@@ -26,7 +26,7 @@ Construido a partir de los sitios de ejemplo (Bravo-Marquez, Toro, Ruiz del Sola
 
 1. **Usamos `PERSONA` para todos y `ACADEMICO` como extensión.** Los coautores externos, los estudiantes tesistas y los co-PI de otras universidades también son personas. Así una autoría, una tesis o un proyecto apuntan siempre a `PERSONA`, y el dashboard filtra por `ACADEMICO` cuando corresponde. Esto permite armar redes de colaboración (por ejemplo Silva ↔ Orchard) sin duplicar datos.
 2. **Una sola tabla `ORGANIZACION` con `tipo` y `padre_id`.** Cubre universidades, facultades, departamentos, centros, institutos Milenio, laboratorios, agencias (ANID, CORFO), empresas y sociedades (IEEE, PHM Society).
-3. **Trazabilidad en todo.** Toda fila extraída lleva `fuente_id` (→ `FUENTE`), `extraido_en` y `confianza`. El dato puede venir de un scrapeo, de una API (ORCID/OpenAlex) o de ingreso manual. Cuando dos fuentes no coinciden, gana `verificado = true` (validación humana).
+3. **Trazabilidad en todo.** Toda fila extraída lleva `fuente_id` (→ `FUENTE`), `extraido_en` y `confianza` (en gold: `EVIDENCIA` por fila y campo, ver §8). El dato puede venir de un scrapeo, de una API (ORCID/OpenAlex) o de ingreso manual. Cuando dos fuentes no coinciden, gana `verificado = true` (validación humana).
 4. **Deduplicación por identificadores persistentes.** DOI para publicaciones, ORCID para personas, ROR para organizaciones, código ANID para proyectos y ISSN/ISBN para venues.
 5. **Usamos catálogos y no texto libre** donde el dashboard agrega: jerarquía, tipo de publicación, instrumento de financiamiento, área (OCDE/FORD) y nivel de tesis.
 
@@ -439,6 +439,24 @@ erDiagram
 ```
 
 Columnas comunes en todas las entidades extraídas: `fuente_id`, `extraido_en`, `confianza` (0–1) y `verificado` (bool, validación humana).
+
+### Implementación actual (gold)
+
+En vez de un `fuente_id` por fila, gold usa dos tablas. Así una fila puede tener varias fuentes y un deduplicador
+puede fusionar filas:
+
+- **`ItemBronze`**: un ítem bronze usado en la versión. Su id `<spider>/<run_id>#<n>` es la línea `n` de
+  `bronze/<spider>/<run_id>/items.jsonl`. Guarda la `url` y el `observacion_id` de la página archivada en
+  `pages.jsonl`. Los datos que vienen de `config/academicos.yaml` usan el ítem `config:academicos.yaml`.
+- **`Evidencia(tabla, fila_id, item_id, campo)`**: `fila_id` es el `json_array` de la PK de la fila, por ejemplo
+  `'[3]'` o `'["10.1/x","slug"]'`. Se cruza en SQL con `e.fila_id = json_array(t.id)`.
+  - `campo = ''` significa que el ítem respalda la fila completa.
+  - `campo = 'venue'` significa que el valor de ese campo salió de ese ítem. Solo aparece donde se eligió entre
+    fuentes: publicación, entidades compartidas y sus puentes, curso y académico.
+
+Fusionar dos filas (deduplicación) consiste en unir sus evidencias `campo = ''` y quedarse con la evidencia de campo
+del valor que gana. Silver ya trae esa información: `item_ids` en cada fila y `origen` (campo → item) en
+publicaciones. Todavía falta `verificado`.
 
 ---
 
