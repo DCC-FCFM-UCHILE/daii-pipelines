@@ -52,7 +52,7 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-extend-select = ["ASYNC210", "PGH003", "RUF100"]
+extend-select = ["A", "ASYNC210", "DTZ", "PERF", "PGH003", "PIE", "PTH", "RUF100"]
 
 [tool.ty.rules]
 # Scrapy declara `Spider.parse` como atributo (CallbackT); sobreescribirlo es el patrón idiomático.

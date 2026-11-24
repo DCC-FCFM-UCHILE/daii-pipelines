@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import os
 from pathlib import Path
 
 import polars as pl
@@ -307,7 +306,7 @@ def build(
             counts[str(model.__tablename__)] = len(rows)
         s.commit()
     engine.dispose()
-    os.replace(tmp, destination)
+    tmp.replace(destination)
     return counts
 
 

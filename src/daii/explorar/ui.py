@@ -1,6 +1,6 @@
 """Piezas de interfaz compartidas por las páginas del explorador (vocabulario único: ver DESIGN.md)."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 import polars as pl
@@ -16,9 +16,8 @@ ESTADOS = {
 def fecha_run(run_id: str, *, corta: bool = False) -> str:
     """`20261123T185212Z` → `2026-11-23 18:52 UTC` (o `23/11 18:52` para ejes); los run_id son timestamps UTC."""
     try:
-        return datetime.strptime(run_id[:15], "%Y%m%dT%H%M%S").strftime(
-            "%d/%m %H:%M" if corta else "%Y-%m-%d %H:%M UTC"
-        )
+        fecha = datetime.strptime(run_id[:15], "%Y%m%dT%H%M%S").replace(tzinfo=UTC)
+        return fecha.strftime("%d/%m %H:%M" if corta else "%Y-%m-%d %H:%M UTC")
     except ValueError:
         return run_id
 
