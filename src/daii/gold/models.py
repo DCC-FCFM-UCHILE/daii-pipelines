@@ -25,7 +25,7 @@ class Academico(SQLModel, table=True):
 
 class PerfilExterno(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     plataforma: str
     url: str | None = None
     identificador: str | None = None
@@ -34,7 +34,7 @@ class PerfilExterno(SQLModel, table=True):
 
 class Afiliacion(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     organizacion: str
     rol: str | None = None
     desde: str | None = None
@@ -45,7 +45,7 @@ class Afiliacion(SQLModel, table=True):
 
 class Formacion(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     nivel: str  # doctorado|magister|titulo_profesional|licenciatura|postdoctorado|otro
     grado: str
     institucion: str | None = None
@@ -56,7 +56,7 @@ class Formacion(SQLModel, table=True):
 
 class Area(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     nombre: str
     fuente: str
 
@@ -77,8 +77,8 @@ class Publicacion(SQLModel, table=True):
 
 
 class PublicacionAcademico(SQLModel, table=True):
-    publicacion_id: str = Field(foreign_key='publicacion.id', primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', primary_key=True)
+    publicacion_id: str = Field(foreign_key="publicacion.id", primary_key=True)
+    academico_id: str = Field(foreign_key="academico.id", primary_key=True)
     fuentes: str  # JSON list de spiders que la reportan
     confianza: float  # 0.5 si solo la reporta OpenAlex (posible homónimo)
 
@@ -95,8 +95,8 @@ class Proyecto(SQLModel, table=True):
 
 
 class ParticipacionProyecto(SQLModel, table=True):
-    proyecto_id: str = Field(foreign_key='proyecto.id', primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', primary_key=True)
+    proyecto_id: str = Field(foreign_key="proyecto.id", primary_key=True)
+    academico_id: str = Field(foreign_key="academico.id", primary_key=True)
     rol: str | None = None
     fuentes: str
 
@@ -113,8 +113,8 @@ class Tesis(SQLModel, table=True):
 
 
 class DireccionTesis(SQLModel, table=True):
-    tesis_id: str = Field(foreign_key='tesis.id', primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', primary_key=True)
+    tesis_id: str = Field(foreign_key="tesis.id", primary_key=True)
+    academico_id: str = Field(foreign_key="academico.id", primary_key=True)
     rol: str  # guia|coguia|comision|otro
     fuentes: str
 
@@ -127,8 +127,8 @@ class Curso(SQLModel, table=True):
 
 class Dictacion(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    curso_id: str = Field(foreign_key='curso.id', index=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    curso_id: str = Field(foreign_key="curso.id", index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     anio: int | None = None
     semestre: str | None = None
     rol: str | None = None
@@ -138,7 +138,7 @@ class Dictacion(SQLModel, table=True):
 
 class Actividad(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     tipo: str = Field(index=True)
     titulo: str
     descripcion: str | None = None
@@ -158,14 +158,14 @@ class Producto(SQLModel, table=True):
 
 
 class ProductoAcademico(SQLModel, table=True):
-    producto_id: str = Field(foreign_key='producto.id', primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', primary_key=True)
+    producto_id: str = Field(foreign_key="producto.id", primary_key=True)
+    academico_id: str = Field(foreign_key="academico.id", primary_key=True)
     rol: str | None = None
 
 
 class Distincion(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     nombre: str
     otorgante: str | None = None
     anio: int | None = None
@@ -174,7 +174,7 @@ class Distincion(SQLModel, table=True):
 
 class Metrica(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     plataforma: str
     nombre: str
     valor: float
@@ -183,7 +183,7 @@ class Metrica(SQLModel, table=True):
 
 class LinkDescubierto(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     url_origen: str
     url_destino: str = Field(index=True)
     texto: str | None = None
@@ -193,7 +193,7 @@ class LinkDescubierto(SQLModel, table=True):
 
 class PaginaRelacionada(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    academico_id: str = Field(foreign_key='academico.id', index=True)
+    academico_id: str = Field(foreign_key="academico.id", index=True)
     url: str
     titulo: str | None = None
     texto: str | None = None

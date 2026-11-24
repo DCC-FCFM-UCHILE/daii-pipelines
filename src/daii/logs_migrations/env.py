@@ -8,12 +8,12 @@ from daii.log import METADATA
 
 
 def run() -> None:
-    connection = context.config.attributes.get('connection')
+    connection = context.config.attributes.get("connection")
     if connection is None:
-        db = context.get_x_argument(as_dictionary=True).get('db')
+        db = context.get_x_argument(as_dictionary=True).get("db")
         if not db:
-            raise SystemExit('Indique la base: alembic -n logs -x db=<ruta.sqlite> ...')
-        with create_engine(f'sqlite:///{db}').begin() as connection:
+            raise SystemExit("Indique la base: alembic -n logs -x db=<ruta.sqlite> ...")
+        with create_engine(f"sqlite:///{db}").begin() as connection:
             _configure(connection)
     else:
         _configure(connection)

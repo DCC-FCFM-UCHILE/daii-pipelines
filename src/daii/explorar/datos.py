@@ -21,63 +21,63 @@ from daii.versions import VERSIONS
 
 # tipo (nombre en bronze/silver) → (etiqueta, SQL gold con una fila por académico, columna de año)
 TIPOS: dict[str, tuple[str, str, str | None]] = {
-    'publicacion': (
-        'Publicaciones',
-        'SELECT pa.academico_id, p.titulo, p.anio, p.tipo, p.venue, p.doi, p.url, p.citas, pa.fuentes, pa.confianza'
-        ' FROM publicacionacademico pa JOIN publicacion p ON p.id = pa.publicacion_id',
-        'anio',
+    "publicacion": (
+        "Publicaciones",
+        "SELECT pa.academico_id, p.titulo, p.anio, p.tipo, p.venue, p.doi, p.url, p.citas, pa.fuentes, pa.confianza"
+        " FROM publicacionacademico pa JOIN publicacion p ON p.id = pa.publicacion_id",
+        "anio",
     ),
-    'proyecto': (
-        'Proyectos',
-        'SELECT pp.academico_id, p.titulo, p.codigo, p.instrumento, pp.rol, p.anio_inicio, p.anio_fin, p.monto,'
-        ' pp.fuentes FROM participacionproyecto pp JOIN proyecto p ON p.id = pp.proyecto_id',
-        'anio_inicio',
+    "proyecto": (
+        "Proyectos",
+        "SELECT pp.academico_id, p.titulo, p.codigo, p.instrumento, pp.rol, p.anio_inicio, p.anio_fin, p.monto,"
+        " pp.fuentes FROM participacionproyecto pp JOIN proyecto p ON p.id = pp.proyecto_id",
+        "anio_inicio",
     ),
-    'tesis': (
-        'Tesis',
-        'SELECT d.academico_id, t.titulo, t.estudiante, t.nivel, t.anio, t.programa, d.rol, t.url, d.fuentes'
-        ' FROM direcciontesis d JOIN tesis t ON t.id = d.tesis_id',
-        'anio',
+    "tesis": (
+        "Tesis",
+        "SELECT d.academico_id, t.titulo, t.estudiante, t.nivel, t.anio, t.programa, d.rol, t.url, d.fuentes"
+        " FROM direcciontesis d JOIN tesis t ON t.id = d.tesis_id",
+        "anio",
     ),
-    'dictacion': (
-        'Docencia',
-        'SELECT d.academico_id, c.codigo, c.nombre, d.anio, d.semestre, d.rol, d.institucion, d.fuente'
-        ' FROM dictacion d JOIN curso c ON c.id = d.curso_id',
-        'anio',
+    "dictacion": (
+        "Docencia",
+        "SELECT d.academico_id, c.codigo, c.nombre, d.anio, d.semestre, d.rol, d.institucion, d.fuente"
+        " FROM dictacion d JOIN curso c ON c.id = d.curso_id",
+        "anio",
     ),
-    'actividad': (
-        'Actividades',
-        'SELECT academico_id, tipo, titulo, evento, fecha, rol, descripcion, url, fuente FROM actividad',
+    "actividad": (
+        "Actividades",
+        "SELECT academico_id, tipo, titulo, evento, fecha, rol, descripcion, url, fuente FROM actividad",
         None,
     ),
-    'producto': (
-        'Productos',
-        'SELECT pa.academico_id, p.nombre, p.tipo, pa.rol, p.descripcion, p.url'
-        ' FROM productoacademico pa JOIN producto p ON p.id = pa.producto_id',
+    "producto": (
+        "Productos",
+        "SELECT pa.academico_id, p.nombre, p.tipo, pa.rol, p.descripcion, p.url"
+        " FROM productoacademico pa JOIN producto p ON p.id = pa.producto_id",
         None,
     ),
-    'distincion': ('Distinciones', 'SELECT academico_id, nombre, otorgante, anio, fuente FROM distincion', 'anio'),
-    'formacion': (
-        'Formación',
-        'SELECT academico_id, nivel, grado, institucion, anio, titulo_tesis, fuente FROM formacion',
-        'anio',
+    "distincion": ("Distinciones", "SELECT academico_id, nombre, otorgante, anio, fuente FROM distincion", "anio"),
+    "formacion": (
+        "Formación",
+        "SELECT academico_id, nivel, grado, institucion, anio, titulo_tesis, fuente FROM formacion",
+        "anio",
     ),
-    'afiliacion': (
-        'Afiliaciones',
-        'SELECT academico_id, organizacion, rol, desde, hasta, url_organizacion, fuente FROM afiliacion',
+    "afiliacion": (
+        "Afiliaciones",
+        "SELECT academico_id, organizacion, rol, desde, hasta, url_organizacion, fuente FROM afiliacion",
         None,
     ),
-    'area': ('Áreas', 'SELECT academico_id, nombre, fuente FROM area', None),
-    'metrica': ('Métricas', 'SELECT academico_id, plataforma, nombre, valor, anio FROM metrica', 'anio'),
-    'perfil': ('Perfiles', 'SELECT academico_id, plataforma, url, identificador, fuente FROM perfilexterno', None),
-    'link': (
-        'Links',
-        'SELECT academico_id, url_origen, url_destino, texto, seguido, fuente FROM linkdescubierto',
+    "area": ("Áreas", "SELECT academico_id, nombre, fuente FROM area", None),
+    "metrica": ("Métricas", "SELECT academico_id, plataforma, nombre, valor, anio FROM metrica", "anio"),
+    "perfil": ("Perfiles", "SELECT academico_id, plataforma, url, identificador, fuente FROM perfilexterno", None),
+    "link": (
+        "Links",
+        "SELECT academico_id, url_origen, url_destino, texto, seguido, fuente FROM linkdescubierto",
         None,
     ),
-    'pagina': ('Páginas', 'SELECT academico_id, url, titulo FROM paginarelacionada', None),
+    "pagina": ("Páginas", "SELECT academico_id, url, titulo FROM paginarelacionada", None),
 }
-CAPAS = ('bronze', 'silver', 'gold')
+CAPAS = ("bronze", "silver", "gold")
 # campos de cada tipo según el contrato bronze: un campo que ninguna fuente llena se ve (100% vacío), no se pierde
 CAMPOS_BRONZE = {tipo: list(m.model_fields) for tipo, m in MODELOS.items()}
 
@@ -87,11 +87,11 @@ def _firma(path: Path) -> tuple[str, float]:
 
 
 def _ro(path: Path) -> sqlite3.Connection:
-    return sqlite3.connect(f'{path.resolve().as_uri()}?mode=ro', uri=True)
+    return sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
 
 
 def nombres() -> dict[str, str]:
-    return {a['slug']: a['nombre'] for a in academicos()}
+    return {a["slug"]: a["nombre"] for a in academicos()}
 
 
 # --- gold ---------------------------------------------------------------------------------------------------------
@@ -115,12 +115,12 @@ def gold(tipo: str) -> pl.DataFrame:
 def release() -> dict | None:
     """Versión publicada en gold y su manifiesto (si la versión sigue en data/versions)."""
     tablas = gold_sql("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'datarelease'")
-    rows = gold_sql('SELECT build_id, published_at FROM datarelease') if not tablas.is_empty() else tablas
+    rows = gold_sql("SELECT build_id, published_at FROM datarelease") if not tablas.is_empty() else tablas
     if rows.is_empty():  # gold previo al versionado, o sin publicar
         return None
     row = rows.row(0, named=True)
-    manifest = VERSIONS / row['build_id'] / 'manifest.json'
-    return {**row, 'manifest': json.loads(manifest.read_text()) if manifest.exists() else None}
+    manifest = VERSIONS / row["build_id"] / "manifest.json"
+    return {**row, "manifest": json.loads(manifest.read_text()) if manifest.exists() else None}
 
 
 # --- silver -------------------------------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ def release() -> dict | None:
 def silver_dir() -> Path:
     """Silver del build publicado; sin release (instalaciones previas al versionado) cae a data/silver."""
     published = release()
-    directory = VERSIONS / published['build_id'] / 'silver' if published else None
+    directory = VERSIONS / published["build_id"] / "silver" if published else None
     return directory if directory and directory.is_dir() else SILVER
 
 
@@ -139,7 +139,7 @@ def _parquet(firma: tuple[str, float]) -> pl.DataFrame:
 
 
 def silver(tipo: str) -> pl.DataFrame:
-    f = silver_dir() / f'{tipo}.parquet'
+    f = silver_dir() / f"{tipo}.parquet"
     return _parquet(_firma(f)) if f.exists() else pl.DataFrame()
 
 
@@ -151,10 +151,10 @@ def _bronze(firmas: tuple[tuple[str, float], ...]) -> dict[str, pl.DataFrame]:
     frames = [pl.read_ndjson(f, infer_schema_length=None) for f, _ in firmas]
     if not frames:
         return {}
-    todo = pl.concat(frames, how='diagonal_relaxed')
+    todo = pl.concat(frames, how="diagonal_relaxed")
     return {
         tipo: df.select([c for c in df.columns if c in CAMPOS_BRONZE.get(tipo, df.columns)])
-        for (tipo,), df in todo.partition_by('tipo', as_dict=True).items()
+        for (tipo,), df in todo.partition_by("tipo", as_dict=True).items()
     }
 
 
@@ -165,8 +165,8 @@ def bronze_runs() -> list[dict]:
 
 def bronze(tipo: str, *, run_ids: dict[str, str] | None = None) -> pl.DataFrame:
     """Ítems bronze de un tipo, del run en uso de cada spider (o del run indicado por spider)."""
-    elegidos = run_ids or {r['spider']: r['run_en_uso'] for r in bronze_runs() if r['run_en_uso']}
-    files = [BRONZE / spider / run / 'items.jsonl' for spider, run in sorted(elegidos.items())]
+    elegidos = run_ids or {r["spider"]: r["run_en_uso"] for r in bronze_runs() if r["run_en_uso"]}
+    files = [BRONZE / spider / run / "items.jsonl" for spider, run in sorted(elegidos.items())]
     return _bronze(tuple(_firma(f) for f in files if f.is_file())).get(tipo, pl.DataFrame())
 
 
@@ -177,25 +177,25 @@ def con_fuente(df: pl.DataFrame) -> pl.DataFrame:
     """Columna `fuente` = spider. Silver de publicaciones ya fusionó fuentes: una fila por fuente que la reporta."""
     if df.is_empty():
         return df
-    if 'spider' in df.columns:
-        return df.with_columns(fuente=pl.col('spider'))
-    if 'fuentes' in df.columns:
-        fuentes = pl.col('fuentes')
-        if df.schema['fuentes'] == pl.String:  # gold guarda la lista como JSON
+    if "spider" in df.columns:
+        return df.with_columns(fuente=pl.col("spider"))
+    if "fuentes" in df.columns:
+        fuentes = pl.col("fuentes")
+        if df.schema["fuentes"] == pl.String:  # gold guarda la lista como JSON
             fuentes = fuentes.str.json_decode(pl.List(pl.String))
-        return df.with_columns(fuente=fuentes).explode('fuente')
-    if 'fuente' in df.columns:
+        return df.with_columns(fuente=fuentes).explode("fuente")
+    if "fuente" in df.columns:
         return df
     return df.with_columns(fuente=pl.lit(None, pl.String))
 
 
 def con_persona(df: pl.DataFrame) -> pl.DataFrame:
-    return df.rename({'academico_id': 'persona'}) if 'academico_id' in df.columns else df
+    return df.rename({"academico_id": "persona"}) if "academico_id" in df.columns else df
 
 
 def capa(nombre: str, tipo: str) -> pl.DataFrame:
     """Filas de un tipo en una capa, con la columna común `persona` (una fila por fila real de la capa)."""
-    return con_persona({'bronze': bronze, 'silver': silver, 'gold': gold}[nombre](tipo))
+    return con_persona({"bronze": bronze, "silver": silver, "gold": gold}[nombre](tipo))
 
 
 def origen(fila: dict, tipo: str) -> pl.DataFrame:
@@ -208,10 +208,10 @@ def origen(fila: dict, tipo: str) -> pl.DataFrame:
     df = bronze(tipo)
     if df.is_empty():
         return df
-    df = df.filter(pl.col('persona') == fila.get('persona'))
-    if fila.get('spider'):
-        df = df.filter(pl.col('spider') == fila['spider'])
-    comunes = [c for c in df.columns if c in fila and c not in ('persona', 'tipo', 'spider', 'run_id', 'scraped_at')]
+    df = df.filter(pl.col("persona") == fila.get("persona"))
+    if fila.get("spider"):
+        df = df.filter(pl.col("spider") == fila["spider"])
+    comunes = [c for c in df.columns if c in fila and c not in ("persona", "tipo", "spider", "run_id", "scraped_at")]
     candidatos = [
         pl.all_horizontal(  # bronze puede traer el año como texto: se compara como texto
             pl.col(c).cast(pl.String).eq_missing(None if fila[c] is None else str(fila[c])) for c in comunes
@@ -219,12 +219,12 @@ def origen(fila: dict, tipo: str) -> pl.DataFrame:
         if comunes and not any(isinstance(fila[c], list | dict) for c in comunes)
         else None
     ]
-    titulo = fila.get('titulo') or fila.get('nombre')
-    campo = next((c for c in ('titulo', 'nombre') if c in df.columns), None)
+    titulo = fila.get("titulo") or fila.get("nombre")
+    campo = next((c for c in ("titulo", "nombre") if c in df.columns), None)
     if titulo and campo:
         candidatos.append(pl.col(campo).map_elements(norm_text, return_dtype=pl.String) == norm_text(titulo))
-    if fila.get('url'):
-        candidatos.append(pl.col('url') == fila['url'])
+    if fila.get("url"):
+        candidatos.append(pl.col("url") == fila["url"])
     for condicion in candidatos:
         encontrados = df.filter(condicion) if condicion is not None else df.clear()
         if not encontrados.is_empty():
@@ -234,42 +234,42 @@ def origen(fila: dict, tipo: str) -> pl.DataFrame:
 
 def embudo() -> pl.DataFrame:
     """Filas por tipo y capa (por académico: gold cuenta las tablas puente, no las entidades deduplicadas)."""
-    lectores = {'bronze': bronze, 'silver': silver, 'gold': gold}
+    lectores = {"bronze": bronze, "silver": silver, "gold": gold}
     return pl.DataFrame(
-        [{'tipo': TIPOS[t][0], 'capa': c, 'filas': lectores[c](t).height} for t in TIPOS for c in CAPAS],
-        schema={'tipo': pl.String, 'capa': pl.String, 'filas': pl.Int64},
+        [{"tipo": TIPOS[t][0], "capa": c, "filas": lectores[c](t).height} for t in TIPOS for c in CAPAS],
+        schema={"tipo": pl.String, "capa": pl.String, "filas": pl.Int64},
     )
 
 
 def nulos(df: pl.DataFrame) -> pl.DataFrame:
     """% de nulos (o texto vacío) por campo y fuente, en formato largo para el heatmap."""
     tecnicas = {
-        'persona',
-        'url',
-        'spider',
-        'run_id',
-        'scraped_at',
-        'tipo',
-        'fuente',
-        'fuentes',
-        'academico_id',
-        'observacion_id',
+        "persona",
+        "url",
+        "spider",
+        "run_id",
+        "scraped_at",
+        "tipo",
+        "fuente",
+        "fuentes",
+        "academico_id",
+        "observacion_id",
     }
     campos = [c for c in df.columns if c not in tecnicas]
     if df.is_empty() or not campos:
         return pl.DataFrame(
-            schema={'fuente': pl.String, 'campo': pl.String, 'pct_nulos': pl.Float64, 'filas': pl.Int64}
+            schema={"fuente": pl.String, "campo": pl.String, "pct_nulos": pl.Float64, "filas": pl.Int64}
         )
 
     def vacio(c: str) -> pl.Expr:
         col = pl.col(c)
-        return (col.is_null() | (col.str.strip_chars() == '')) if df.schema[c] == pl.String else col.is_null()
+        return (col.is_null() | (col.str.strip_chars() == "")) if df.schema[c] == pl.String else col.is_null()
 
     return (
-        df.group_by('fuente')
-        .agg(pl.len().alias('filas'), *[(vacio(c).mean() * 100).alias(c) for c in campos])
-        .unpivot(index=['fuente', 'filas'], variable_name='campo', value_name='pct_nulos')
-        .sort('fuente', 'campo')
+        df.group_by("fuente")
+        .agg(pl.len().alias("filas"), *[(vacio(c).mean() * 100).alias(c) for c in campos])
+        .unpivot(index=["fuente", "filas"], variable_name="campo", value_name="pct_nulos")
+        .sort("fuente", "campo")
     )
 
 
@@ -280,22 +280,22 @@ def historial(spider: str) -> pl.DataFrame:
     """Runs de un spider (más reciente primero) con estado, problemas y conteos de quality.json."""
     filas = []
     for run in runs(spider):
-        q = run / 'quality.json'
+        q = run / "quality.json"
         data = json.loads(q.read_text()) if q.exists() else {}
         filas.append(
             {
-                'run_id': run.name,
-                'estado': data.get('status', 'sin_evaluar'),
-                'problemas': data.get('problems', []),
-                'conteos': data.get('counts', {}),
+                "run_id": run.name,
+                "estado": data.get("status", "sin_evaluar"),
+                "problemas": data.get("problems", []),
+                "conteos": data.get("counts", {}),
             }
         )
-    return pl.DataFrame(filas, schema_overrides={'problemas': pl.Object, 'conteos': pl.Object})
+    return pl.DataFrame(filas, schema_overrides={"problemas": pl.Object, "conteos": pl.Object})
 
 
 def logs(
     *,
-    nivel: str = 'INFO',
+    nivel: str = "INFO",
     spider: str | None = None,
     run_id: str | None = None,
     persona: str | None = None,
@@ -308,26 +308,26 @@ def logs(
     if not db.exists():
         return pl.DataFrame()
     niveles = NIVELES[NIVELES.index(nivel) :]
-    where, params = [f'nivel IN ({", ".join("?" * len(niveles))})'], list(niveles)
+    where, params = [f"nivel IN ({', '.join('?' * len(niveles))})"], list(niveles)
     for col, value, op in (
-        ('spider', spider, '='),
-        ('run_id', run_id, '='),
-        ('persona', persona, '='),
-        ('evento', evento, '='),
-        ('ts', desde, '>='),
+        ("spider", spider, "="),
+        ("run_id", run_id, "="),
+        ("persona", persona, "="),
+        ("evento", evento, "="),
+        ("ts", desde, ">="),
     ):
         if value:
-            where.append(f'{col} {op} ?')
+            where.append(f"{col} {op} ?")
             params.append(value)
-    sql = f'SELECT * FROM log WHERE {" AND ".join(where)} ORDER BY ts DESC LIMIT {int(limite)}'
+    sql = f"SELECT * FROM log WHERE {' AND '.join(where)} ORDER BY ts DESC LIMIT {int(limite)}"
     with _ro(db) as conn:
-        return pl.read_database(sql, conn, execute_options={'parameters': params}, infer_schema_length=None)
+        return pl.read_database(sql, conn, execute_options={"parameters": params}, infer_schema_length=None)
 
 
 def valores_log(columna: str) -> list[str]:
     """Valores distintos de una columna de logs.sqlite, para poblar filtros."""
-    if columna not in ('spider', 'evento', 'persona', 'run_id') or not logs_db().exists():
+    if columna not in ("spider", "evento", "persona", "run_id") or not logs_db().exists():
         return []
     with _ro(logs_db()) as conn:
-        rows = conn.execute(f'SELECT DISTINCT {columna} FROM log WHERE {columna} IS NOT NULL ORDER BY 1').fetchall()
+        rows = conn.execute(f"SELECT DISTINCT {columna} FROM log WHERE {columna} IS NOT NULL ORDER BY 1").fetchall()
     return [r[0] for r in rows]

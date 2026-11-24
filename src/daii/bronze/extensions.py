@@ -26,12 +26,12 @@ class Logs:
         return ext
 
     def spider_opened(self, spider):
-        setup(f'bronze.{spider.name}', spider=spider.name, run_id=spider.run_id, persona=None)
-        self.files.enter_context(archivo(BRONZE / spider.name / spider.run_id / 'log.jsonl'))
-        logger.bind(evento='spider_iniciado').info(f'persona={spider.only or "todas"}')
+        setup(f"bronze.{spider.name}", spider=spider.name, run_id=spider.run_id, persona=None)
+        self.files.enter_context(archivo(BRONZE / spider.name / spider.run_id / "log.jsonl"))
+        logger.bind(evento="spider_iniciado").info(f"persona={spider.only or 'todas'}")
 
     def spider_closed(self, spider, reason):
-        logger.bind(evento='spider_terminado').info(f'finish_reason={reason}')
+        logger.bind(evento="spider_terminado").info(f"finish_reason={reason}")
 
     def engine_stopped(self):  # después de "Dumping Scrapy stats" y "Spider closed", que llegan tras spider_closed
         self.files.close()
@@ -52,6 +52,6 @@ class DumpStats:
     def spider_closed(self, spider, reason):
         run = BRONZE / spider.name / spider.run_id
         run.mkdir(parents=True, exist_ok=True)
-        stats = self.stats.get_stats() | {'finish_reason': reason}
-        stats['expect'] = getattr(spider, 'expect', {})
-        (run / 'stats.json').write_text(json.dumps(stats, default=str, indent=1))
+        stats = self.stats.get_stats() | {"finish_reason": reason}
+        stats["expect"] = getattr(spider, "expect", {})
+        (run / "stats.json").write_text(json.dumps(stats, default=str, indent=1))

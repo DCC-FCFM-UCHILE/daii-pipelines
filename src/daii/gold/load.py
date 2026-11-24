@@ -17,7 +17,7 @@ from daii.gold import models as m
 from daii.quality.checks import last_good, runs, status
 from daii.silver.transform import _prio, norm_text
 
-MIGRATIONS = Path(__file__).parent / 'migrations'
+MIGRATIONS = Path(__file__).parent / "migrations"
 
 
 def head() -> str | None:
@@ -28,14 +28,14 @@ def head() -> str | None:
 def migrate(engine: Engine) -> None:
     """Crea el esquema con las migraciones de Alembic (deja `alembic_version` en la SQLite)."""
     cfg = Config()
-    cfg.set_main_option('script_location', str(MIGRATIONS))
+    cfg.set_main_option("script_location", str(MIGRATIONS))
     with engine.begin() as connection:
-        cfg.attributes['connection'] = connection
-        command.upgrade(cfg, 'head')
+        cfg.attributes["connection"] = connection
+        command.upgrade(cfg, "head")
 
 
 def _hid(*parts: object) -> str:
-    return hashlib.sha1('|'.join(str(p) for p in parts).encode()).hexdigest()[:16]
+    return hashlib.sha1("|".join(str(p) for p in parts).encode()).hexdigest()[:16]
 
 
 def _json(col: str) -> pl.Expr:
@@ -45,10 +45,10 @@ def _json(col: str) -> pl.Expr:
 
 def _read(tipo: str, silver: Path | None = None) -> pl.DataFrame:
     """Silver de un tipo, solo de personas que siguen en config (también para entidades compartidas)."""
-    f = (silver or SILVER) / f'{tipo}.parquet'
+    f = (silver or SILVER) / f"{tipo}.parquet"
     if not f.exists():
         return pl.DataFrame()
-    return pl.read_parquet(f).filter(pl.col('persona').is_in([a['slug'] for a in academicos()]))
+    return pl.read_parquet(f).filter(pl.col("persona").is_in([a["slug"] for a in academicos()]))
 
 
 def _cols(df: pl.DataFrame, **mapping: str | pl.Expr) -> list[dict]:
@@ -63,22 +63,22 @@ def _cols(df: pl.DataFrame, **mapping: str | pl.Expr) -> list[dict]:
 
 
 def _academicos(silver: Path | None = None) -> list[dict]:
-    personas = _read('persona', silver)
+    personas = _read("persona", silver)
     rows = []
     for a in academicos():
-        cand = personas.filter(pl.col('persona') == a['slug']).to_dicts() if not personas.is_empty() else []
-        cand.sort(key=lambda r: _prio(r['spider']))
+        cand = personas.filter(pl.col("persona") == a["slug"]).to_dicts() if not personas.is_empty() else []
+        cand.sort(key=lambda r: _prio(r["spider"]))
 
         def first(field: str, cand=cand):
             return next((r[field] for r in cand if r.get(field)), None)
 
         rows.append(
             {
-                'id': a['slug'],
-                'nombre': a['nombre'],
-                'unidad': a.get('unidad'),
-                'orcid': a.get('perfiles', {}).get('orcid'),
-                **{f: first(f) for f in ('cargo', 'email', 'foto_url', 'bio')},
+                "id": a["slug"],
+                "nombre": a["nombre"],
+                "unidad": a.get("unidad"),
+                "orcid": a.get("perfiles", {}).get("orcid"),
+                **{f: first(f) for f in ("cargo", "email", "foto_url", "bio")},
             }
         )
     return rows
@@ -88,16 +88,16 @@ def _shared(df: pl.DataFrame, key: pl.Expr, entity: dict, link: dict) -> tuple[l
     """Separa una tabla silver por persona en (entidad compartida, puente persona↔entidad)."""
     if df.is_empty():
         return [], []
-    df = df.with_columns(_key=key, _prio=pl.col('spider').map_elements(_prio, return_dtype=pl.Int64)).sort(
-        '_prio', maintain_order=True
+    df = df.with_columns(_key=key, _prio=pl.col("spider").map_elements(_prio, return_dtype=pl.Int64)).sort(
+        "_prio", maintain_order=True
     )
-    ent = df.unique('_key', keep='first', maintain_order=True)
+    ent = df.unique("_key", keep="first", maintain_order=True)
     bridge = (
-        df.group_by('_key', 'persona', maintain_order=True)
-        .agg(pl.all().exclude('spider').first(), fuentes=pl.col('spider').unique().sort())
-        .with_columns(fuentes=_json('fuentes'))
+        df.group_by("_key", "persona", maintain_order=True)
+        .agg(pl.all().exclude("spider").first(), fuentes=pl.col("spider").unique().sort())
+        .with_columns(fuentes=_json("fuentes"))
     )
-    return _cols(ent, id='_key', **entity), _cols(bridge, academico_id='persona', **link)
+    return _cols(ent, id="_key", **entity), _cols(bridge, academico_id="persona", **link)
 
 
 def build(
@@ -106,194 +106,194 @@ def build(
     destination = destination or GOLD_DB
     destination.parent.mkdir(parents=True, exist_ok=True)
     # Se construye aparte y se reemplaza al final: el dashboard nunca ve una base vacía o a medias.
-    tmp = destination.with_suffix('.tmp')
+    tmp = destination.with_suffix(".tmp")
     tmp.unlink(missing_ok=True)
-    engine = create_engine(f'sqlite:///{tmp}')
+    engine = create_engine(f"sqlite:///{tmp}")
     migrate(engine)
     tables: dict[type[SQLModel], list[dict]] = {m.Academico: _academicos(silver)}
 
     tables[m.PerfilExterno] = _cols(
-        _read('perfil', silver),
-        academico_id='persona',
-        plataforma='plataforma',
-        url='url_destino',
-        identificador='identificador',
-        fuente='spider',
+        _read("perfil", silver),
+        academico_id="persona",
+        plataforma="plataforma",
+        url="url_destino",
+        identificador="identificador",
+        fuente="spider",
     )
     tables[m.Afiliacion] = _cols(
-        _read('afiliacion', silver),
-        academico_id='persona',
-        organizacion='organizacion',
-        rol='rol',
-        desde='desde',
-        hasta='hasta',
-        url_organizacion='url_organizacion',
-        fuente='spider',
+        _read("afiliacion", silver),
+        academico_id="persona",
+        organizacion="organizacion",
+        rol="rol",
+        desde="desde",
+        hasta="hasta",
+        url_organizacion="url_organizacion",
+        fuente="spider",
     )
     tables[m.Formacion] = _cols(
-        _read('formacion', silver),
-        academico_id='persona',
-        nivel='nivel',
-        grado='grado',
-        institucion='institucion',
-        anio='anio',
-        titulo_tesis='titulo_tesis',
-        fuente='spider',
+        _read("formacion", silver),
+        academico_id="persona",
+        nivel="nivel",
+        grado="grado",
+        institucion="institucion",
+        anio="anio",
+        titulo_tesis="titulo_tesis",
+        fuente="spider",
     )
-    tables[m.Area] = _cols(_read('area', silver), academico_id='persona', nombre='nombre', fuente='spider')
+    tables[m.Area] = _cols(_read("area", silver), academico_id="persona", nombre="nombre", fuente="spider")
     tables[m.Distincion] = _cols(
-        _read('distincion', silver),
-        academico_id='persona',
-        nombre='nombre',
-        otorgante='otorgante',
-        anio='anio',
-        fuente='spider',
+        _read("distincion", silver),
+        academico_id="persona",
+        nombre="nombre",
+        otorgante="otorgante",
+        anio="anio",
+        fuente="spider",
     )
     tables[m.Metrica] = _cols(
-        _read('metrica', silver),
-        academico_id='persona',
-        plataforma='plataforma',
-        nombre='nombre',
-        valor='valor',
-        anio='anio',
+        _read("metrica", silver),
+        academico_id="persona",
+        plataforma="plataforma",
+        nombre="nombre",
+        valor="valor",
+        anio="anio",
     )
     tables[m.Actividad] = _cols(
-        _read('actividad', silver),
-        academico_id='persona',
-        tipo='tipo_actividad',
-        titulo='titulo',
-        descripcion='descripcion',
-        evento='evento',
-        fecha='fecha',
-        rol='rol',
-        url='url_destino',
-        fuente='spider',
+        _read("actividad", silver),
+        academico_id="persona",
+        tipo="tipo_actividad",
+        titulo="titulo",
+        descripcion="descripcion",
+        evento="evento",
+        fecha="fecha",
+        rol="rol",
+        url="url_destino",
+        fuente="spider",
     )
     tables[m.LinkDescubierto] = _cols(
-        _read('link', silver),
-        academico_id='persona',
-        url_origen='url',
-        url_destino='url_destino',
-        texto='texto',
-        seguido='seguido',
-        fuente='spider',
+        _read("link", silver),
+        academico_id="persona",
+        url_origen="url",
+        url_destino="url_destino",
+        texto="texto",
+        seguido="seguido",
+        fuente="spider",
     )
     tables[m.PaginaRelacionada] = _cols(
-        _read('pagina', silver), academico_id='persona', url='url', titulo='titulo', texto='texto'
+        _read("pagina", silver), academico_id="persona", url="url", titulo="titulo", texto="texto"
     )
 
-    pubs = _read('publicacion', silver)
+    pubs = _read("publicacion", silver)
     if not pubs.is_empty():
-        pubs = pubs.with_columns(spider=pl.lit('silver'), autores=_json('autores'))
+        pubs = pubs.with_columns(spider=pl.lit("silver"), autores=_json("autores"))
         # silver ya consolidó por persona; aquí se une entre personas por pub_key (primera fila gana).
         tables[m.Publicacion] = _cols(
             # una publicación compartida queda indexada si cualquier persona la reporta indexada
             pubs.with_columns(
-                pl.col('indexada_wos', 'indexada_scopus').any().over('pub_key'),
-                pl.col('autores', 'anio', 'venue', 'url_destino', 'estado').drop_nulls().first().over('pub_key'),
-                pl.col('citas').max().over('pub_key'),
-            ).unique('pub_key', keep='first', maintain_order=True),
-            id='pub_key',
-            indexada_wos='indexada_wos',
-            indexada_scopus='indexada_scopus',
-            titulo='titulo',
-            anio='anio',
-            tipo='tipo_publicacion',
-            venue='venue',
-            doi='doi',
-            url='url_destino',
-            estado='estado',
-            citas='citas',
-            autores='autores',
+                pl.col("indexada_wos", "indexada_scopus").any().over("pub_key"),
+                pl.col("autores", "anio", "venue", "url_destino", "estado").drop_nulls().first().over("pub_key"),
+                pl.col("citas").max().over("pub_key"),
+            ).unique("pub_key", keep="first", maintain_order=True),
+            id="pub_key",
+            indexada_wos="indexada_wos",
+            indexada_scopus="indexada_scopus",
+            titulo="titulo",
+            anio="anio",
+            tipo="tipo_publicacion",
+            venue="venue",
+            doi="doi",
+            url="url_destino",
+            estado="estado",
+            citas="citas",
+            autores="autores",
         )
         tables[m.PublicacionAcademico] = _cols(
             pubs,
-            publicacion_id='pub_key',
-            academico_id='persona',
-            confianza='confianza',
-            fuentes=_json('fuentes'),
+            publicacion_id="pub_key",
+            academico_id="persona",
+            confianza="confianza",
+            fuentes=_json("fuentes"),
         )
 
-    proy = _read('proyecto', silver)
+    proy = _read("proyecto", silver)
     if not proy.is_empty():
         key = pl.coalesce(
-            pl.col('codigo'), pl.lit('t:') + pl.col('titulo').map_elements(norm_text, return_dtype=pl.String)
+            pl.col("codigo"), pl.lit("t:") + pl.col("titulo").map_elements(norm_text, return_dtype=pl.String)
         )
         tables[m.Proyecto], tables[m.ParticipacionProyecto] = _shared(
             proy,
             key,
             dict(
-                titulo='titulo',
-                codigo='codigo',
-                instrumento='instrumento',
-                fuente_texto='fuente',
-                anio_inicio='anio_inicio',
-                anio_fin='anio_fin',
-                monto='monto',
+                titulo="titulo",
+                codigo="codigo",
+                instrumento="instrumento",
+                fuente_texto="fuente",
+                anio_inicio="anio_inicio",
+                anio_fin="anio_fin",
+                monto="monto",
             ),
-            dict(proyecto_id='_key', rol='rol', fuentes='fuentes'),
+            dict(proyecto_id="_key", rol="rol", fuentes="fuentes"),
         )
 
-    tesis = _read('tesis', silver)
+    tesis = _read("tesis", silver)
     if not tesis.is_empty():
         # Sin título, "nivel|año" no distingue a nadie: entonces entra el estudiante. Con título NO, porque una
         # fuente puede traer estudiante y otra no (ucurriculum vs sitio personal) y la misma tesis se duplicaría.
         key = pl.concat_str(
-            pl.col('titulo').map_elements(norm_text, return_dtype=pl.String),
-            pl.when(pl.col('titulo').is_null()).then(
-                pl.col('estudiante').map_elements(norm_text, return_dtype=pl.String)
+            pl.col("titulo").map_elements(norm_text, return_dtype=pl.String),
+            pl.when(pl.col("titulo").is_null()).then(
+                pl.col("estudiante").map_elements(norm_text, return_dtype=pl.String)
             ),
-            pl.col('anio').cast(pl.String),
-            separator='|',
+            pl.col("anio").cast(pl.String),
+            separator="|",
             ignore_nulls=True,
         )
         tables[m.Tesis], tables[m.DireccionTesis] = _shared(
             tesis,
             key.map_elements(_hid, return_dtype=pl.String),
             dict(
-                titulo='titulo',
-                anio='anio',
-                nivel='nivel',
-                estudiante='estudiante',
-                programa='programa',
-                estado='estado',
-                url='url_destino',
+                titulo="titulo",
+                anio="anio",
+                nivel="nivel",
+                estudiante="estudiante",
+                programa="programa",
+                estado="estado",
+                url="url_destino",
             ),
-            dict(tesis_id='_key', rol='rol_norm', fuentes='fuentes'),
+            dict(tesis_id="_key", rol="rol_norm", fuentes="fuentes"),
         )
 
-    dict_ = _read('dictacion', silver)
+    dict_ = _read("dictacion", silver)
     if not dict_.is_empty():
         dict_ = dict_.with_columns(
             curso_id=pl.coalesce(
-                'codigo_curso',
-                pl.col('nombre_curso').map_elements(lambda s: 'n:' + norm_text(s), return_dtype=pl.String),
+                "codigo_curso",
+                pl.col("nombre_curso").map_elements(lambda s: "n:" + norm_text(s), return_dtype=pl.String),
             )
         )
         tables[m.Curso] = _cols(
-            dict_.unique('curso_id', keep='first', maintain_order=True),
-            id='curso_id',
-            codigo='codigo_curso',
-            nombre='nombre_curso',
+            dict_.unique("curso_id", keep="first", maintain_order=True),
+            id="curso_id",
+            codigo="codigo_curso",
+            nombre="nombre_curso",
         )
         tables[m.Dictacion] = _cols(
             dict_,
-            curso_id='curso_id',
-            academico_id='persona',
-            anio='anio',
-            semestre='semestre',
-            rol='rol',
-            institucion='institucion',
-            fuente='spider',
+            curso_id="curso_id",
+            academico_id="persona",
+            anio="anio",
+            semestre="semestre",
+            rol="rol",
+            institucion="institucion",
+            fuente="spider",
         )
 
-    prod = _read('producto', silver)
+    prod = _read("producto", silver)
     if not prod.is_empty():
         tables[m.Producto], tables[m.ProductoAcademico] = _shared(
             prod,
-            pl.col('nombre').map_elements(norm_text, return_dtype=pl.String),
-            dict(nombre='nombre', tipo='tipo_producto', descripcion='descripcion', url='url_destino'),
-            dict(producto_id='_key', rol='rol'),
+            pl.col("nombre").map_elements(norm_text, return_dtype=pl.String),
+            dict(nombre="nombre", tipo="tipo_producto", descripcion="descripcion", url="url_destino"),
+            dict(producto_id="_key", rol="rol"),
         )
 
     tables[m.ScrapeRun] = run_rows if run_rows is not None else run_manifest()
@@ -311,19 +311,19 @@ def build(
 
 
 def run_manifest() -> list[dict]:
-    return [_run_row(d.name) for d in sorted(BRONZE.glob('*')) if d.is_dir() and runs(d.name)]
+    return [_run_row(d.name) for d in sorted(BRONZE.glob("*")) if d.is_dir() and runs(d.name)]
 
 
 def _run_row(spider: str) -> dict:
     # el último run evaluado: un `scrapy crawl` manual de depuración no tapa la salud real del spider
     last = next((r for r in runs(spider) if status(r)), runs(spider)[0])
-    q = json.loads((last / 'quality.json').read_text()) if (last / 'quality.json').exists() else {}
+    q = json.loads((last / "quality.json").read_text()) if (last / "quality.json").exists() else {}
     good = last_good(spider)
     return {
-        'spider': spider,
-        'ultimo_run': last.name,
-        'estado': status(last) or 'sin_evaluar',
-        'problemas': json.dumps(q.get('problems', []), ensure_ascii=False),
-        'conteos': json.dumps(q.get('counts', {})),
-        'run_en_uso': good.name if good else None,
+        "spider": spider,
+        "ultimo_run": last.name,
+        "estado": status(last) or "sin_evaluar",
+        "problemas": json.dumps(q.get("problems", []), ensure_ascii=False),
+        "conteos": json.dumps(q.get("counts", {})),
+        "run_en_uso": good.name if good else None,
     }
