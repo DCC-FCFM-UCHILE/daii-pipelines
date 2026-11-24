@@ -2,9 +2,8 @@
 # Las claves de `perfiles` deciden qué spiders de plataforma corren para esa persona:
 #   orcid, openalex (ID de autor, opcional: si falta se resuelve por ORCID), dblp (pid),
 #   ucurriculum (ficha institucional FCFM), sitio (sitio personal), cv (PDF)
-# `prioridad` (opcional): fuentes que mandan para esta persona, en orden, antes del orden global
-#   (sitio personal > portafolio > orcid > ucurriculum > dblp > openalex > resto). Nombres de spider; `sitio` = su
-#   sitio personal. Ej.: `prioridad: [cmm, sitio]` cuando su ficha CMM es su página principal.
+# `prioridad` (opcional): fuentes que mandan para esta persona, en orden, antes del orden global (`PRIORIDAD` en
+#   silver/transform.py). Nombres de spider; `sitio` = su sitio personal. Ej.: `prioridad: [cmm, sitio]` cuando su ficha CMM es su página principal.
 #   También decide proyectos, tesis y productos que comparte con otras personas (sus filas compiten con las de ellas).
 - slug: felipe-bravo
   nombre: Felipe Bravo-Marquez
