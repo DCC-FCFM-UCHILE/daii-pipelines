@@ -62,27 +62,33 @@ LIMITES = """
 
 
 def _prioridades() -> pl.DataFrame:
-    spiders = datos.gold_sql("SELECT spider FROM scraperun")
+    spiders, legibles = datos.gold_sql("SELECT spider FROM scraperun"), datos.catalogo("itembronze.spider")
     nombres = sorted(set(PRIORIDAD) | set(spiders["spider"].to_list() if not spiders.is_empty() else []))
     sitios = [s for s in nombres if s.startswith("sitio_")]
     filas = [
         {
             "prioridad": _prio(s),
-            "fuente": s,
+            "fuente": legibles.get(s, s),
             "nota": "propia" if s in PRIORIDAD else "sin prioridad propia: vale como un sitio personal",
         }
         for s in nombres
         if not s.startswith("sitio_")
     ]
-    filas.append({"prioridad": 1, "fuente": f"sitio_* ({len(sitios)} sitios)", "nota": "curado por la persona"})
+    filas.append({"prioridad": 1, "fuente": f"Sitios personales ({len(sitios)})", "nota": "curado por la persona"})
     return pl.DataFrame(filas).sort("prioridad", "fuente")
 
 
 def _publicaciones_por_fuente() -> pl.DataFrame:
-    return datos.gold_sql(
+    df = datos.gold_sql(
         "SELECT fuentes, COUNT(*) AS filas, ROUND(AVG(confianza), 2) AS confianza FROM (SELECT confianza, "
         + datos.fuentes("publicacionacademico", "pa.publicacion_id", "pa.academico_id")
         + " FROM publicacionacademico pa) GROUP BY fuentes ORDER BY filas DESC"
+    )
+    if df.is_empty():
+        return df
+    legibles = datos.catalogo("itembronze.spider")
+    return df.with_columns(
+        pl.col("fuentes").str.json_decode(pl.List(pl.String)).list.eval(pl.element().replace(legibles)).list.join(" · ")
     )
 
 

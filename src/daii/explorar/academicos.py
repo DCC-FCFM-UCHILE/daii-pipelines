@@ -10,7 +10,8 @@ CABECERA = {"perfil"}  # va en la cabecera de la ficha, no en pestañas
 
 
 def _academicos() -> pl.DataFrame:
-    return datos.gold_sql("SELECT id, nombre, unidad, cargo, email, foto_url, bio FROM academico ORDER BY nombre")
+    unidad = datos.nombre("academico.unidad", "unidad")
+    return datos.gold_sql(f"SELECT id, nombre, {unidad}, cargo, email, foto_url, bio FROM academico ORDER BY nombre")
 
 
 def _lista(gente: pl.DataFrame) -> None:

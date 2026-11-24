@@ -47,6 +47,10 @@ config/academicos.yaml  ──semillas──▶  src/daii/bronze/      Scrapy (+
   de `bronze/<spider>/<run_id>/items.jsonl`. Si la fila fusiona fuentes, también se registra de qué ítem salió cada
   campo. Una tabla o fusión nueva en gold debe generar su evidencia con `_evidencia()` (`gold/load.py`); un test verifica que no queden
   filas sin evidencia.
+- **Nombres legibles:** gold guarda códigos (`DII`, `revista`, `fondecyt`…) y la tabla `catalogo` trae su nombre
+  desde `config/catalogos.yaml`. Para renombrar algo se edita ese archivo, nunca la SQLite, y el cambio se ve en la
+  próxima publicación. Al agregar un código a un vocabulario cerrado hay que agregarle nombre: `tests/test_catalogos.py`
+  falla si falta. En el explorador, los códigos se muestran con `datos.nombre()` (SQL) o `datos.catalogo()`.
 - Las capas solo dependen hacia atrás (gold lee silver, silver lee bronze). Nunca al revés.
 - `explorar/` es solo presentación: lee las tres capas y nunca escribe en `data/`; nada del pipeline lo importa. Su
   diseño (identidad FCFM, estados, gráficos) está en `DESIGN.md` y el producto en `PRODUCT.md`.

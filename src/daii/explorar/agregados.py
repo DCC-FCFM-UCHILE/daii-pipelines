@@ -87,14 +87,14 @@ def _cobertura(df: pl.DataFrame, nombres: dict[str, str]) -> None:
         return
     st.caption(
         "Filas por académico y fuente. Una celda vacía es una fuente que no aportó nada para esa persona. "
-        "Los sitios personales (un spider por persona) van juntos en «sitio personal»."
+        "Los sitios personales (un spider por persona) van juntos en «Sitio personal»."
     )
     conteo = (
         df.filter(pl.col("fuente").is_not_null())
         .with_columns(
             fuente=pl.when(pl.col("fuente").str.starts_with("sitio_"))
-            .then(pl.lit("sitio personal"))
-            .otherwise("fuente")
+            .then(pl.lit("Sitio personal"))
+            .otherwise(pl.col("fuente").replace(datos.catalogo("itembronze.spider")))
         )
         .group_by("persona", "fuente")
         .len("filas")
@@ -113,7 +113,7 @@ def _calidad(df: pl.DataFrame) -> None:
         "Porcentaje de filas sin valor en cada campo, por fuente. Una columna oscura es un parser que no lo extrae."
     )
     largo = largo.with_columns(
-        fuente=pl.format("{} ({})", "fuente", "filas"),
+        fuente=pl.format("{} ({})", pl.col("fuente").replace(datos.catalogo("itembronze.spider")), "filas"),
         campo=pl.col("campo").map_elements(ui.etiqueta, return_dtype=pl.String),
     )
     st.altair_chart(_heatmap(largo, "campo", "fuente", "pct_nulos", "% vacío", ".0f"), width="stretch")

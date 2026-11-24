@@ -1,0 +1,108 @@
+# Nombres legibles de las categorías fijas de gold: `<tabla>.<columna>` → código → nombre.
+# Los datos guardan el código; lo que se muestra sale de aquí (gold lo publica en la tabla `catalogo`).
+# Editar un nombre aquí cambia lo que se ve en todas partes desde la próxima publicación (`daii silver && daii gold`).
+# Un test exige que todo código que produce el pipeline tenga nombre. Los sitios personales (`sitio_<slug>`) no se
+# listan: gold los nombra "Sitio personal de <nombre>" desde academicos.yaml.
+
+academico.unidad:
+  DCC: Departamento de Ciencias de la Computación
+  DIE: Departamento de Ingeniería Eléctrica
+  DIM: Departamento de Ingeniería Matemática
+  DII: Departamento de Ingeniería Industrial
+  DIQBM: Departamento de Ingeniería Química, Biotecnología y Materiales
+  DIC: Departamento de Ingeniería Civil
+  DIMEC: Departamento de Ingeniería Mecánica
+  DAS: Departamento de Astronomía
+  DFI: Departamento de Física
+  DGF: Departamento de Geofísica
+  DG: Departamento de Geología
+  IDIA: Iniciativa de Datos e Inteligencia Artificial
+
+publicacion.tipo:
+  revista: Artículo en revista
+  conferencia: Artículo en conferencia
+  capitulo: Capítulo de libro
+  libro: Libro
+  preprint: Preprint
+  tesis: Tesis
+  otro: Otro
+
+proyecto.instrumento:
+  fondecyt: FONDECYT
+  fondef: FONDEF
+  fondequip: FONDEQUIP
+  milenio: Iniciativa Científica Milenio
+  basal: Financiamiento Basal
+  anillo: Anillos (PIA)
+  corfo: CORFO
+  anid_otro: Otro instrumento ANID
+  otro: Otro
+
+formacion.nivel:
+  doctorado: Doctorado
+  magister: Magíster
+  titulo_profesional: Título profesional
+  licenciatura: Licenciatura
+  postdoctorado: Postdoctorado
+  otro: Otro
+
+direcciontesis.rol:
+  guia: Profesor/a guía
+  coguia: Profesor/a co-guía
+  comision: Comisión evaluadora
+  otro: Otro
+
+actividad.tipo:
+  charla: Charla
+  keynote: Charla plenaria
+  tutorial: Tutorial
+  editorial: Comité editorial
+  comite_programa: Comité de programa
+  comite: Comité
+  organizacion_evento: Organización de eventos
+  revisor: Revisión de artículos
+  divulgacion: Divulgación
+  prensa: Prensa
+  noticia: Noticia
+  asesoria: Asesoría
+  transferencia: Transferencia tecnológica
+  politica_publica: Política pública
+  consejo_directivo: Consejo directivo
+  gestion: Gestión universitaria
+  servicio: Servicio académico
+  visita: Visita académica
+  vinculacion: Vinculación con el medio
+  extension: Extensión
+  otro: Otro
+
+metrica.nombre:
+  citas: Citas del año
+  cited_by_count: Citas totales
+  works_count: Obras
+  h_index: Índice h
+  i10_index: Índice i10
+  2yr_mean_citedness: Citas promedio (2 años)
+
+metrica.plataforma:
+  openalex: OpenAlex
+
+# Solo las claves que pone el código; las que la fuente escribe ("ResearcherID", "Scopus Author ID") se ven tal cual.
+perfilexterno.plataforma:
+  orcid: ORCID
+  openalex: OpenAlex
+  dblp: DBLP
+  scholar: Google Scholar
+  publons: Publons
+  github: GitHub
+  linkedin: LinkedIn
+
+itembronze.spider:
+  orcid: ORCID
+  openalex: OpenAlex
+  dblp: DBLP
+  ucurriculum: Ficha institucional FCFM
+  portafolio: Portafolio Académico U. de Chile
+  anid: Portal del Investigador ANID
+  cmm: CMM
+  cr2: CR2
+  config: Configuración

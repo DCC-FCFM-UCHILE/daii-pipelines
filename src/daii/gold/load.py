@@ -13,7 +13,7 @@ from sqlalchemy import insert
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
-from daii.config import BRONZE, GOLD_DB, SILVER, academicos
+from daii.config import BRONZE, GOLD_DB, SILVER, academicos, catalogos
 from daii.gold import models as m
 from daii.quality.checks import last_good, runs, status
 from daii.silver.transform import _prio, norm_text
@@ -390,6 +390,7 @@ def build(
         ev += e
 
     tables[m.ItemBronze] = _items(silver, {e["item_id"] for e in ev})
+    tables[m.Catalogo] = catalogo()
     tables[m.Evidencia] = ev
     tables[m.ScrapeRun] = run_rows if run_rows is not None else run_manifest()
 
@@ -403,6 +404,17 @@ def build(
     engine.dispose()
     os.replace(tmp, destination)
     return counts
+
+
+def catalogo() -> list[dict]:
+    """config/catalogos.yaml más los sitios personales, nombrados desde academicos.yaml."""
+    sitios = {
+        "sitio_" + a["slug"].replace("-", "_"): f"Sitio personal de {a['nombre']}"
+        for a in academicos()
+        if "sitio" in a.get("perfiles", {})
+    }
+    nombres = catalogos() | {"itembronze.spider": sitios | catalogos()["itembronze.spider"]}
+    return [{"campo": c, "codigo": str(k), "nombre": v} for c, vs in nombres.items() for k, v in vs.items()]
 
 
 def run_manifest() -> list[dict]:

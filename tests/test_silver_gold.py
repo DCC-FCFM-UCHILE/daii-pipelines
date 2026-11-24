@@ -128,7 +128,7 @@ def test_obras_de_homonimos_de_weber_en_openalex_se_descartan():
     ]
 
 
-META = {"scraperun", "datarelease"}  # tablas de metadatos, sin evidencia
+META = {"scraperun", "datarelease", "catalogo"}  # metadatos y referencia (config), sin evidencia
 
 
 def test_trazabilidad_de_bronze_a_gold(tmp_path):
@@ -183,6 +183,8 @@ def test_trazabilidad_de_bronze_a_gold(tmp_path):
 
     for tipo, (_, sql, _) in explorador.TIPOS.items():
         assert "[]" not in {r[-1] for r in q(sql)}, tipo
+    # y muestra el nombre del catálogo, no el código (publicación sin tipo de la fuente → "otro")
+    assert {r[3] for r in q(explorador.TIPOS["publicacion"][1])} == {"Otro"}
     assert q("SELECT COUNT(*) FROM evidencia WHERE item_id NOT IN (SELECT id FROM itembronze)") == [(0,)]
     # campo a campo: año de orcid, venue de dblp; nombre del académico de config
     assert q("SELECT campo, item_id FROM evidencia WHERE tabla = 'publicacion' AND campo IN ('anio', 'venue')"

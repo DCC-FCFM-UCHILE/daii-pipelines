@@ -28,25 +28,35 @@ def fuentes(tabla: str, *pk: str) -> str:
     )
 
 
+def nombre(campo: str, expr: str) -> str:
+    """SQL: nombre legible del código `expr` según el catálogo de gold (config/catalogos.yaml), o el código."""
+    alias = expr.split(".")[-1]
+    return f"COALESCE((SELECT nombre FROM catalogo WHERE campo = '{campo}' AND codigo = {expr}), {expr}) AS {alias}"
+
+
 # tipo (nombre en bronze/silver) → (etiqueta, SQL gold con una fila por académico, columna de año)
 TIPOS: dict[str, tuple[str, str, str | None]] = {
     "publicacion": (
         "Publicaciones",
-        "SELECT pa.academico_id, p.titulo, p.anio, p.tipo, p.venue, p.doi, p.url, p.citas, pa.confianza, "
+        f"SELECT pa.academico_id, p.titulo, p.anio, {nombre('publicacion.tipo', 'p.tipo')}, p.venue, p.doi, p.url,"
+        " p.citas, pa.confianza, "
         + fuentes("publicacionacademico", "pa.publicacion_id", "pa.academico_id")
         + " FROM publicacionacademico pa JOIN publicacion p ON p.id = pa.publicacion_id",
         "anio",
     ),
     "proyecto": (
         "Proyectos",
-        "SELECT pp.academico_id, p.titulo, p.codigo, p.instrumento, pp.rol, p.anio_inicio, p.anio_fin, p.monto, "
+        f"SELECT pp.academico_id, p.titulo, p.codigo, {nombre('proyecto.instrumento', 'p.instrumento')}, pp.rol,"
+        " p.anio_inicio, p.anio_fin, p.monto, "
         + fuentes("participacionproyecto", "pp.proyecto_id", "pp.academico_id")
         + " FROM participacionproyecto pp JOIN proyecto p ON p.id = pp.proyecto_id",
         "anio_inicio",
     ),
     "tesis": (
         "Tesis",
-        "SELECT d.academico_id, t.titulo, t.estudiante, t.nivel, t.anio, t.programa, d.rol, t.url, "
+        "SELECT d.academico_id, t.titulo, t.estudiante, t.nivel, t.anio, t.programa, "
+        + nombre("direcciontesis.rol", "d.rol")
+        + ", t.url, "
         + fuentes("direcciontesis", "d.tesis_id", "d.academico_id")
         + " FROM direcciontesis d JOIN tesis t ON t.id = d.tesis_id",
         "anio",
@@ -60,9 +70,8 @@ TIPOS: dict[str, tuple[str, str, str | None]] = {
     ),
     "actividad": (
         "Actividades",
-        "SELECT academico_id, tipo, titulo, evento, fecha, rol, descripcion, url, "
-        + fuentes("actividad", "actividad.id")
-        + " FROM actividad",
+        f"SELECT academico_id, {nombre('actividad.tipo', 'actividad.tipo')}, titulo, evento, fecha, rol, descripcion,"
+        " url, " + fuentes("actividad", "actividad.id") + " FROM actividad",
         None,
     ),
     "producto": (
@@ -79,7 +88,7 @@ TIPOS: dict[str, tuple[str, str, str | None]] = {
     ),
     "formacion": (
         "Formación",
-        "SELECT academico_id, nivel, grado, institucion, anio, titulo_tesis, "
+        f"SELECT academico_id, {nombre('formacion.nivel', 'formacion.nivel')}, grado, institucion, anio, titulo_tesis, "
         + fuentes("formacion", "formacion.id")
         + " FROM formacion",
         "anio",
@@ -94,12 +103,15 @@ TIPOS: dict[str, tuple[str, str, str | None]] = {
     "area": ("Áreas", "SELECT academico_id, nombre, " + fuentes("area", "area.id") + " FROM area", None),
     "metrica": (
         "Métricas",
-        "SELECT academico_id, plataforma, nombre, valor, anio, " + fuentes("metrica", "metrica.id") + " FROM metrica",
+        f"SELECT academico_id, {nombre('metrica.plataforma', 'metrica.plataforma')},"
+        f" {nombre('metrica.nombre', 'metrica.nombre')}, valor, anio, "
+        + fuentes("metrica", "metrica.id")
+        + " FROM metrica",
         "anio",
     ),
     "perfil": (
         "Perfiles",
-        "SELECT academico_id, plataforma, url, identificador, "
+        f"SELECT academico_id, {nombre('perfilexterno.plataforma', 'perfilexterno.plataforma')}, url, identificador, "
         + fuentes("perfilexterno", "perfilexterno.id")
         + " FROM perfilexterno",
         None,
@@ -152,6 +164,11 @@ def gold_sql(sql: str) -> pl.DataFrame:
 
 def gold(tipo: str) -> pl.DataFrame:
     return gold_sql(TIPOS[tipo][1])
+
+
+def catalogo(campo: str) -> dict[str, str]:
+    """Código → nombre legible de un campo (tabla `catalogo` de gold); vacío si todavía no hay gold."""
+    return dict(gold_sql(f"SELECT codigo, nombre FROM catalogo WHERE campo = '{campo}'").iter_rows())
 
 
 def release() -> dict | None:

@@ -18,6 +18,12 @@ def academicos() -> list[dict]:
 
 
 @cache
+def catalogos() -> dict[str, dict[str, str]]:
+    """`<tabla>.<columna>` → código → nombre legible (config/catalogos.yaml)."""
+    return yaml.safe_load((ROOT / "config" / "catalogos.yaml").read_text())
+
+
+@cache
 def whitelist() -> list[str]:
     return yaml.safe_load((ROOT / "config" / "whitelist.yaml").read_text())["dominios"]
 
