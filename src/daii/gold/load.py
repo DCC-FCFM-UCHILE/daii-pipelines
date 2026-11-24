@@ -8,6 +8,7 @@ from pathlib import Path
 import polars as pl
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import insert
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, create_engine
@@ -18,6 +19,11 @@ from daii.quality.checks import last_good, runs, status
 from daii.silver.transform import _prio, norm_text
 
 MIGRATIONS = Path(__file__).parent / "migrations"
+
+
+def head() -> str | None:
+    """Revisión de esquema que espera este código."""
+    return ScriptDirectory(str(MIGRATIONS)).get_current_head()
 
 
 def migrate(engine: Engine) -> None:

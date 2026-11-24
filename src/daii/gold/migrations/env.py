@@ -4,14 +4,15 @@ esquema (tabla `alembic_version` en cada SQLite), no migran datos en sitio."""
 from alembic import context
 from sqlmodel import SQLModel, create_engine
 
-from daii.config import GOLD_DB
 from daii.gold import models  # noqa: F401  registra las tablas en SQLModel.metadata
 
 
 def run() -> None:
     connection = context.config.attributes.get("connection")
-    if connection is None:  # CLI: `alembic -x db=<ruta> ...`; por defecto, la gold vigente
-        db = context.get_x_argument(as_dictionary=True).get("db", str(GOLD_DB))
+    if connection is None:  # CLI: siempre sobre una base explícita, nunca sobre la gold publicada
+        db = context.get_x_argument(as_dictionary=True).get("db")
+        if not db:
+            raise SystemExit("Indique la base: alembic -x db=<ruta.sqlite> ... (ver `make migration`)")
         with create_engine(f"sqlite:///{db}").begin() as connection:
             _configure(connection)
     else:

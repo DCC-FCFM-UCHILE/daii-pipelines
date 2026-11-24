@@ -44,6 +44,9 @@ def test_publica_la_corrida_fijada_y_preserva_historial(tmp_path, monkeypatch):
         patch.setattr(load, "build", lambda *_: pytest.fail("La republicación debe reutilizar el snapshot"))
         versions.publish(second)
         versions.publish(first)  # rollback a una versión ya publicada
+        patch.setattr(load, "head", lambda: "0002")
+        with pytest.raises(ValueError, match="esquema 0001"):
+            versions.publish(second)
     with sqlite3.connect(gold) as db:
         assert db.execute("SELECT build_id FROM datarelease").fetchone() == (first,)
         assert db.execute("SELECT version_num FROM alembic_version").fetchone() is not None

@@ -109,6 +109,13 @@ def publish(build_id: str | None = None) -> dict[str, int]:
                 if digest(snapshot) != manifest.get("gold_sha256"):
                     raise ValueError("La SQLite histórica cambió o su publicación quedó incompleta")
                 shutil.copyfile(snapshot, db)
+                with sqlite3.connect(db) as connection:
+                    try:
+                        schema = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
+                    except sqlite3.OperationalError:  # publicada antes de Alembic
+                        schema = None
+                if schema != load.head():
+                    raise ValueError(f"La versión usa el esquema {schema}, distinto de {load.head()}; regenérela")
                 counts = manifest["counts"]
                 published_at = manifest["published_at"]
             else:

@@ -51,8 +51,8 @@ gold: ## Publica el último candidato Silver en gold
 
 migration: ## Nueva migración de gold desde models.py: make migration MSG="..."
 	@test -n "$(MSG)" || { echo 'Uso: make migration MSG="descripción"'; exit 1; }
-	db=$$(mktemp -u --suffix=.sqlite) && uv run alembic -x db=$$db upgrade head \
-		&& uv run alembic -x db=$$db revision --autogenerate -m "$(MSG)"; rm -f $$db
+	db=$$(mktemp -u --suffix=.sqlite); trap 'rm -f $$db' EXIT; uv run alembic -x db=$$db upgrade head \
+		&& uv run alembic -x db=$$db revision --autogenerate -m "$(MSG)"
 
 serve: ## Deployment programado en Prefect (CRON="..." opcional; default del CLI: lunes 06:00)
 	uv run daii serve $(if $(CRON),--cron "$(CRON)")
