@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
 
 permissions:
   contents: read
@@ -14,14 +15,16 @@ concurrency:
 
 jobs:
   check:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          cache-dependency-glob: uv.lock
       - run: uv sync --locked
-      # ruff + ty, los mismos hooks que corren localmente al commitear
-      - run: uv run pre-commit run --all-files --show-diff-on-failure
-      # tests con fixtures, sin red ni Playwright
-      - run: make test
+      # Lint, tipos y tests usan el entorno que ya preparó uv sync.
+      - run: make check
+        env:
+          UV_NO_SYNC: "1"
