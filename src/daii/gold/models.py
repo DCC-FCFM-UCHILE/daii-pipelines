@@ -213,6 +213,14 @@ class Evidencia(SQLModel, table=True):
     campo: str = Field(default="", primary_key=True)
 
 
+class Catalogo(SQLModel, table=True):
+    """Nombre legible de cada código de las categorías fijas (config/catalogos.yaml): lo que se muestra."""
+
+    campo: str = Field(primary_key=True)  # "<tabla>.<columna>", p. ej. "academico.unidad"
+    codigo: str = Field(primary_key=True)
+    nombre: str
+
+
 class ScrapeRun(SQLModel, table=True):
     """Estado de cada spider (último run evaluado): base de la vista de salud de las fuentes."""
 

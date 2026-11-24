@@ -28,7 +28,7 @@ Construido a partir de los sitios de ejemplo (Bravo-Marquez, Toro, Ruiz del Sola
 2. **Una sola tabla `ORGANIZACION` con `tipo` y `padre_id`.** Cubre universidades, facultades, departamentos, centros, institutos Milenio, laboratorios, agencias (ANID, CORFO), empresas y sociedades (IEEE, PHM Society).
 3. **Trazabilidad en todo.** Toda fila extraída lleva `fuente_id` (→ `FUENTE`), `extraido_en` y `confianza` (en gold: `EVIDENCIA` por fila y campo, ver §8). El dato puede venir de un scrapeo, de una API (ORCID/OpenAlex) o de ingreso manual. Cuando dos fuentes no coinciden, gana `verificado = true` (validación humana).
 4. **Deduplicación por identificadores persistentes.** DOI para publicaciones, ORCID para personas, ROR para organizaciones, código ANID para proyectos y ISSN/ISBN para venues.
-5. **Usamos catálogos y no texto libre** donde el dashboard agrega: jerarquía, tipo de publicación, instrumento de financiamiento, área (OCDE/FORD) y nivel de tesis.
+5. **Usamos catálogos y no texto libre** donde el dashboard agrega: jerarquía, tipo de publicación, instrumento de financiamiento, área (OCDE/FORD) y nivel de tesis. En gold, los datos guardan el código y la tabla `CATALOGO(campo, codigo, nombre)` trae el nombre que se muestra. Se edita en `config/catalogos.yaml`.
 
 ---
 
