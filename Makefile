@@ -1,6 +1,6 @@
 # Atajos del proyecto. `make` sin argumentos muestra la ayuda.
 .DEFAULT_GOAL := help
-.PHONY: help install env test lint format typecheck check run crawl spiders silver gold migration logs serve ui clean
+.PHONY: help install env test lint format typecheck check run crawl spiders silver gold migration logs serve ui explorar clean
 
 SPIDERS ?=
 SPIDER ?=
@@ -64,6 +64,9 @@ serve: ## Deployment programado en Prefect (CRON="..." opcional; default del CLI
 
 ui: ## UI de Prefect en http://127.0.0.1:4200
 	uv run prefect server start
+
+explorar: ## Explorador de datos (Streamlit) en http://localhost:8501
+	uv run daii explorar
 
 clean: ## Borra cachés (no toca data/)
 	rm -rf .pytest_cache .ruff_cache

@@ -33,6 +33,13 @@ dev = [
     "ruff>=0.17.6",
     "ty>=0.0.108",
 ]
+explorar = [
+    "streamlit>=1.67.0",
+]
+
+[tool.uv]
+# El explorador (Streamlit) viene en desarrollo; un despliegue solo del pipeline usa `uv sync --no-default-groups`.
+default-groups = ["dev", "explorar"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

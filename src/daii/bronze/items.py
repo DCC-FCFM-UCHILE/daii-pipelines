@@ -206,4 +206,5 @@ RawItem = Annotated[
     Field(discriminator="tipo"),
 ]
 bronze_item = TypeAdapter(RawItem)
-TIPOS: list[str] = [m.model_fields["tipo"].default for m in get_args(get_args(RawItem)[0])]
+MODELOS: dict[str, type[BaseModel]] = {m.model_fields["tipo"].default: m for m in get_args(get_args(RawItem)[0])}
+TIPOS: list[str] = list(MODELOS)

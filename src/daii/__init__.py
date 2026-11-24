@@ -1,4 +1,4 @@
-"""CLI: `daii run | serve | silver | gold | spiders`."""
+"""CLI: `daii run | serve | silver | gold | spiders | explorar`."""
 
 import argparse
 from pathlib import Path
@@ -25,6 +25,7 @@ def main() -> None:
     diff.add_argument("anterior")
     diff.add_argument("posterior")
     sub.add_parser("spiders", help="listar spiders")
+    sub.add_parser("explorar", help="app local para explorar bronze, silver y gold (Streamlit)")
     accept = sub.add_parser("aceptar", help="aceptar un run en warn revisado a mano (caída legítima)")
     accept.add_argument("spider")
     accept.add_argument("run_id")
@@ -35,6 +36,16 @@ def main() -> None:
     logs.add_argument("--desde", help="fecha ISO en UTC, p. ej. 2026-11-01")
     logs.add_argument("--limite", type=int, default=200)
     args = p.parse_args()
+
+    if args.cmd == "explorar":  # antes de importar Prefect: la app no lo necesita
+        import os
+        import sys
+
+        from daii.config import ROOT
+
+        app = Path(__file__).parent / "explorar" / "app.py"
+        os.chdir(ROOT)  # Streamlit lee .streamlit/config.toml del directorio actual
+        os.execv(sys.executable, [sys.executable, "-m", "streamlit", "run", str(app)])  # Ctrl+C lo maneja Streamlit
 
     from daii.flows.pipeline import all_spiders, pipeline  # import diferido: Prefect tarda en cargar
     from daii.log import setup
