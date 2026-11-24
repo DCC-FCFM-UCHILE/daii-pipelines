@@ -44,8 +44,9 @@ def test_publica_la_corrida_fijada_y_preserva_historial(tmp_path, monkeypatch):
         patch.setattr(load, "build", lambda *_: pytest.fail("La republicación debe reutilizar el snapshot"))
         versions.publish(second)
         versions.publish(first)  # rollback a una versión ya publicada
-        patch.setattr(load, "head", lambda: "0004")
-        with pytest.raises(ValueError, match="esquema 0003"):
+        actual = load.head()
+        patch.setattr(load, "head", lambda: "9999")  # un código con un esquema más nuevo que el de la versión
+        with pytest.raises(ValueError, match=f"esquema {actual}"):
             versions.publish(second)
     with sqlite3.connect(gold) as db:
         assert db.execute("SELECT build_id FROM datarelease").fetchone() == (first,)

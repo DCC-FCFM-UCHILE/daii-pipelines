@@ -10,7 +10,7 @@ from daii.config import academicos
 from daii.flows.pipeline import all_spiders
 from daii.gold import load  # registra los modelos gold en SQLModel.metadata
 from daii.quality import checks
-from daii.silver import transform
+from daii.silver import dedup, transform
 from daii.silver.transform import ROL_TESIS, classify, publicaciones
 
 BASE = {"url": "u", "run_id": "r", "scraped_at": "s", "tipo": "publicacion", "tipo_publicacion": None, "venue": None}
@@ -101,27 +101,17 @@ def test_gold_se_construye_y_respeta_config(tmp_path, monkeypatch):
         "estado": None,
         "url_destino": None,
     }
-    pl.DataFrame(
-        [
-            {"persona": "aidan-hogan", "spider": "s", "estudiante": "Ana", "rol_norm": "guia", **tesis},
-            {"persona": "aidan-hogan", "spider": "s", "estudiante": "Beto", "rol_norm": "guia", **tesis},
-            {"persona": "fuera-de-config", "spider": "s", "estudiante": "Cata", "rol_norm": "guia", **tesis},
-        ]
-    ).write_parquet(silver / "tesis.parquet")
-
     titulada = tesis | {"titulo": "Gradual sensitivity types", "anio": 2021}
-    pl.concat(
-        [
-            pl.read_parquet(silver / "tesis.parquet"),
-            pl.DataFrame(
-                [  # misma tesis desde dos fuentes: una trae estudiante y la otra no
-                    {"persona": "matias-toro", "spider": "a", "estudiante": "Damián", "rol_norm": "guia", **titulada},
-                    {"persona": "matias-toro", "spider": "b", "estudiante": None, "rol_norm": "guia", **titulada},
-                ]
-            ),
-        ],
-        how="vertical_relaxed",
-    ).write_parquet(silver / "tesis.parquet")
+    filas = [
+        {"persona": "aidan-hogan", "spider": "s", "estudiante": "Ana", "rol_norm": "guia", **tesis},
+        {"persona": "aidan-hogan", "spider": "s", "estudiante": "Beto", "rol_norm": "guia", **tesis},
+        {"persona": "fuera-de-config", "spider": "s", "estudiante": "Cata", "rol_norm": "guia", **tesis},
+        # misma tesis desde dos fuentes: una trae estudiante y la otra no
+        {"persona": "matias-toro", "spider": "a", "estudiante": "Damián", "rol_norm": "guia", **titulada},
+        {"persona": "matias-toro", "spider": "b", "estudiante": None, "rol_norm": "guia", **titulada},
+    ]
+    # como lo escribe silver: con la clave de dedup
+    dedup.clave_tesis(pl.DataFrame(filas)).write_parquet(silver / "tesis.parquet")
 
     pl.DataFrame(schema=dict.fromkeys(transform.PROCEDENCIA, pl.String)).write_parquet(silver / "item.parquet")
     counts = load.build()
@@ -156,7 +146,7 @@ def test_obras_de_homonimos_de_weber_en_openalex_se_descartan():
     ]
 
 
-META = {"scraperun", "datarelease", "catalogo"}  # metadatos y referencia (config), sin evidencia
+META = {"scraperun", "datarelease", "catalogo", "fusion"}  # metadatos, referencia y auditoría: sin evidencia
 
 
 def test_trazabilidad_de_bronze_a_gold(tmp_path):
@@ -168,12 +158,17 @@ def test_trazabilidad_de_bronze_a_gold(tmp_path):
             pub | {"anio": 2021, "venue": None},  # orcid gana: año de orcid, venue (vacío aquí) de dblp
             {"tipo": "area", "nombre": "Semantic Web"},
             {"tipo": "persona", "nombre": "Aidan Hogan", "cargo": "Profesor"},
+            {"tipo": "formacion", "grado": "PhD", "institucion": "NUI Galway", "anio": 2011},
         ],
         "dblp": [
             pub | {"anio": 2020, "venue": "ESWC"},
             {"tipo": "area", "nombre": "Semantic Web"},  # idéntica a la de orcid: una fila, dos ítems
             {"tipo": "dictacion", "nombre_curso": "Bases de datos", "codigo_curso": "cc3201", "anio": 2024},
             {"tipo": "proyecto", "titulo": "Grafos", "codigo": "1221926", "rol": "IR"},
+            # alguien fuera de config con el mismo paper sin DOI: silver lo une, pero gold no publica esa arista
+            pub | {"persona": "fuera-de-config", "doi": None, "anio": 2021, "venue": None},
+            # la misma formación escrita distinto: el deduplicador la une y registra la fusión
+            {"tipo": "formacion", "grado": "PhD in Computer Science", "institucion": None, "anio": 2011},
         ],
     }
     runs = []
@@ -220,6 +215,16 @@ def test_trazabilidad_de_bronze_a_gold(tmp_path):
     assert q("SELECT item_id FROM evidencia WHERE tabla = 'academico' AND fila_id = '[\"aidan-hogan\"]'"
              " AND campo = 'nombre'") == [("config:academicos.yaml",)]  # fmt: skip
     assert q("SELECT item_id FROM evidencia WHERE tabla = 'academico' AND campo = 'cargo'") == [("orcid/r1#3",)]
+    # fila fusionada por el deduplicador: grado de orcid (más prioritario), y la fusión queda registrada
+    assert q("SELECT grado FROM formacion") == [("PhD",)]
+    assert q("SELECT campo, item_id FROM evidencia WHERE tabla = 'formacion' AND campo != '' ORDER BY campo") == [
+        ("anio", "orcid/r1#4"), ("grado", "orcid/r1#4"), ("institucion", "orcid/r1#4"), ("nivel", "orcid/r1#4")
+    ]  # fmt: skip
+    assert q("SELECT tabla, fila_id, item_a, item_b, regla FROM fusion") == [
+        ("formacion", "[1]", "orcid/r1#4", "dblp/r1#6", "misma_formacion")
+    ]
+    assert q("SELECT COUNT(*) FROM fusion WHERE item_a NOT IN (SELECT id FROM itembronze)"
+             " OR item_b NOT IN (SELECT id FROM itembronze)") == [(0,)]  # fmt: skip
     # item_id → línea exacta de bronze, con su página archivada
     spider, run_id, url, obs = q("SELECT spider, run_id, url, observacion_id FROM itembronze WHERE id = 'dblp/r1#3'")[0]
     linea = (tmp_path / "bronze" / spider / run_id / "items.jsonl").read_text().splitlines()[3 - 1]

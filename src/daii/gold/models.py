@@ -213,6 +213,21 @@ class Evidencia(SQLModel, table=True):
     campo: str = Field(default="", primary_key=True)
 
 
+class Fusion(SQLModel, table=True):
+    """Auditoría del deduplicador: por qué dos ítems quedaron en la misma fila (silver/dedup.py).
+
+    Una arista por unión hecha por una heurística; las uniones por clave idéntica (mismo DOI, filas iguales) no la
+    dejan. Revisar primero las de menor `similitud`.
+    """
+
+    tabla: str = Field(primary_key=True)  # __tablename__ de la fila resultante
+    fila_id: str = Field(primary_key=True)  # json_array(PK), igual que Evidencia.fila_id
+    item_a: str = Field(primary_key=True, foreign_key="itembronze.id")
+    item_b: str = Field(primary_key=True, foreign_key="itembronze.id")
+    regla: str = Field(index=True)  # código de dedup.REGLAS_FUSION (nombre en catalogo `fusion.regla`)
+    similitud: float | None = None  # ratio difuso cuando la regla lo usa
+
+
 class Catalogo(SQLModel, table=True):
     """Nombre legible de cada código de las categorías fijas (config/catalogos.yaml): lo que se muestra."""
 

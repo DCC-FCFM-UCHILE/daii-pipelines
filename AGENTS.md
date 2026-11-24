@@ -49,6 +49,12 @@ config/academicos.yaml  ──semillas──▶  src/daii/bronze/      Scrapy (+
   de `bronze/<spider>/<run_id>/items.jsonl`. Si la fila fusiona fuentes, también se registra de qué ítem salió cada
   campo. Una tabla o fusión nueva en gold debe generar su evidencia con `_evidencia()` (`gold/load.py`); un test verifica que no queden
   filas sin evidencia.
+- **Deduplicación:** toda heurística de "esto es el mismo registro" vive en `src/daii/silver/dedup.py` (nunca en
+  `transform.py`, `gold/load.py` ni en un spider), con su caso real en `tests/test_dedup.py`: uno que fusione y uno
+  que no. Cada unión hecha por una heurística deja una arista en la tabla gold `fusion` (regla y similitud) para
+  auditarla. Una regla nueva usa un código de `REGLAS_FUSION` con nombre en `config/catalogos.yaml`. **Todo cambio
+  a la deduplicación se documenta en la sección "Deduplicación" del README en el mismo cambio**; sin eso no está
+  terminado.
 - **Nombres legibles:** gold guarda códigos (`DII`, `revista`, `fondecyt`…) y la tabla `catalogo` trae su nombre
   desde `config/catalogos.yaml`. Para renombrar algo se edita ese archivo, nunca la SQLite, y el cambio se ve en la
   próxima publicación. Al agregar un código a un vocabulario cerrado hay que agregarle nombre: `tests/test_catalogos.py`

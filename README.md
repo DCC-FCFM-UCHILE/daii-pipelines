@@ -87,6 +87,50 @@ flowchart LR
 | silver | `data/versions/<build_id>/silver/<tipo>.parquet` | Por persona: normalizado (DOI, catálogos de tipo de publicación, nivel de formación, instrumento) y deduplicado entre fuentes, con `fuentes` y `confianza` |
 | gold | `data/gold/daii.sqlite` | Modelo relacional (`src/daii/gold/models.py`): entidades compartidas (publicación, proyecto, tesis, curso, producto) con tablas puente a `academico` y estado de cada scraper (`scraperun`) |
 
+### Deduplicación
+
+Varias fuentes traen el mismo registro escrito distinto ("PhD" / "PhD. Computer Science", un DOI con `_15` y otro con
+`-15`, el preprint arXiv y su versión publicada). Silver los fusiona en una fila. Todas las reglas viven en
+`src/daii/silver/dedup.py`, cada una con un test con casos reales en `tests/test_dedup.py`.
+
+**Cómo fusiona:**
+
+1. Filas idénticas salvo procedencia (URL de la página, run): una sola fila, sin más.
+2. Las heurísticas comparan los textos normalizados (minúsculas, sin tildes ni puntuación) con tres criterios:
+   - **Iguales**: el texto normalizado coincide.
+   - **Compatible** (campos secundarios): falta en una fuente, es igual, o las palabras de uno están todas en el otro
+     ("16th ISWC" ⊂ "16th ISWC in 2017").
+   - **Difuso** (solo textos de 4+ palabras: títulos, organizaciones, nombres): ratio `difflib` ≥ 0.95, con los mismos números (fechas, versiones,
+     "Part 1") y donde las palabras distintas son typos entre sí ("Filter"/"Filtering") o uno solo agrega palabras.
+     "WWW2011 Tutorial" y "ISWC2011 Tutorial" no se fusionan.
+3. Cada campo de la fila fusionada sale de la fuente más prioritaria que lo trae (orden de "Conciliación"), y la
+   evidencia de gold registra de qué ítem salió cada uno.
+
+| Tabla | Mismo registro si… |
+|---|---|
+| publicación | mismo DOI (comparado sin puntuación, sin `/pdf`); o mismo título largo con a lo más un DOI real (se le suman las filas sin DOI y el preprint arXiv); o título difuso con año a ±1 (±2 si es arXiv); título corto ("Preface"): misma persona y año. **Dos DOIs reales distintos nunca se fusionan** (conferencia y revista extendida quedan separadas). La clave es el DOI real, si no el de arXiv, si no `t:<título>`. El tipo prefiere la versión publicada sobre el preprint |
+| proyecto | mismo código (sin espacios ni guiones: `I D25I10330` = `ID25I10330`); o mismo título (o difuso) con códigos compatibles: falta uno o uno es sufijo del otro con ≥ 6 dígitos (`ACT192015` ⊂ `PIA/ACT192015`). Códigos incompatibles nunca se fusionan |
+| tesis | mismo título y año (sin mirar estudiante: es la clave de siempre y no deja registro en `fusion`); mismo título (o difuso) con año a ±1 o desconocido y estudiante compatible; sin título: la única tesis de la misma persona y estudiante con nivel (doctorado/magíster/pregrado) y año compatibles |
+| curso | manda el código (`clave_curso`): mismo nombre con códigos distintos (`CI41C`, `CI5101`) son cursos distintos; sin código, el nombre |
+| dictación | misma persona, curso, año y semestre; los roles se unen ("Profesor Coordinador; Profesor de Cátedra") |
+| formación | misma persona, nivel y año, misma institución (sin palabras genéricas: "Universidad de Chile" = "University of Chile") o sin institución; en pregrado además grado compatible (dos carreras el mismo año) |
+| afiliación | organización igual o difusa, rol igual o ausente, fechas iguales o ausentes |
+| distinción | mismo año, nombre igual o difuso, otorgante compatible (años distintos son premios distintos) |
+| actividad | mismo tipo, título igual o difuso, misma fecha, rol compatible (no mira la URL) |
+| perfil | misma plataforma y misma URL (sin `http(s)://`, `www.` ni `/` final) o mismo identificador |
+| área | nombre igual o difuso |
+| link, página | misma URL canónica |
+| métrica, producto | sin regla (no hay duplicados) |
+
+**Auditoría:** cada unión hecha por una heurística queda en la tabla gold `fusion` (`tabla`, `fila_id`, `item_a`,
+`item_b`, `regla`, `similitud`). Las uniones por clave idéntica no dejan registro: ya se ven en `evidencia`. Se revisan
+en el explorador (modo Pipeline, **Fusiones**: los dos registros tal como los trajo cada fuente, ordenados por similitud) o en SQL:
+`SELECT * FROM fusion WHERE regla = 'titulo_difuso' ORDER BY similitud`. El nombre legible de cada regla está en
+`config/catalogos.yaml` (`fusion.regla`), y cada build loguea `dedup_aplicado` con las filas antes/después por tabla.
+
+**Cambiar una regla:** editar `dedup.py`, agregar el caso (uno que fusione y uno que no) a `tests/test_dedup.py`,
+actualizar esta sección y, si la regla es nueva, su nombre en `catalogos.yaml`.
+
 ### Fuentes
 
 | Spider | Fuente | Para quién |
