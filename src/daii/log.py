@@ -17,6 +17,7 @@ import sys
 import traceback
 from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import UTC
 from fcntl import LOCK_EX, flock
 from pathlib import Path
 
@@ -62,12 +63,12 @@ def _row(record) -> tuple:
     rest = {k: v for k, v in extra.items() if k not in CAMPOS and not k.startswith("_")}
     exc = record["exception"]
     return (
-        record["time"].isoformat(),
+        record["time"].astimezone(UTC).isoformat(),  # UTC: ts se ordena y filtra como texto
         record["level"].name,
         *(None if extra.get(c) is None else str(extra[c]) for c in CAMPOS),
         record["message"],
         json.dumps(rest, default=str, ensure_ascii=False) if rest else None,
-        "".join(traceback.format_exception(exc.type, exc.value, exc.traceback)) if exc else None,
+        "".join(traceback.format_exception(exc.type, exc.value, exc.traceback)) if exc and exc.type else None,
     )
 
 
@@ -166,8 +167,8 @@ def setup(componente: str, *, prefect: bool = False, db: bool = True, **contexto
         except Exception as e:  # noqa: BLE001
             sys.stderr.write(f"daii.log: logs.sqlite no disponible ({e}); solo consola y archivos\n")
     root = logging.getLogger()
-    for handler in root.handlers:  # p. ej. la consola de Prefect: sigue mostrando lo de Prefect, el resto va por loguru
-        if not isinstance(handler, _Intercept):
+    for handler in root.handlers:  # la consola de Prefect sigue mostrando lo de Prefect; el resto va por loguru
+        if type(handler).__module__.startswith("prefect"):  # no otros, p. ej. el contador log_count/* de Scrapy
             handler.addFilter(_solo_prefect)
     root.handlers = [h for h in root.handlers if not isinstance(h, _Intercept)] + [_Intercept()]
     root.setLevel(logging.INFO)
@@ -209,7 +210,9 @@ def consultar(
             where.append(f"{column} {op} ?")
             params.append(value)
     sql = f"SELECT * FROM log WHERE {' AND '.join(where)} ORDER BY ts DESC LIMIT ?"
-    with sqlite3.connect(f"{logs_db().as_uri()}?mode=ro", uri=True) as db:
+    if not logs_db().exists():
+        return []
+    with sqlite3.connect(f"{logs_db().resolve().as_uri()}?mode=ro", uri=True) as db:
         db.row_factory = sqlite3.Row
         rows = db.execute(sql, [*params, limite]).fetchall()
     return [

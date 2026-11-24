@@ -1,16 +1,19 @@
 """Checks de calidad por run de spider. Resultado en bronze/<spider>/<run_id>/quality.json.
 
 Silver solo usa runs `ok`: ante `warn` o `fail` se publica el último run ok del spider (puede quedar viejo; el email
-dice cuál se está usando). `fail` además deja el flow en Failed.
+dice cuál se está usando). `fail` además deja el flow en Failed. Una caída legítima (la fuente de verdad perdió datos)
+se destraba revisando el run y aceptándolo con `daii aceptar <spider> <run_id>`: pasa a ser la nueva base.
 """
 
 import contextlib
 import json
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from daii.config import BRONZE
+from daii.config import BRONZE, academicos
+from daii.log import logger
 
 DROP_WARN = 0.5  # caída relativa vs. el último run bueno que dispara warn
 DROP_MIN_BASE = 5  # no comparar tipos con menos ítems que esto en el run anterior
@@ -97,12 +100,17 @@ def check(spider: str, run: Path) -> dict:
         warns.append(f"pestañas incompletas: {partial}")
     if prev := last_good(spider, before=run):
         before_persona = counts_persona(prev)
+        fallen = set()
         for tipo, n in _por_tipo(before_persona).items():
             if n >= DROP_MIN_BASE and got[tipo] < n * (1 - DROP_WARN):
+                fallen.add(tipo)
                 warns.append(f"{tipo}: cayó de {n} a {got[tipo]} vs run {prev.name}")
-        # una pestaña que no cargó para una sola persona se diluye en el total: se compara también por persona
+        # Una pestaña que no cargó para una sola persona se diluye en el total: se compara también por persona.
+        # Se omiten los tipos que ya cayeron en total (una línea por persona taparía la causa) y quienes salieron
+        # de config (si no, el spider quedaría en warn para siempre).
+        current = {a["slug"] for a in academicos()}
         for (persona, tipo), n in sorted(before_persona.items(), key=str):
-            if tipo in SIN_ALARMA_PERSONA or n < DROP_MIN_BASE:
+            if tipo in SIN_ALARMA_PERSONA or tipo in fallen or persona not in current or n < DROP_MIN_BASE:
                 continue
             if (now := got_persona[persona, tipo]) < n * (1 - DROP_WARN):
                 warns.append(f"{persona}/{tipo}: cayó de {n} a {now} vs run {prev.name}")
@@ -114,8 +122,25 @@ def check(spider: str, run: Path) -> dict:
         "problems": fails + warns,
         "counts": dict(got),
     }
+    _write(run, result)
+    return result
+
+
+def _write(run: Path, result: dict) -> None:
     with NamedTemporaryFile(mode="w", encoding="utf-8", dir=run, delete_on_close=False) as pending:
         json.dump(result, pending, indent=1, ensure_ascii=False)
         pending.close()
         Path(pending.name).replace(run / "quality.json")
+
+
+def aceptar(spider: str, run_id: str) -> dict:
+    """Marca `ok` un run en `warn` revisado a mano (caída legítima): pasa a ser base de comparación y se publica."""
+    run = BRONZE / spider / run_id
+    result = json.loads((run / "quality.json").read_text())
+    if result["status"] != "warn":
+        raise ValueError(f"solo se acepta un run en warn; {spider}/{run_id} está en {result['status']}")
+    result |= {"status": "ok", "aceptado": {"en": datetime.now(UTC).isoformat(), "problemas": result["problems"]}}
+    result["problems"] = []
+    _write(run, result)
+    logger.bind(evento="run_aceptado", spider=spider, run_id=run_id).warning("; ".join(result["aceptado"]["problemas"]))
     return result
