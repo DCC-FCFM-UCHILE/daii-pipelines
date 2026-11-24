@@ -10,32 +10,32 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 # Vocabulario cerrado: el texto original de la fuente va en `descripcion` o `rol`.
 TipoActividad = Literal[
-    "charla",  # charla invitada, seminario, talk
-    "keynote",
-    "tutorial",
-    "editorial",  # editor/a, comité editorial, guest editor
-    "comite_programa",  # PC/SPC de conferencias
-    "comite",  # otros comités (asesores, técnicos, sociedades)
-    "organizacion_evento",  # chair, organización de eventos o escuelas
-    "revisor",
-    "divulgacion",  # outreach, ciencia para público general
-    "prensa",  # medios, noticias sobre la persona
-    "noticia",  # noticias del propio sitio (nuevo cargo, proyecto, visita...)
-    "asesoria",  # consultoría, asesoría a empresas o Estado
-    "transferencia",  # transferencia tecnológica
-    "politica_publica",
-    "consejo_directivo",
-    "gestion",  # cargos de gestión universitaria
-    "servicio",  # servicio académico no clasificado arriba
-    "visita",  # estadías y visitas académicas
-    "vinculacion",  # vinculación con comunidades
-    "extension",  # extensión universitaria (cursos, prestaciones)
-    "otro",
+    'charla',  # charla invitada, seminario, talk
+    'keynote',
+    'tutorial',
+    'editorial',  # editor/a, comité editorial, guest editor
+    'comite_programa',  # PC/SPC de conferencias
+    'comite',  # otros comités (asesores, técnicos, sociedades)
+    'organizacion_evento',  # chair, organización de eventos o escuelas
+    'revisor',
+    'divulgacion',  # outreach, ciencia para público general
+    'prensa',  # medios, noticias sobre la persona
+    'noticia',  # noticias del propio sitio (nuevo cargo, proyecto, visita...)
+    'asesoria',  # consultoría, asesoría a empresas o Estado
+    'transferencia',  # transferencia tecnológica
+    'politica_publica',
+    'consejo_directivo',
+    'gestion',  # cargos de gestión universitaria
+    'servicio',  # servicio académico no clasificado arriba
+    'visita',  # estadías y visitas académicas
+    'vinculacion',  # vinculación con comunidades
+    'extension',  # extensión universitaria (cursos, prestaciones)
+    'otro',
 ]
 
 
 class _Base(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     persona: str  # slug de config/academicos.yaml
     url: str  # página de donde se extrajo
     spider: str
@@ -45,7 +45,7 @@ class _Base(BaseModel):
 
 
 class Persona(_Base):
-    tipo: Literal["persona"] = "persona"
+    tipo: Literal['persona'] = 'persona'
     nombre: str
     cargo: str | None = None
     email: str | None = None
@@ -56,14 +56,14 @@ class Persona(_Base):
 
 
 class Perfil(_Base):
-    tipo: Literal["perfil"] = "perfil"
+    tipo: Literal['perfil'] = 'perfil'
     plataforma: str  # orcid|scholar|dblp|github|linkedin|...
     url_destino: str
     identificador: str | None = None
 
 
 class Afiliacion(_Base):
-    tipo: Literal["afiliacion"] = "afiliacion"
+    tipo: Literal['afiliacion'] = 'afiliacion'
     organizacion: str
     rol: str | None = None  # texto del cargo tal como aparece
     desde: str | None = None
@@ -72,12 +72,12 @@ class Afiliacion(_Base):
 
 
 class Area(_Base):
-    tipo: Literal["area"] = "area"
+    tipo: Literal['area'] = 'area'
     nombre: str
 
 
 class Formacion(_Base):
-    tipo: Literal["formacion"] = "formacion"
+    tipo: Literal['formacion'] = 'formacion'
     grado: str  # texto tal cual: "Doctor", "PhD in EE", ...
     institucion: str | None = None
     anio: int | None = None
@@ -85,7 +85,7 @@ class Formacion(_Base):
 
 
 class Publicacion(_Base):
-    tipo: Literal["publicacion"] = "publicacion"
+    tipo: Literal['publicacion'] = 'publicacion'
     titulo: str = Field(min_length=1)  # vacío = parser roto → ítem inválido → quality avisa
     anio: int | None = None
     tipo_publicacion: str | None = None  # journal|conference|book|chapter|preprint|... (texto de la fuente)
@@ -99,7 +99,7 @@ class Publicacion(_Base):
 
 
 class Tesis(_Base):
-    tipo: Literal["tesis"] = "tesis"
+    tipo: Literal['tesis'] = 'tesis'
     titulo: str | None = None  # muchas fuentes listan estudiantes sin título: no se inventa
     anio: int | None = None
     nivel: str | None = None  # memoria|magister|doctorado|postdoc (texto)
@@ -111,7 +111,7 @@ class Tesis(_Base):
 
 
 class Proyecto(_Base):
-    tipo: Literal["proyecto"] = "proyecto"
+    tipo: Literal['proyecto'] = 'proyecto'
     titulo: str
     codigo: str | None = None
     fuente: str | None = None  # instrumento/agencia tal como aparece: "Fondecyt_Anid", "CORFO"...
@@ -123,7 +123,7 @@ class Proyecto(_Base):
 
 
 class Dictacion(_Base):
-    tipo: Literal["dictacion"] = "dictacion"
+    tipo: Literal['dictacion'] = 'dictacion'
     nombre_curso: str
     codigo_curso: str | None = None
     anio: int | None = None
@@ -134,7 +134,7 @@ class Dictacion(_Base):
 
 
 class Actividad(_Base):
-    tipo: Literal["actividad"] = "actividad"
+    tipo: Literal['actividad'] = 'actividad'
     tipo_actividad: TipoActividad
     titulo: str
     descripcion: str | None = None
@@ -145,7 +145,7 @@ class Actividad(_Base):
 
 
 class Producto(_Base):
-    tipo: Literal["producto"] = "producto"
+    tipo: Literal['producto'] = 'producto'
     tipo_producto: str  # software|dataset|patente|plataforma|...
     nombre: str
     descripcion: str | None = None
@@ -154,7 +154,7 @@ class Producto(_Base):
 
 
 class Distincion(_Base):
-    tipo: Literal["distincion"] = "distincion"
+    tipo: Literal['distincion'] = 'distincion'
     nombre: str
     otorgante: str | None = None
     anio: int | None = None
@@ -163,7 +163,7 @@ class Distincion(_Base):
 class Metrica(_Base):
     """Indicador bibliométrico de la persona en una plataforma (h_index, citas, n° de obras...)."""
 
-    tipo: Literal["metrica"] = "metrica"
+    tipo: Literal['metrica'] = 'metrica'
     plataforma: str
     nombre: str
     valor: float
@@ -173,7 +173,7 @@ class Metrica(_Base):
 class Link(_Base):
     """Link saliente descubierto en una página de la persona (para decidir futuros spiders)."""
 
-    tipo: Literal["link"] = "link"
+    tipo: Literal['link'] = 'link'
     url_destino: str
     texto: str | None = None
     seguido: bool = False
@@ -182,7 +182,7 @@ class Link(_Base):
 class Pagina(_Base):
     """Página relacionada (profundidad 1, lista blanca) sin parser propio: se guarda título y texto."""
 
-    tipo: Literal["pagina"] = "pagina"
+    tipo: Literal['pagina'] = 'pagina'
     titulo: str | None = None
     texto: str | None = None
 
@@ -203,8 +203,8 @@ RawItem = Annotated[
     | Metrica
     | Link
     | Pagina,
-    Field(discriminator="tipo"),
+    Field(discriminator='tipo'),
 ]
 bronze_item = TypeAdapter(RawItem)
-MODELOS: dict[str, type[BaseModel]] = {m.model_fields["tipo"].default: m for m in get_args(get_args(RawItem)[0])}
+MODELOS: dict[str, type[BaseModel]] = {m.model_fields['tipo'].default: m for m in get_args(get_args(RawItem)[0])}
 TIPOS: list[str] = list(MODELOS)

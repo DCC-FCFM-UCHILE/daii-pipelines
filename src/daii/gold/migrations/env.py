@@ -8,12 +8,12 @@ from daii.gold import models  # noqa: F401  registra las tablas en SQLModel.meta
 
 
 def run() -> None:
-    connection = context.config.attributes.get("connection")
+    connection = context.config.attributes.get('connection')
     if connection is None:  # CLI: siempre sobre una base explícita, nunca sobre la gold publicada
-        db = context.get_x_argument(as_dictionary=True).get("db")
+        db = context.get_x_argument(as_dictionary=True).get('db')
         if not db:
-            raise SystemExit("Indique la base: alembic -x db=<ruta.sqlite> ... (ver `make migration`)")
-        with create_engine(f"sqlite:///{db}").begin() as connection:
+            raise SystemExit('Indique la base: alembic -x db=<ruta.sqlite> ... (ver `make migration`)')
+        with create_engine(f'sqlite:///{db}').begin() as connection:
             _configure(connection)
     else:
         _configure(connection)

@@ -33,6 +33,8 @@ uv run pytest && uv run ruff check && uv run ty check src
 ## Commits y releases
 
 Instala los hooks locales con `uv run pre-commit install --allow-missing-config`.
+Los hooks verifican portabilidad de archivos, sintaxis, claves privadas y formato. Los correctores de texto
+preservan las fixtures de los scrapers tal como se descargaron.
 Usa Conventional Commits en los commits y en el título de cada PR, por ejemplo `fix(bronze): valida el código de proyecto`.
 GitHub solo permite squash merge y propone el título del PR como mensaje del commit en `main`.
 

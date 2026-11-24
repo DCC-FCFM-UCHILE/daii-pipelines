@@ -111,7 +111,7 @@ Todo el código emite con loguru vía `daii.log` (configuración única en `src/
 ```python
 from daii.log import logger
 
-logger.bind(evento="pagina_fallida", persona=slug, url=url).error(f"página propia falló: {err}")
+logger.bind(evento='pagina_fallida', persona=slug, url=url).error(f'página propia falló: {err}')
 ```
 
 - **Campos estándar** (`log.CAMPOS`): `componente`, `evento`, `spider`, `persona`, `run_id`, `build_id`,
@@ -144,4 +144,3 @@ logger.bind(evento="pagina_fallida", persona=slug, url=url).error(f"página prop
 3. Aplicar las observaciones (o justificar por qué no) y volver a correr `pytest`, `ruff` y `ty`.
 4. Antes de mergear, revisar el diff final otra vez con ponytail.
 5. Abrir el PR y subir la revisión (hallazgos y cómo se resolvieron) como comentario del PR.
-

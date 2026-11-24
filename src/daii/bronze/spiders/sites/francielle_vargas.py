@@ -17,22 +17,22 @@ from scrapy.http import Response
 
 from daii.bronze.spiders.base import ANIO, AcademicSpider, anio, clean, latex_acentos, pdf_texto, texts
 
-PERSONA = "francielle-vargas"
-SITIO = "https://franciellevargas.github.io/"
-SECCIONES = ("teaching", "publications", "resources", "service", "talks", "press", "awards")
-CV = SITIO + "doc/cv.pdf"
+PERSONA = 'francielle-vargas'
+SITIO = 'https://franciellevargas.github.io/'
+SECCIONES = ('teaching', 'publications', 'resources', 'service', 'talks', 'press', 'awards')
+CV = SITIO + 'doc/cv.pdf'
 PLATAFORMAS = {
-    "Google Scholar": "scholar",
-    "Semantic Scholar": "semanticscholar",
-    "ORCID": "orcid",
-    "LinkedIn": "linkedin",
-    "GitHub": "github",
+    'Google Scholar': 'scholar',
+    'Semantic Scholar': 'semanticscholar',
+    'ORCID': 'orcid',
+    'LinkedIn': 'linkedin',
+    'GitHub': 'github',
 }
 # Rótulos de la columna izquierda del CV (pueden compartir línea con la primera entrada).
 CV_SECCIONES = re.compile(
-    r"^(Education|Funded Research|Awards & Honors|Academic Experience|Teaching Experience|Publications)\b ?", re.M
+    r'^(Education|Funded Research|Awards & Honors|Academic Experience|Teaching Experience|Publications)\b ?', re.M
 )
-PERIODO = re.compile(r"^(\d{2}/\d{4})(?:–(\d{2}/\d{4}|Present))? (.+)$")  # "05/2026–Present Assistant Professor"
+PERIODO = re.compile(r'^(\d{2}/\d{4})(?:–(\d{2}/\d{4}|Present))? (.+)$')  # "05/2026–Present Assistant Professor"
 
 
 def con_base(response: Response) -> Response:
@@ -40,7 +40,7 @@ def con_base(response: Response) -> Response:
 
 
 def cv_texto(response: Response) -> str:
-    return unicodedata.normalize("NFKC", latex_acentos(pdf_texto(response)))  # "S˜ao", "T¨ubingen", "Fabr´ıcio"
+    return unicodedata.normalize('NFKC', latex_acentos(pdf_texto(response)))  # "S˜ao", "T¨ubingen", "Fabr´ıcio"
 
 
 def cv_secciones(text: str) -> dict[str, str]:
@@ -51,24 +51,24 @@ def cv_secciones(text: str) -> dict[str, str]:
 
 def unir(lineas: str) -> str:
     """Une líneas del PDF deshaciendo el guionado ("Trust-\\nworthy")."""
-    return clean(re.sub(r"(\w)-\n(\w)", r"\1\2", lineas)) or ""
+    return clean(re.sub(r'(\w)-\n(\w)', r'\1\2', lineas)) or ''
 
 
 class FrancielleVargasSpider(AcademicSpider):
-    name = "sitio_francielle_vargas"
+    name = 'sitio_francielle_vargas'
     expect = {
-        "persona": 1,
-        "perfil": 3,
-        "afiliacion": 6,
-        "area": 2,
-        "formacion": 2,
-        "proyecto": 7,
-        "publicacion": 14,
-        "producto": 7,
-        "dictacion": 2,
-        "tesis": 2,
-        "distincion": 6,
-        "actividad": 27,
+        'persona': 1,
+        'perfil': 3,
+        'afiliacion': 6,
+        'area': 2,
+        'formacion': 2,
+        'proyecto': 7,
+        'publicacion': 14,
+        'producto': 7,
+        'dictacion': 2,
+        'tesis': 2,
+        'distincion': 6,
+        'actividad': 27,
     }
 
     async def start(self):
@@ -76,110 +76,110 @@ class FrancielleVargasSpider(AcademicSpider):
             return
         yield self.page(SITIO, self.parse_home, PERSONA)
         for seccion in SECCIONES:
-            yield self.page(f"{SITIO}pages/{seccion}.html", getattr(self, f"parse_{seccion}"), PERSONA)
+            yield self.page(f'{SITIO}pages/{seccion}.html', getattr(self, f'parse_{seccion}'), PERSONA)
         yield self.page(CV, self.parse_cv, PERSONA, guardar=False)  # referencias con emails de terceros
 
     def parse_home(self, response: Response) -> Iterator:
-        header = response.css("header.post-header")
+        header = response.css('header.post-header')
         # Un solo <p>: antes del primer <br> los cargos, separados por ";"; después la biografía.
         # "Assistant Professor at X, <a>University of Chile</a>; Co-Lead PI in ... at Y, <a>U. of Tübingen</a>; and ..."
-        p = header.css("p")[:1]
-        antes = "./br[1]/preceding-sibling::text()|./br[1]/preceding-sibling::*//text()"
-        cargos = clean("".join(p.xpath(antes).getall())) or ""
-        tramos = [t for x in cargos.split(";") if (t := clean(x.strip(" .")))]
-        links = p.xpath("./br[1]/preceding-sibling::a/@href").getall()
-        despues = "./br[1]/following-sibling::text()|./br[1]/following-sibling::*//text()"
-        bio = clean(" ".join(p.xpath(despues).getall()))
+        p = header.css('p')[:1]
+        antes = './br[1]/preceding-sibling::text()|./br[1]/preceding-sibling::*//text()'
+        cargos = clean(''.join(p.xpath(antes).getall())) or ''
+        tramos = [t for x in cargos.split(';') if (t := clean(x.strip(' .')))]
+        links = p.xpath('./br[1]/preceding-sibling::a/@href').getall()
+        despues = './br[1]/following-sibling::text()|./br[1]/following-sibling::*//text()'
+        bio = clean(' '.join(p.xpath(despues).getall()))
         yield self.item(
-            "persona",
+            'persona',
             response,
-            nombre=texts(header.xpath("./div[1]/div[1]")),
-            cargo=tramos[0].split(" at ")[0] if tramos else None,
-            foto_url=header.css("img::attr(src)").get(),
+            nombre=texts(header.xpath('./div[1]/div[1]')),
+            cargo=tramos[0].split(' at ')[0] if tramos else None,
+            foto_url=header.css('img::attr(src)').get(),
             bio=bio,
         )
-        for a in header.css("a[title]"):
-            if a.attrib["title"] in PLATAFORMAS:
-                orcid = re.search(r"orcid\.org/([\d-]+X?)", a.attrib["href"])
+        for a in header.css('a[title]'):
+            if a.attrib['title'] in PLATAFORMAS:
+                orcid = re.search(r'orcid\.org/([\d-]+X?)', a.attrib['href'])
                 yield self.item(
-                    "perfil",
+                    'perfil',
                     response,
-                    plataforma=PLATAFORMAS[a.attrib["title"]],
-                    url_destino=a.attrib["href"],
+                    plataforma=PLATAFORMAS[a.attrib['title']],
+                    url_destino=a.attrib['href'],
                     identificador=orcid.group(1) if orcid else None,
                 )
         for i, tramo in enumerate(tramos):
-            rol, _, org = re.sub(r"^and ", "", tramo).partition(" at ")
+            rol, _, org = re.sub(r'^and ', '', tramo).partition(' at ')
             yield self.item(
-                "afiliacion",
+                'afiliacion',
                 response,
                 rol=rol,
-                organizacion=re.sub(r"^the ", "", org) or rol,
+                organizacion=re.sub(r'^the ', '', org) or rol,
                 url_organizacion=links[i] if i < len(links) else None,
             )
         for li in response.xpath("//h6[a[normalize-space()='Research Projects']]/following-sibling::ul[1]/li"):
-            href = li.css("a::attr(href)").get("")
-            anio_inicio, _, fuente = (clean(" ".join(li.xpath("./text()").getall())) or "").partition(": ")
-            snf = re.search(r"data\.snf\.ch/grants/grant/(\d+)", href)
+            href = li.css('a::attr(href)').get('')
+            anio_inicio, _, fuente = (clean(' '.join(li.xpath('./text()').getall())) or '').partition(': ')
+            snf = re.search(r'data\.snf\.ch/grants/grant/(\d+)', href)
             yield self.item(
-                "proyecto",
+                'proyecto',
                 response,
-                titulo=texts(li.css("a")),
+                titulo=texts(li.css('a')),
                 anio_inicio=anio(anio_inicio),
                 fuente=fuente or None,  # "University of Tübingen", "Google LARA"
                 codigo=snf.group(1) if snf else None,
             )
         for b in response.xpath("//h6[a[normalize-space()='Research Agenda']]/following-sibling::ul[1]/li/b"):
-            yield self.item("area", response, nombre=texts(b))
-        yield from self.related(response, region=".container")
+            yield self.item('area', response, nombre=texts(b))
+        yield from self.related(response, region='.container')
 
     def parse_teaching(self, response: Response) -> Iterator:
         response = con_base(response)
-        for it in response.css(".teaching-item"):
+        for it in response.css('.teaching-item'):
             yield self.item(
-                "dictacion",
+                'dictacion',
                 response,
-                nombre_curso=texts(it.css(".role")),
-                anio=anio(texts(it.css(".year"))),  # "2026 – Present · Undergraduate Course"
-                institucion=texts(it.css(".institution")),
+                nombre_curso=texts(it.css('.role')),
+                anio=anio(texts(it.css('.year'))),  # "2026 – Present · Undergraduate Course"
+                institucion=texts(it.css('.institution')),
             )
-        for it in response.css(".student-item"):
+        for it in response.css('.student-item'):
             # "Ph.D. Student in Computer Science (Co-Advisor) · Fluminense Federal University (UFF), Brazil · 2026 –"
-            nivel, _, rol = (texts(it.css(".student-info")) or "").split(" · ")[0].partition(" (")
-            if "Internship" in rol:  # estadía, no tesis
+            nivel, _, rol = (texts(it.css('.student-info')) or '').split(' · ')[0].partition(' (')
+            if 'Internship' in rol:  # estadía, no tesis
                 continue
             yield self.item(
-                "tesis",
+                'tesis',
                 response,
                 titulo=None,
-                estudiante=texts(it.css(".student-name")),
+                estudiante=texts(it.css('.student-name')),
                 nivel=nivel,
-                rol=rol.rstrip(")") or None,
-                anio=anio(texts(it.css(".student-info"))),
+                rol=rol.rstrip(')') or None,
+                anio=anio(texts(it.css('.student-info'))),
             )
         yield from self.related(response)
 
     def parse_publications(self, response: Response) -> Iterator:
         response = con_base(response)
-        for li in response.css("li.pub-item"):
-            seccion = texts(li.xpath("preceding::h3[@class='pub-type'][1]")) or ""  # "2026" / "Preprints"
-            venue = texts(li.css(".pub-details b i"))
-            antes_br = "./br/preceding-sibling::text()|./br/preceding-sibling::*//text()"  # autores, antes del <br>
-            autores = clean(" ".join(li.css(".pub-details").xpath(antes_br).getall()))
-            pdf = li.css(".pub-buttons a::attr(href)").get()
+        for li in response.css('li.pub-item'):
+            seccion = texts(li.xpath("preceding::h3[@class='pub-type'][1]")) or ''  # "2026" / "Preprints"
+            venue = texts(li.css('.pub-details b i'))
+            antes_br = './br/preceding-sibling::text()|./br/preceding-sibling::*//text()'  # autores, antes del <br>
+            autores = clean(' '.join(li.css('.pub-details').xpath(antes_br).getall()))
+            pdf = li.css('.pub-buttons a::attr(href)').get()
             ids = {}
-            if pdf and (m := re.search(r"aclanthology\.org/([\w.-]+?)/?$", pdf)):
-                ids["acl"] = m.group(1)
-            if pdf and (m := re.search(r"arxiv\.org/(?:abs|pdf)/([\d.]+)", pdf)):
-                ids["arxiv"] = m.group(1)
+            if pdf and (m := re.search(r'aclanthology\.org/([\w.-]+?)/?$', pdf)):
+                ids['acl'] = m.group(1)
+            if pdf and (m := re.search(r'arxiv\.org/(?:abs|pdf)/([\d.]+)', pdf)):
+                ids['arxiv'] = m.group(1)
             yield self.item(
-                "publicacion",
+                'publicacion',
                 response,
-                titulo=texts(li.css(".pub-title")),
+                titulo=texts(li.css('.pub-title')),
                 anio=seccion if seccion.isdigit() else anio(venue),
                 tipo_publicacion=None if seccion.isdigit() else seccion,
                 venue=venue,
-                autores=[a.strip(" *") for a in (autores or "").split(",") if a.strip(" *")],
+                autores=[a.strip(' *') for a in (autores or '').split(',') if a.strip(' *')],
                 url_destino=pdf,
                 ids=ids,
             )
@@ -187,56 +187,56 @@ class FrancielleVargasSpider(AcademicSpider):
 
     def parse_resources(self, response: Response) -> Iterator:
         response = con_base(response)
-        for li in response.css(".resource-section li"):
-            a = li.css("a")
+        for li in response.css('.resource-section li'):
+            a = li.css('a')
             yield self.item(
-                "producto",
+                'producto',
                 response,
                 tipo_producto=texts(li.xpath("ancestor::div[@class='resource-section'][1]/h3")),  # "Benchmark Datasets"
                 nombre=texts(a[:1]),
-                descripcion=clean((texts(li) or "").removeprefix(texts(a[:1]) or "").lstrip(" :")) or None,
-                url_destino=a[0].attrib["href"] if a else None,
+                descripcion=clean((texts(li) or '').removeprefix(texts(a[:1]) or '').lstrip(' :')) or None,
+                url_destino=a[0].attrib['href'] if a else None,
             )
         yield from self.related(response)
 
     def parse_service(self, response: Response) -> Iterator:
         response = con_base(response)
-        for li in response.css(".service-category li"):
-            categoria = texts(li.xpath("ancestor::div[@class='service-category'][1]/h6")) or ""
-            sub = texts(li.xpath("parent::ol/preceding-sibling::h9[1]")) or ""
-            if categoria.startswith("Scientific"):
-                tipo = "asesoria"
-            elif categoria == "Organizing Committee":
-                tipo = "comite_programa" if sub == "Area Chairing" else "organizacion_evento"
+        for li in response.css('.service-category li'):
+            categoria = texts(li.xpath("ancestor::div[@class='service-category'][1]/h6")) or ''
+            sub = texts(li.xpath('parent::ol/preceding-sibling::h9[1]')) or ''
+            if categoria.startswith('Scientific'):
+                tipo = 'asesoria'
+            elif categoria == 'Organizing Committee':
+                tipo = 'comite_programa' if sub == 'Area Chairing' else 'organizacion_evento'
             else:
-                tipo = "revisor" if sub == "Journals" else "comite_programa"
+                tipo = 'revisor' if sub == 'Journals' else 'comite_programa'
             # "<h8>NeurIPS: ...</h8> <a>(2026)</a> <a>(2023)</a>" → fecha "2026, 2023"
-            fechas = [t.strip("() ") for a in li.css("a") if (t := texts(a))]
+            fechas = [t.strip('() ') for a in li.css('a') if (t := texts(a))]
             yield self.item(
-                "actividad",
+                'actividad',
                 response,
                 tipo_actividad=tipo,
-                titulo=clean(" ".join(li.css("h8").xpath("./text()|./*[not(self::a)]//text()").getall())) or texts(li),
+                titulo=clean(' '.join(li.css('h8').xpath('./text()|./*[not(self::a)]//text()').getall())) or texts(li),
                 rol=sub or categoria,
-                fecha=", ".join(fechas or ANIO.findall(texts(li) or "")[:1]) or None,
-                url_destino=li.css("a::attr(href)").get(),
+                fecha=', '.join(fechas or ANIO.findall(texts(li) or '')[:1]) or None,
+                url_destino=li.css('a::attr(href)').get(),
             )
         yield from self.related(response)
 
     def parse_talks(self, response: Response) -> Iterator:
         response = con_base(response)
-        for it in response.css(".talk-item"):
-            linea = it.css(".talk-line span")
-            rol = (texts(linea.css("b")) or "").split(":")[0]  # "Invited Talk", "Keynote Speaker", "Presentation"
+        for it in response.css('.talk-item'):
+            linea = it.css('.talk-line span')
+            rol = (texts(linea.css('b')) or '').split(':')[0]  # "Invited Talk", "Keynote Speaker", "Presentation"
             slides = it.xpath(".//a[normalize-space()='[slides]']/@href").get()
             yield self.item(
-                "actividad",
+                'actividad',
                 response,
-                tipo_actividad="keynote" if "Keynote" in rol else "charla",
-                titulo=next((t for i in linea.css("i") if (t := texts(i))), None) or texts(linea) or "",
+                tipo_actividad='keynote' if 'Keynote' in rol else 'charla',
+                titulo=next((t for i in linea.css('i') if (t := texts(i))), None) or texts(linea) or '',
                 rol=rol or None,
-                evento=texts(it.css("p a")),
-                descripcion=clean("".join(it.css("p").xpath("./b//text()|./text()").getall())),  # "Leiden U., NL"
+                evento=texts(it.css('p a')),
+                descripcion=clean(''.join(it.css('p').xpath('./b//text()|./text()').getall())),  # "Leiden U., NL"
                 fecha=texts(it.xpath("ancestor::div[@class='year-card'][1]/div[@class='year-title']")),
                 url_destino=slides,
             )
@@ -244,27 +244,27 @@ class FrancielleVargasSpider(AcademicSpider):
 
     def parse_press(self, response: Response) -> Iterator:
         response = con_base(response)
-        for li in response.css(".news-item"):
-            medio, _, fecha = (texts(li.css(".news-meta")) or "").rpartition(" · ")
+        for li in response.css('.news-item'):
+            medio, _, fecha = (texts(li.css('.news-meta')) or '').rpartition(' · ')
             yield self.item(
-                "actividad",
+                'actividad',
                 response,
-                tipo_actividad="prensa",
-                titulo=texts(li.css(".news-title")),
+                tipo_actividad='prensa',
+                titulo=texts(li.css('.news-title')),
                 evento=medio or None,
                 fecha=fecha or None,
-                url_destino=li.css("a::attr(href)").get(),
+                url_destino=li.css('a::attr(href)').get(),
             )
         yield from self.related(response)
 
     def parse_awards(self, response: Response) -> Iterator:
         response = con_base(response)
-        for div in response.css(".award"):
+        for div in response.css('.award'):
             yield self.item(
-                "distincion",
+                'distincion',
                 response,
-                nombre=texts(div.css(".award-title")),
-                otorgante=texts(div.css(".award-institution")),
+                nombre=texts(div.css('.award-title')),
+                otorgante=texts(div.css('.award-institution')),
                 anio=anio(texts(div.xpath("preceding-sibling::div[@class='award-year'][1]"))),
             )
         yield from self.related(response)
@@ -272,35 +272,35 @@ class FrancielleVargasSpider(AcademicSpider):
     def parse_cv(self, response: Response) -> Iterator:
         s = cv_secciones(cv_texto(response))
         # "PhD in Computer Science and Computational Mathematics 2024\nUniversity of São Paulo (USP)"
-        for grado, year, inst in re.findall(r"^(.+?) ((?:19|20)\d{2})\n(.+)$", s.get("Education", ""), re.M):
-            yield self.item("formacion", response, grado=grado, anio=year, institucion=inst.strip())
+        for grado, year, inst in re.findall(r'^(.+?) ((?:19|20)\d{2})\n(.+)$', s.get('Education', ''), re.M):
+            yield self.item('formacion', response, grado=grado, anio=year, institucion=inst.strip())
 
-        exp = s.get("Academic Experience", "").splitlines()
+        exp = s.get('Academic Experience', '').splitlines()
         for i, line in enumerate(exp):
             if (m := PERIODO.match(line.strip())) and i + 1 < len(exp):
                 yield self.item(
-                    "afiliacion",
+                    'afiliacion',
                     response,
                     rol=m.group(3),
                     organizacion=exp[i + 1].strip(),
                     desde=m.group(1),
-                    hasta=None if m.group(2) == "Present" else m.group(2) or m.group(1),
+                    hasta=None if m.group(2) == 'Present' else m.group(2) or m.group(1),
                 )
 
         # "• 2026–Present. University of Chile. Principal Investigator. Título. Detalle... (USD 12.000,00)."
-        for item in re.split(r"^• ", s.get("Funded Research", ""), flags=re.M)[1:]:
+        for item in re.split(r'^• ', s.get('Funded Research', ''), flags=re.M)[1:]:
             t = unir(item)
-            partes = re.split(r"\.\s+(?=[A-Z])", t, maxsplit=4)
+            partes = re.split(r'\.\s+(?=[A-Z])', t, maxsplit=4)
             if len(partes) < 4:
                 continue
-            desde, _, hasta = partes[0].partition("–")
-            codigo = re.search(r"Grant number: (?:No\. )?([\w/-]+)", t)
-            monto = re.search(r"\((USD [\d.,]+)\)", t)
+            desde, _, hasta = partes[0].partition('–')
+            codigo = re.search(r'Grant number: (?:No\. )?([\w/-]+)', t)
+            monto = re.search(r'\((USD [\d.,]+)\)', t)
             yield self.item(
-                "proyecto",
+                'proyecto',
                 response,
                 anio_inicio=desde,
-                anio_fin=None if hasta == "Present" else hasta or desde,
+                anio_fin=None if hasta == 'Present' else hasta or desde,
                 fuente=partes[1],
                 rol=partes[2],
                 titulo=partes[3],
