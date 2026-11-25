@@ -1,0 +1,90 @@
+# Decisiones a mano sobre fusiones del deduplicador (src/daii/silver/dedup.py). Ver "Deduplicación" en el README.
+#
+# Cada par lleva `decision`:
+#   fusionar: un candidato (unión dudosa, explorador → Pipeline → Fusiones → Candidatos) es el mismo registro.
+#             Se fusiona y queda en la tabla `fusion` con la regla `revisada`.
+#   separar:  dos registros que una regla unió (o que son candidato) son distintos. No se unen en ninguna tabla ni
+#             persona, y una tercera fila parecida a ambos tampoco los junta.
+# No afecta las uniones por el mismo DOI o el mismo código de proyecto: son la misma entidad por definición.
+#
+# Cada registro se identifica por su texto principal: el título (publicación, proyecto, tesis, actividad), la
+# organización (afiliación), el nombre (área, distinción), el grado (formación) o la URL (perfil). Se compara
+# normalizado (sin tildes, mayúsculas ni puntuación), en todas las tablas y personas donde aparezca ese par. `motivo` es libre: quién lo revisó y por qué.
+# Después de editar: `uv run daii silver && uv run daii gold`.
+pares:
+- a: 'Magma Sources , Metamorphism and Geodynamic context of the early cretaceous igneous rocks of the coastal range of North-Central to Central Chile: an approach from .'
+  b: 'Magma Sources, Metamorphism and Geodynamic context of the early cretaceous igneous rocks of the coastal range of North-Central to Central Chile: an approach from Geochemistry...'
+  decision: fusionar
+  motivo: 'proyecto: mismo registro, la fuente agrega ''geochemistry'' (revisado 2026-11-25)'
+- a: 'Magma Sources, Metamorphism and Geodynamic context of the early cretaceous igneous rocks of the coastal range of North-Central to Central Chile: an approach from Geochemistry...'
+  b: 'Magma Sources, Metamorphism and Geodynamic context of the early cretaceous igneous rocks of the coastal range of North-Central to Central Chile: an approach from Geochemistry and Geochronology'
+  decision: fusionar
+  motivo: 'proyecto: mismo registro, la fuente agrega ''geochronology'' (revisado 2026-11-25)'
+- a: Near-Optimal Search Time in δ-Optimal Space
+  b: Near-Optimal Search Time in d -Optimal Space
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''d'' (revisado 2026-11-25)'
+- a: Flaming 2π kinks in parametrically driven systems
+  b: Flaming 2 pi kinks in parametrically driven systems
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''pi'' (revisado 2026-11-25)'
+- a: Near-Optimal Search Time in δ-Optimal Space, and Vice Versa
+  b: Near-Optimal Search Time in d-Optimal Space, and Vice Versa
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''d'' (revisado 2026-11-25)'
+- a: On the Characterization of Compressible Ergodic Sequences
+  b: On the Characterization of $\ell _{p}$ -Compressible Ergodic Sequences
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''ell p'' (revisado 2026-11-25)'
+- a: 'Codificación densa: optimizando la compresión de texto en lenguaje natural'
+  b: 'Codificación (s, c)-Densa: optimizando la compresión de texto en lenguaje natural'
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''c s'' (revisado 2026-11-25)'
+- a: Analysis of the Cramér-Rao Bound in the Joint Estimation of Astrometry and Photometry
+  b: Analysis of the Cramer-Rao lower-bound in the joint estimation of astrometry and photometry
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''lower'' (revisado 2026-11-25)'
+- a: An Optimal Switching Sequence Model Predictive Control Scheme for the 3L-NPC with Output LC Filter
+  b: An Optimal Switching Sequence Model Predictive Control Scheme for the 3L-NPC Converter with Output LC Filter
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''converter'' (revisado 2026-11-25)'
+- a: Hybrid fuzzy predictive control of a batch reactor using a branch and bound and a genetic algorithm
+  b: Hybrid Fuzzy Predictive Control of a Batch Reactor using a Branch and Bound and a Genetic Algorithm Approach
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''approach'' (revisado 2026-11-25)'
+- a: Development and application of consumer credit scoring models using profit-based classification measures
+  b: Development and application of consumer credit scoring models using profit-based V classification measures
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''v'' (revisado 2026-11-25)'
+- a: Cluster Optimization for Takagi & Sugeno Fuzzy Models and Its Application to a Combined Cycle Power Plant Boiler
+  b: Cluster optimization for takagi &amp; sugeno fuzzy models and its application to a combined cycle power plant boiler
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''amp'' (revisado 2026-11-25)'
+- a: 'Carnegie supernova project: The first homogeneous sample of “Super-Chandrasekhar Mass”/2003fg-like type ia supernova'
+  b: 'Carnegie Supernova Project: The First Homogeneous Sample of Super-Chandrasekhar-mass/2003fg-like Type Ia Supernovae'
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''supernovae'' (revisado 2026-11-25)'
+- a: Global proteomic profiling of piscirickettsia salmonis and salmon macrophage-like cells during intracellular infection
+  b: Global Proteomic Profiling of <em>Piscirickettsia</em> <em>Salmonis</em> and Salmon Macrophage-Like Cells during Intracellular Infection
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''em'' (revisado 2026-11-25)'
+- a: Type II supernovae from the Carnegie Supernova Project-I I. Bolometric light curves of 74 SNe II using <i>uBgVriYJH</i> photometry
+  b: Type II supernovae from the Carnegie Supernova Project-I. I. Bolometric light curves of 74 SNe II using <italic>uBgVriYJH</italic> photometry
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''italic'' (revisado 2026-11-25)'
+- a: 'A Note on the Paper “Linear Complementarity Problems Over Symmetric Cones: Characterization of Qb-Transformations and Existence Results”'
+  b: 'Héctor A note on the paper "Linear complementarity problems over symmetric cones: characterization of Qb-transformations and existence results'''''
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''hector'' (revisado 2026-11-25)'
+- a: Experimental Performance Evaluation of a Distributed Secondary Control Strategy for Hybrid AC/DC-Microgrids in the event of Communication Loss/Delay
+  b: Experimental Performance Evaluation of a Distributed Secondary Control Strategy for Hybrid <i>ac</i>/<i>dc</i>-Microgrids in the Event of Communication Loss/Delay
+  decision: fusionar
+  motivo: 'publicacion: mismo registro, la fuente agrega ''i'' (revisado 2026-11-25)'
+- a: Especialistas proponen reducir cuarentena de viajeros que ingresen a Chile a cinco días
+  b: Especialistas proponen reducir cuarentena de viajeros que ingresen a Chile de siete a cinco días
+  decision: fusionar
+  motivo: 'actividad: mismo registro, la fuente agrega ''siete'' (revisado 2026-11-25)'
+- a: 'Estudio de las variables críticas de operación divisiones : refinería, etileno y coker ENAP Refinería Bío Bío'
+  b: 'Estudio de las Variables Críticas de Operación Divisiones: Refinería, Etileno y Coker Enap Refinerías Bio Bio'
+  decision: fusionar
+  motivo: 'tesis: mismo registro, la fuente agrega ''refinerias'' (revisado 2026-11-25)'

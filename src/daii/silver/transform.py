@@ -197,11 +197,23 @@ DEDUP_IGNORA = {"url", "spider", "run_id", "scraped_at", "observacion_id", "tipo
 PROCEDENCIA = ["item_id", "spider", "run_id", "persona", "url", "observacion_id", "scraped_at"]
 
 
+CANDIDATO = {
+    "tabla": pl.String,
+    "item_a": pl.String,
+    "item_b": pl.String,
+    "similitud": pl.Float64,
+    "diferencia": pl.String,
+}
+
+
 def build(destination: Path | None = None, selected: list[Path] | None = None) -> dict[str, int]:
     destination = destination or SILVER
     destination.mkdir(parents=True, exist_ok=True)
     out = {}
     items = []
+    candidatos = []
+    vistos: set[str] = set()  # textos principales del build, para avisar de revisiones que no calzan con nada
+    dedup.recoger_candidatos()  # por si quedó algo de una corrida anterior en el mismo proceso
     for tipo, rows in load_bronze(selected).items():
         df = pl.DataFrame(rows, infer_schema_length=None)
         items.append(df.select(pl.col(c) if c in df.columns else pl.lit(None, pl.String).alias(c) for c in PROCEDENCIA))
@@ -210,11 +222,14 @@ def build(destination: Path | None = None, selected: list[Path] | None = None) -
             claves = [c for c in df.columns if c not in DEDUP_IGNORA]
             df = df.group_by(claves, maintain_order=True).agg(pl.exclude(claves).first(), item_ids=pl.col("item_id"))
         antes = df.height
+        if (campo := dedup.TEXTO.get(tipo)) in df.columns:
+            vistos |= {norm_text(t) for t in df[campo].drop_nulls().unique().to_list()}
         # estable: misma prioridad → orden de llegada; la fusión toma cada campo de la fila más prioritaria
         df = df.with_columns(_prio=prio_expr()).sort("_prio", maintain_order=True).drop("_prio")
         df = dedup.aplicar(tipo, TRANSFORMS.get(tipo, lambda d: d)(df))
         df.write_parquet(destination / f"{tipo}.parquet")
         out[tipo] = df.height
+        candidatos += dedup.recoger_candidatos()
         if "fusiones" in df.columns:
             # varias filas (personas) de una misma entidad comparten aristas: se cuentan una vez
             aristas = df["fusiones"].explode().drop_nulls().unique()
@@ -228,6 +243,17 @@ def build(destination: Path | None = None, selected: list[Path] | None = None) -
         else pl.DataFrame(schema=dict.fromkeys(PROCEDENCIA, pl.String))
     )
     item.write_parquet(destination / "item.parquet")
+    for decision, pares in dedup.revisadas().items():
+        for par in pares:
+            if faltan := sorted(par - vistos):
+                logger.bind(evento="revision_sin_efecto", decision=decision, faltan=faltan).warning(
+                    f"config/fusiones_revisadas.yaml ({decision}): ningún registro tiene el texto {faltan}"
+                )
+    pl.DataFrame(candidatos, schema=CANDIDATO).write_parquet(destination / "candidato.parquet")
+    if candidatos:
+        logger.bind(evento="candidatos_fusion", n=len(candidatos)).info(
+            f"{len(candidatos)} uniones dudosas quedan como candidatos (decidir en config/fusiones_revisadas.yaml)"
+        )
     for stale in set(TIPOS) - set(out):  # no dejar parquet viejos de tipos que ya no vienen
         (destination / f"{stale}.parquet").unlink(missing_ok=True)
     return out

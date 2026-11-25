@@ -105,6 +105,10 @@ Varias fuentes traen el mismo registro escrito distinto ("PhD" / "PhD. Computer 
      "WWW2011 Tutorial" y "ISWC2011 Tutorial" no se fusionan. Tampoco si uno tiene una palabra que marca otro
      registro y el otro no (`DISTINTIVAS` en `dedup.py`: poster, erratum, corrigendum, reply, comment, abstract,
      tutorial, respuesta, comentario…): "Poster: X" y "X" quedan separados.
+   - **Candidato** (difuso dudoso): si un texto agrega sobre el otro palabras con contenido (no artículos ni
+     preposiciones: `VACIAS` en `dedup.py`), la unión **no se hace** y queda como candidato. Puede ser basura de la
+     fuente ("2 pi" vs "2π", "&amp;", "<italic>", el nombre del autor pegado) o un registro distinto ("Adolescent
+     **Language and** Cognition…" vs "Adolescent Cognition…"). Las erratas y los "A"/"the" agregados sí se fusionan.
 3. Cada campo de la fila fusionada sale de la fuente más prioritaria que lo trae (orden de "Conciliación"), y la
    evidencia de gold registra de qué ítem salió cada uno.
 
@@ -128,12 +132,20 @@ Varias fuentes traen el mismo registro escrito distinto ("PhD" / "PhD. Computer 
 `item_b`, `regla`, `similitud`). Las uniones por clave idéntica no dejan registro: ya se ven en `evidencia`. Se revisan
 en el explorador (modo Pipeline, **Fusiones**: los dos registros tal como los trajo cada fuente, ordenados por similitud) o en SQL:
 `SELECT * FROM fusion WHERE regla = 'titulo_difuso' ORDER BY similitud`. El nombre legible de cada regla está en
-`config/catalogos.yaml` (`fusion.regla`), y cada build loguea `dedup_aplicado` con las filas antes/después por tabla.
+`config/catalogos.yaml` (`fusion.regla`), y cada build loguea `dedup_aplicado` con las filas antes/después por tabla
+y `candidatos_fusion` con los candidatos pendientes.
 
-**Deshacer una fusión:** agregar el par a `config/no_fusionar.yaml` con el texto principal de cada registro (título,
-organización, nombre, grado o URL, según la tabla; se copia desde **Fusiones**) y volver a correr silver y gold. El
-par no se une en ninguna tabla ni persona, y una tercera fila compatible con ambos tampoco los junta. No deshace
-uniones por el mismo DOI o el mismo código de proyecto. Un par con un texto vacío o los dos iguales hace fallar silver.
+**Candidatos y revisión a mano:** los candidatos quedan en la tabla gold `candidato_fusion` (`tabla`, `item_a`,
+`item_b`, `similitud`, `diferencia` = las palabras agregadas) y en el explorador (**Fusiones → Candidatos**). Siguen
+siendo dos filas hasta que alguien decide en `config/fusiones_revisadas.yaml`, por par de textos principales (título,
+organización, nombre, grado o URL, según la tabla; se copian de las columnas `texto_a` y `texto_b` del explorador):
+
+- `decision: fusionar`: el candidato se fusiona y queda en `fusion` con la regla `revisada`.
+- `decision: separar`: deshace cualquier fusión de esos dos registros. No se unen en ninguna tabla ni persona, y una
+  tercera fila compatible con ambos tampoco los junta.
+
+Luego se vuelve a correr silver y gold. Ninguna de las dos afecta las uniones por el mismo DOI o el mismo código de
+proyecto. Un par incompleto, con los dos textos iguales, con otra decisión o marcado para ambas hace fallar silver.
 
 **Cambiar una regla:** editar `dedup.py`, agregar el caso (uno que fusione y uno que no) a `tests/test_dedup.py`,
 actualizar esta sección y, si la regla es nueva, su nombre en `catalogos.yaml`.
