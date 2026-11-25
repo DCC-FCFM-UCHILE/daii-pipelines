@@ -1,6 +1,6 @@
 [project]
 name = "daii"
-version = "0.4.0"
+version = "0.5.0"
 description = "Pipeline de datos del dashboard DAII (FCFM, U. de Chile): scrapers por fuente, medallion, Prefect"
 authors = [
     { name = "Pablo Badilla", email = "pablo.badilla@uchile.cl" }
