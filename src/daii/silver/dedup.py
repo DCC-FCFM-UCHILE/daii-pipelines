@@ -11,7 +11,8 @@ Auditoría: cada unión hecha por una heurística deja una arista (item_a, item_
 `fusiones` de las filas resultantes; gold la publica en la tabla `fusion`. Las uniones por clave idéntica (mismo DOI,
 mismo título y año, filas idénticas) no dejan arista: ya pasaban antes y la evidencia las muestra.
 
-Deshacer una fusión: `config/no_fusionar.yaml` lista pares de textos (título, organización…) que nunca se unen.
+Uniones difusas dudosas (`dudoso()`) no se hacen: quedan como candidatos (tabla gold `candidato_fusion`) hasta que
+alguien las decide en `config/fusiones_revisadas.yaml` (`fusionar` o `separar`, por par de textos).
 """
 
 import re
@@ -49,6 +50,7 @@ REGLAS_FUSION = (
     "mismo_perfil",
     "misma_dictacion",
     "misma_url",
+    "revisada",
 )
 FUSION = pl.List(pl.Struct({"item_a": pl.String, "item_b": pl.String, "regla": pl.String, "similitud": pl.Float64}))
 
@@ -79,7 +81,7 @@ DISTINTIVAS = {
     "replica",
 }  # fmt: skip  (en singular: se comparan sin la "s" final, así "Response"/"Responses" sigue siendo typo)
 
-# tipo → campo cuyo texto identifica el registro en config/no_fusionar.yaml
+# tipo → campo cuyo texto identifica el registro en config/fusiones_revisadas.yaml (y el que se compara difuso)
 TEXTO = {
     "publicacion": "titulo", "proyecto": "titulo", "tesis": "titulo", "actividad": "titulo",
     "afiliacion": "organizacion", "area": "nombre", "distincion": "nombre", "formacion": "grado",
@@ -164,36 +166,94 @@ def url_canon(u: str | None) -> str:
 # --- agrupación (union-find) -----------------------------------------------------------------------------------
 
 
-def no_fusionar() -> set[frozenset[str]]:
-    """Pares de textos normalizados que nunca se unen (config/no_fusionar.yaml): fusiones deshechas a mano."""
-    pares = set()
-    for p in (config.no_fusionar() or {}).get("pares") or []:
+# Palabras que agregar a un título no lo vuelve otro registro ("A Gradual…" = "Gradual…", "the Internet" = "Internet").
+VACIAS = {
+    "a", "an", "the", "of", "for", "to", "in", "on", "at", "by", "with", "from", "and", "or", "as", "its",
+    "de", "del", "la", "el", "lo", "los", "las", "un", "una", "unos", "unas", "y", "e", "o", "en", "al", "para",
+    "por", "con", "sobre", "su", "sus",
+}  # fmt: skip
+
+
+def dudoso(na: str, nb: str) -> str | None:
+    """Palabras con contenido que un texto normalizado agrega sobre el otro ("language and"), o None.
+
+    Una unión difusa así queda como candidato en vez de fusionarse: puede ser basura de la fuente ("2 pi" vs "2π",
+    "&amp;", el nombre del autor pegado) o un registro distinto ("Adolescent Language and Cognition…").
+    Las erratas ("filter"/"filtering") y los artículos o preposiciones agregados no son dudosos.
+    """
+    sa, sb = set(na.split()), set(nb.split())
+    if sa - sb and sb - sa:  # ambos tienen palabras propias: son erratas entre sí (lo exige _palabras_compatibles)
+        return None
+    extra = (sa ^ sb) - VACIAS
+    return " ".join(sorted(extra)) if extra else None
+
+
+def revisadas() -> dict[str, set[frozenset[str]]]:
+    """Decisiones a mano (config/fusiones_revisadas.yaml): pares de textos normalizados a `fusionar` o `separar`."""
+    out: dict[str, set[frozenset[str]]] = {"fusionar": set(), "separar": set()}
+    for p in (config.fusiones_revisadas() or {}).get("pares") or []:
         a, b = (norm_text(p.get("a")), norm_text(p.get("b"))) if isinstance(p, dict) else ("", "")
-        if not a or not b or a == b:
-            raise ValueError(f"config/no_fusionar.yaml: par inválido (a y b deben ser textos distintos): {p}")
-        pares.add(frozenset((a, b)))
-    return pares
+        if not a or not b or a == b or p.get("decision") not in out:
+            raise ValueError(
+                f"config/fusiones_revisadas.yaml: par inválido (a y b textos distintos, decision fusionar|separar): {p}"
+            )
+        out[p["decision"]].add(frozenset((a, b)))
+    if conflicto := out["fusionar"] & out["separar"]:
+        raise ValueError(f"config/fusiones_revisadas.yaml: pares marcados para fusionar y separar: {conflicto}")
+    return out
+
+
+# Candidatos de todo el build (tabla, item_a, item_b, similitud, diferencia): transform.build los recoge por tipo.
+# shortcut: estado global (un build por proceso); devolverlos junto al df si silver llega a correr builds en paralelo
+CANDIDATOS: list[dict] = []
+
+
+def recoger_candidatos() -> list[dict]:
+    """Devuelve y vacía los candidatos acumulados desde la última llamada."""
+    out = CANDIDATOS.copy()
+    CANDIDATOS.clear()
+    return out
 
 
 class _Grupos:
     """Union-find sobre filas; cada unión hecha por una regla queda como arista auditable.
 
-    `textos` (normalizados, uno por fila): dos grupos no se unen si juntarlos pondría en la misma fila un par de
-    config/no_fusionar.yaml. Se mira el grupo entero, así una tercera fila no puede volver a juntarlos.
+    Con `textos` (normalizados, uno por fila) aplica las revisiones a mano y los candidatos:
+    - Una unión difusa `dudoso()` no se hace: queda como candidato, salvo que el par esté aprobado (`fusionar`, regla
+      `revisada`).
+    - Dos grupos no se unen si juntarlos pondría en la misma fila un par `separar` o un candidato pendiente. Se mira
+      el grupo entero, así una tercera fila no los vuelve a juntar.
     """
 
     def __init__(
-        self, items: list[str], veto: Callable[[int, int], bool] | None = None, textos: list[str] | None = None
+        self,
+        items: list[str],
+        veto: Callable[[int, int], bool] | None = None,
+        textos: list[str] | None = None,
+        tabla: str = "",
     ) -> None:
-        self.padre, self.items, self.veto = list(range(len(items))), items, veto
+        self.padre, self.items, self.veto, self.tabla = list(range(len(items))), items, veto, tabla
         self.aristas: list[tuple[int, dict]] = []  # (raíz al unir, arista)
-        self.vetados = no_fusionar() if textos else set()
-        self.textos = [{t} if t else set() for t in textos] if self.vetados and textos else None
+        self.textos = textos
+        self.decisiones = revisadas() if textos else {"fusionar": set(), "separar": set()}
+        # textos de cada grupo, para los pares `separar`
+        self.del_grupo = [{t} if t else set() for t in textos] if textos and self.decisiones["separar"] else None
+        self.candidatos: list[tuple[int, int, dict]] = []
+
+    def pendiente(self, i: int, j: int, similitud: float | None) -> str | None:
+        """Diferencia si la unión difusa de las filas i, j es dudosa y nadie la aprobó; None si se puede unir."""
+        if not self.textos or similitud is None or similitud >= 1:
+            return None
+        ti, tj = self.textos[i], self.textos[j]
+        return None if frozenset((ti, tj)) in self.decisiones["fusionar"] else dudoso(ti, tj)
 
     def _vetado(self, ri: int, rj: int) -> bool:
-        if not self.textos:
+        if any({self.raiz(a), self.raiz(b)} == {ri, rj} for a, b, _ in self.candidatos):
+            return True
+        if not self.del_grupo:
             return False
-        return any(frozenset((a, b)) in self.vetados for a in self.textos[ri] for b in self.textos[rj])
+        separar = self.decisiones["separar"]
+        return any(frozenset((a, b)) in separar for a in self.del_grupo[ri] for b in self.del_grupo[rj])
 
     def raiz(self, i: int) -> int:
         while self.padre[i] != i:
@@ -206,14 +266,26 @@ class _Grupos:
     ) -> bool:
         """Une los grupos de i y j (la raíz es la de menor índice = más prioritaria). `regla=None`: sin arista.
 
-        `identidad`: mismo DOI o código; no_fusionar.yaml no la deshace (la clave los volvería a juntar igual).
+        `identidad`: mismo DOI o código; ni la revisión a mano ni los candidatos la deshacen (la clave los volvería a
+        juntar igual).
         """
         ri, rj = sorted((self.raiz(i), self.raiz(j)))
-        if ri == rj or (not identidad and self._vetado(ri, rj)) or (self.veto and self.veto(ri, rj)):
+        if ri == rj:
+            return False
+        if not identidad:
+            if self._vetado(ri, rj):
+                return False
+            if diferencia := self.pendiente(i, j, similitud):
+                arista = dict(item_a=self.items[i], item_b=self.items[j], similitud=similitud, diferencia=diferencia)
+                self.candidatos.append((i, j, arista))
+                return False
+            if similitud is not None and similitud < 1 and self.textos and dudoso(self.textos[i], self.textos[j]):
+                regla = "revisada"  # dudosa, pero aprobada en config/fusiones_revisadas.yaml
+        if self.veto and self.veto(ri, rj):
             return False
         self.padre[rj] = ri
-        if self.textos:
-            self.textos[ri] |= self.textos[rj]
+        if self.del_grupo:
+            self.del_grupo[ri] |= self.del_grupo[rj]
         if regla:
             assert regla in REGLAS_FUSION, regla
             arista = dict(item_a=self.items[i], item_b=self.items[j], regla=regla, similitud=similitud)
@@ -221,11 +293,12 @@ class _Grupos:
         return True
 
     def resultado(self) -> tuple[list[int], dict[int, list[dict]]]:
-        """Id de grupo por fila (su raíz) y las aristas de cada grupo."""
+        """Id de grupo por fila (su raíz) y las aristas de cada grupo. Publica los candidatos que siguen separados."""
         grupo = [self.raiz(i) for i in range(len(self.padre))]
         por_grupo: dict[int, list[dict]] = defaultdict(list)
         for r, arista in self.aristas:
             por_grupo[self.raiz(r)].append(arista)
+        CANDIDATOS.extend({"tabla": self.tabla} | a for _, _, a in self.candidatos)
         return grupo, por_grupo
 
 
@@ -324,7 +397,11 @@ TECNICAS = {"persona", "url", "spider", "run_id", "scraped_at", "observacion_id"
 
 
 def agrupar(
-    df: pl.DataFrame, bloque: list[str], mismo: Callable[[dict, dict], Coincide], texto: str | None = None
+    df: pl.DataFrame,
+    bloque: list[str],
+    mismo: Callable[[dict, dict], Coincide],
+    texto: str | None = None,
+    tabla: str = "",
 ) -> tuple[list[int], dict[int, list[dict]]]:
     """Compara todas las filas de cada bloque (df ya ordenado por prioridad) y une las que `mismo` dice iguales.
 
@@ -333,7 +410,11 @@ def agrupar(
     """
     filas = df.to_dicts()
     textos = [norm_text(f.get(texto)) for f in filas] if texto else None
-    g = _Grupos([f["item_id"] for f in filas], textos=textos)
+    g = _Grupos([f["item_id"] for f in filas], textos=textos, tabla=tabla)
+
+    def igual(a: int, b: int) -> bool:  # un candidato pendiente no cuenta como igual
+        return bool(c := mismo(filas[a], filas[b])) and not g.pendiente(a, b, c[1])
+
     miembros: dict[int, list[int]] = {i: [i] for i in range(len(filas))}
     bloques: dict[tuple, list[int]] = defaultdict(list)
     for i, f in enumerate(filas):
@@ -344,7 +425,7 @@ def agrupar(
                 ri, rj = g.raiz(i), g.raiz(j)
                 if ri == rj or not (c := mismo(filas[j], filas[i])):
                     continue
-                if all(mismo(filas[a], filas[b]) for a in miembros[rj] for b in miembros[ri] if (a, b) != (j, i)):
+                if all(igual(a, b) for a in miembros[rj] for b in miembros[ri] if (a, b) != (j, i)):
                     if not g.unir(j, i, *c):
                         continue
                     raiz = g.raiz(i)
@@ -360,7 +441,7 @@ def aplicar(tipo: str, df: pl.DataFrame) -> pl.DataFrame:
     if tipo not in REGLAS or df.is_empty():
         return df
     bloque, mismo, especiales = REGLAS[tipo]
-    df = _con_grupos(df, *agrupar(df, bloque, mismo, TEXTO.get(tipo)))
+    df = _con_grupos(df, *agrupar(df, bloque, mismo, TEXTO.get(tipo), tipo))
     datos = [c for c in df.columns if c not in TECNICAS | {"_grupo", "fusiones"}]
     de = lambda cond: pl.col("item_id").filter(cond).first()  # noqa: E731
     out = df.group_by("_grupo", maintain_order=True).agg(
@@ -419,7 +500,7 @@ def clave_publicacion(df: pl.DataFrame) -> pl.DataFrame:
         reales[ri] |= reales[rj]
         return False
 
-    g = _Grupos([f["item_id"] for f in filas], veto, [f["titulo_norm"] for f in filas])
+    g = _Grupos([f["item_id"] for f in filas], veto, [f["titulo_norm"] for f in filas], "publicacion")
     primero: dict[str, int] = {}
     for i, f in enumerate(filas):  # 1. DOI
         if f["doi"]:
@@ -523,7 +604,7 @@ def clave_proyecto(df: pl.DataFrame) -> pl.DataFrame:
         cods[ri] |= cods[rj]
         return False
 
-    g = _Grupos([f["item_id"] for f in filas], veto, [f["_t"] for f in filas])
+    g = _Grupos([f["item_id"] for f in filas], veto, [f["_t"] for f in filas], "proyecto")
     primero: dict[str, int] = {}
     for i, f in enumerate(filas):
         if c := codigo_canon(f["codigo"]):
@@ -586,7 +667,7 @@ def clave_tesis(df: pl.DataFrame) -> pl.DataFrame:
     filas = df.select("_t", "anio", "estudiante", "nivel", "persona", "item_id").to_dicts()
     for f in filas:
         f["_e"], f["_n"] = norm_text(f["estudiante"]), _nivel_tesis(f["nivel"])
-    g = _Grupos([f["item_id"] for f in filas], textos=[f["_t"] for f in filas])
+    g = _Grupos([f["item_id"] for f in filas], textos=[f["_t"] for f in filas], tabla="tesis")
 
     def anio_cerca(a: dict, b: dict) -> bool:
         return a["anio"] is None or b["anio"] is None or abs(a["anio"] - b["anio"]) <= 1

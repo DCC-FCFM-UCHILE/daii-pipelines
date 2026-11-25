@@ -23,9 +23,9 @@ def catalogos() -> dict[str, dict[str, str]]:
     return yaml.safe_load((ROOT / "config" / "catalogos.yaml").read_text())
 
 
-def no_fusionar() -> dict | None:
-    """Fusiones deshechas a mano (config/no_fusionar.yaml). Sin caché, como `catalogos`."""
-    return yaml.safe_load((ROOT / "config" / "no_fusionar.yaml").read_text())
+def fusiones_revisadas() -> dict | None:
+    """Decisiones a mano sobre fusiones (config/fusiones_revisadas.yaml). Sin caché, como `catalogos`."""
+    return yaml.safe_load((ROOT / "config" / "fusiones_revisadas.yaml").read_text())
 
 
 @cache

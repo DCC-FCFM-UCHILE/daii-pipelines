@@ -52,7 +52,8 @@ config/academicos.yaml  ──semillas──▶  src/daii/bronze/      Scrapy (+
 - **Deduplicación:** toda heurística de "esto es el mismo registro" vive en `src/daii/silver/dedup.py` (nunca en
   `transform.py`, `gold/load.py` ni en un spider), con su caso real en `tests/test_dedup.py`: uno que fusione y uno
   que no. Cada unión hecha por una heurística deja una arista en la tabla gold `fusion` (regla y similitud) para
-  auditarla. Una fusión equivocada se deshace en `config/no_fusionar.yaml`, no con una excepción en el código. Una regla nueva usa un código de `REGLAS_FUSION` con nombre en `config/catalogos.yaml`. **Todo cambio
+  auditarla. Las uniones difusas dudosas quedan como candidatos (`candidato_fusion`); un candidato o una fusión equivocada se
+  decide en `config/fusiones_revisadas.yaml` (`fusionar`/`separar`), no con una excepción en el código. Una regla nueva usa un código de `REGLAS_FUSION` con nombre en `config/catalogos.yaml`. **Todo cambio
   a la deduplicación se documenta en la sección "Deduplicación" del README en el mismo cambio**; sin eso no está
   terminado.
 - **Nombres legibles:** gold guarda códigos (`DII`, `revista`, `fondecyt`…) y la tabla `catalogo` trae su nombre

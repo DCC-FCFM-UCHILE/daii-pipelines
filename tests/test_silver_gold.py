@@ -146,7 +146,8 @@ def test_obras_de_homonimos_de_weber_en_openalex_se_descartan():
     ]
 
 
-META = {"scraperun", "datarelease", "catalogo", "fusion"}  # metadatos, referencia y auditoría: sin evidencia
+# metadatos, referencia y auditoría: sin evidencia
+META = {"scraperun", "datarelease", "catalogo", "fusion", "candidato_fusion"}
 
 
 def test_trazabilidad_de_bronze_a_gold(tmp_path):

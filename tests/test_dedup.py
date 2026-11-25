@@ -2,6 +2,7 @@
 # ruff: noqa: E501  (los casos son registros reales completos: partirlos los vuelve ilegibles)
 
 import polars as pl
+import pytest
 
 from daii.silver import dedup
 from daii.silver.transform import publicaciones
@@ -91,30 +92,75 @@ def test_palabras_distintivas_impiden_fusion_difusa():
     )
 
 
-def test_no_fusionar_deshace_una_fusion_sin_que_una_tercera_la_rehaga(monkeypatch):
-    a = "Adolescent Cognition in the Era of Generative AI: Unveiling the Cognitive Consequences of Human–LLM Interaction in High-School Students"
-    b = "Adolescent Language and Cognition in the Era of Generative AI: Unveiling the Cognitive Consequences of Human¿LLM Interaction in High-School Students"
-    filas = ({"titulo": a}, {"titulo": b, "codigo": "X123456"}, {"titulo": b})
-    assert _proyectos(*filas)["clave"].n_unique() == 1
-    monkeypatch.setattr(dedup.config, "no_fusionar", lambda: {"pares": [{"a": a.upper(), "b": b}]})
+def _revisadas(monkeypatch, *pares: tuple[str, str, str]) -> None:
+    yaml = {"pares": [{"a": a, "b": b, "decision": d} for a, b, d in pares]}
+    monkeypatch.setattr(dedup.config, "fusiones_revisadas", lambda: yaml)
+
+
+ADOLESCENT = "Adolescent Cognition in the Era of Generative AI: Unveiling the Cognitive Consequences of Human–LLM Interaction in High-School Students"
+ADOLESCENT_LANG = "Adolescent Language and Cognition in the Era of Generative AI: Unveiling the Cognitive Consequences of Human¿LLM Interaction in High-School Students"
+
+
+def test_dudoso_solo_si_agrega_palabras_con_contenido():
+    n = dedup.norm_text
+    assert dedup.dudoso(n(ADOLESCENT), n(ADOLESCENT_LANG)) == "language"
+    assert (
+        dedup.dudoso(n("Gradual Probabilistic Lambda Calculus"), n("A Gradual Probabilistic Lambda Calculus")) is None
+    )
+    assert dedup.dudoso(n("A Particle Filter Framework"), n("A Particle Filtering Framework")) is None
+
+
+def test_union_dudosa_queda_como_candidato_hasta_que_se_decide(monkeypatch):
+    _revisadas(monkeypatch)
+    filas = ({"titulo": ADOLESCENT}, {"titulo": ADOLESCENT_LANG, "codigo": "X123456"}, {"titulo": ADOLESCENT_LANG})
+    dedup.recoger_candidatos()
     out = _proyectos(*filas)
-    assert out["clave"].to_list() == ["t:" + dedup.norm_text(a), "X123456", "X123456"]
+    # la fila sin código con el mismo título no la vuelve a juntar con la otra
+    assert out["clave"].to_list() == ["t:" + dedup.norm_text(ADOLESCENT), "X123456", "X123456"]
     assert _reglas(out) == {"titulo_sin_codigo"}
-    # también en las tablas por persona
-    area = {"nombre": "Knowledge Graphs and Semantic Web"}
-    assert _aplicar("area", area, {"nombre": "Knowledge Graph and Semantic Web"}).height == 1
-    monkeypatch.setattr(
-        dedup.config,
-        "no_fusionar",
-        lambda: {"pares": [{"a": "knowledge graph and semantic web", "b": "Knowledge Graphs and Semantic Web"}]},
-    )
-    assert _aplicar("area", area, {"nombre": "Knowledge Graph and Semantic Web"}).height == 2
+    [c] = dedup.recoger_candidatos()
+    assert (c["tabla"], c["item_a"], c["diferencia"]) == ("proyecto", "s/r#0", "language") and 0.95 <= c[
+        "similitud"
+    ] < 1
+
+    _revisadas(monkeypatch, (ADOLESCENT.upper(), ADOLESCENT_LANG, "fusionar"))
+    out = _proyectos(*filas)
+    assert out["clave"].n_unique() == 1 and "revisada" in _reglas(out)
+    assert dedup.recoger_candidatos() == []
 
 
-def test_no_fusionar_no_separa_el_mismo_doi(monkeypatch):
-    monkeypatch.setattr(
-        dedup.config, "no_fusionar", lambda: {"pares": [{"a": "Titulo uno de la obra", "b": "Otro titulo distinto"}]}
+def test_separar_deshace_una_fusion_segura(monkeypatch):
+    area, otra = {"nombre": "Knowledge Graphs and Semantic Web"}, {"nombre": "Knowledge Graph and Semantic Web"}
+    _revisadas(monkeypatch)
+    assert _aplicar("area", area, otra).height == 1
+    _revisadas(monkeypatch, ("knowledge graph and semantic web", "Knowledge Graphs and Semantic Web", "separar"))
+    assert _aplicar("area", area, otra).height == 2
+
+
+def test_por_persona_candidato_y_separar_no_se_rehacen_con_una_tercera_fila(monkeypatch):
+    _revisadas(monkeypatch)
+    dedup.recoger_candidatos()
+    a = {"nombre": "Knowledge Graphs and Semantic Web Technologies for Data Integration"}
+    b = {"nombre": "Knowledge Graphs and Semantic Web Technologies for Data Integration Chile"}
+    out = _aplicar("area", a, b, b | {"spider": "otra"})
+    assert out["nombre"].to_list() == [a["nombre"], b["nombre"]]  # la copia de b se une a b, no a a
+    assert {c["diferencia"] for c in dedup.recoger_candidatos()} == {"chile"}
+
+    g, gs, gss = (
+        {"nombre": n}
+        for n in (
+            "Knowledge Graph and Semantic Web",
+            "Knowledge Graphs and Semantic Web",
+            "Knowledge Graphs and Semantic Webs",
+        )
     )
+    assert _aplicar("area", g, gs, gss).height == 1
+    _revisadas(monkeypatch, (g["nombre"], gs["nombre"], "separar"))
+    assert _aplicar("area", g, gs, gss).height == 2  # la tercera, typo de ambas, no los vuelve a juntar
+
+
+def test_revision_no_separa_el_mismo_doi(monkeypatch):
+    _revisadas(monkeypatch, ("Titulo uno de la obra", "Otro titulo distinto", "separar"))
     out = _pubs(
         {"persona": "a", "spider": "x", "titulo": "Titulo uno de la obra", "anio": 2020, "doi": "10.1007/978-3-642-34109-0_15"},
         {"persona": "a", "spider": "y", "titulo": "Otro titulo distinto", "anio": 2020, "doi": "10.1007/978-3-642-34109-0-15"},
@@ -126,8 +172,11 @@ def test_distintivas_toleran_plural():
     assert dedup.similar("Immune Response to Viral Infection in Mice", "Immune Responses to Viral Infection in Mice")
 
 
-def test_no_fusionar_del_repo_es_valido():
-    dedup.no_fusionar()  # lanza ValueError si un par está incompleto o sus dos textos son iguales
+def test_revisadas_del_repo_es_valido(monkeypatch):
+    dedup.revisadas()  # lanza ValueError si un par está incompleto, repetido en ambas decisiones o con textos iguales
+    _revisadas(monkeypatch, ("uno dos tres", "uno dos cuatro", "quizas"))
+    with pytest.raises(ValueError):
+        dedup.revisadas()
 
 
 def test_titulo_difuso_une_y_registra_similitud():

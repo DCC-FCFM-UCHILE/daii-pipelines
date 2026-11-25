@@ -108,6 +108,26 @@ def test_fusiones_muestra_lo_que_unio_el_deduplicador(data, tmp_path):
     assert detalle[["registro_a", "registro_b"]].values.tolist() == [nombres]
 
 
+def test_fusiones_muestra_candidatos_dudosos(data, tmp_path):
+    directory = tmp_path / "bronze" / "orcid" / "20261124T120000Z"
+    directory.mkdir(parents=True)
+    (directory / "quality.json").write_text(json.dumps({"status": "ok", "problems": [], "counts": {"area": 2}}))
+    base = {"tipo": "area", "persona": "aidan-hogan", "spider": "orcid", "url": "https://orcid.org/x"}
+    nombres = [  # uno agrega "Chile": no se fusionan solos, quedan como candidato
+        "Knowledge Graphs and Semantic Web Technologies for Scientific Data Integration",
+        "Knowledge Graphs and Semantic Web Technologies for Scientific Data Integration Chile",
+    ]
+    (directory / "items.jsonl").write_text("".join(json.dumps(base | {"nombre": n}) + "\n" for n in nombres))
+    versions.publish(versions.prepare())
+    st.cache_data.clear()
+    at = AppTest.from_function(_pagina, args=("fusiones", "Pipeline"), default_timeout=30).run()
+    assert not at.exception
+    candidatos = at.dataframe[0].value
+    assert candidatos["diferencia"].to_list() == ["chile"]
+    assert candidatos[["registro_a", "registro_b"]].values.tolist() == [nombres]
+    assert candidatos[["texto_a", "texto_b"]].values.tolist() == [nombres]
+
+
 def test_diff_entre_versiones(data):
     at = AppTest.from_function(_pagina, args=("versiones", "Pipeline"), default_timeout=30).run()
     assert not at.exception

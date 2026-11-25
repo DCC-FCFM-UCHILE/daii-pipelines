@@ -196,6 +196,15 @@ def _items(silver: Path | None, usados: set[str]) -> list[dict]:
     return [dict.fromkeys(rows[0] if rows else ["id"]) | {"id": CONFIG_ITEM, "spider": "config"}, *rows]
 
 
+def _candidatos(silver: Path | None, usados: set[str]) -> list[dict]:
+    """Uniones dudosas que silver no hizo (candidato.parquet), entre ítems publicados."""
+    f = (silver or SILVER) / "candidato.parquet"
+    if not f.exists():
+        return []
+    df = pl.read_parquet(f).filter(pl.col("item_a").is_in(list(usados)) & pl.col("item_b").is_in(list(usados)))
+    return df.unique(["tabla", "item_a", "item_b"], maintain_order=True).to_dicts()
+
+
 def build(
     silver: Path | None = None, destination: Path | None = None, run_rows: list[dict] | None = None
 ) -> dict[str, int]:
@@ -407,6 +416,7 @@ def build(
     tables[m.Catalogo] = catalogo()
     tables[m.Evidencia] = ev
     tables[m.Fusion] = fus
+    tables[m.CandidatoFusion] = _candidatos(silver, usados)
     tables[m.ScrapeRun] = run_rows if run_rows is not None else run_manifest()
 
     counts = {}

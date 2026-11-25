@@ -138,6 +138,7 @@ fusion.regla:
   mismo_perfil: Mismo perfil (URL o identificador)
   misma_dictacion: Mismo curso, año y semestre
   misma_url: Misma URL
+  revisada: Revisada a mano (config/fusiones_revisadas.yaml)
 
 itembronze.spider:
   orcid: ORCID
