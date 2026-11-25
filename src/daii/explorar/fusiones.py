@@ -88,7 +88,7 @@ def pagina() -> None:
     ).sort("similitud", nulls_last=True)  # los difusos más dudosos primero
     st.caption(
         f"{vista.height} fusiones. Ordenadas por similitud (las más dudosas primero). Registro = lo que trajo la "
-        "fuente."
+        "fuente. Para deshacer una, agregar sus dos textos (título, organización…) a `config/no_fusionar.yaml`."
     )
     ui.tabla(
         vista.select(

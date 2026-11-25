@@ -1,0 +1,16 @@
+# Fusiones deshechas a mano: pares de registros que el deduplicador (src/daii/silver/dedup.py) NO debe unir aunque
+# una regla diga que son el mismo. Ver "Deduplicación" en el README.
+#
+# Cada registro se identifica por su texto principal: el título (publicación, proyecto, tesis, actividad), la
+# organización (afiliación), el nombre (área, distinción), el grado (formación) o la URL (perfil). Se compara
+# normalizado (sin tildes, mayúsculas ni puntuación), en cualquier tabla y para todas las personas.
+#
+# Para deshacer una fusión: copiar los dos textos desde el explorador (modo Pipeline → Fusiones), agregar el par aquí
+# y volver a correr silver y gold (`uv run daii silver && uv run daii gold`). No deshace uniones por el mismo DOI o el
+# mismo código de proyecto: esas son la misma entidad por definición.
+#
+# Ejemplo:
+#   - a: "Adolescent Cognition in the Era of Generative AI: Unveiling the Cognitive Consequences of ..."
+#     b: "Adolescent Language and Cognition in the Era of Generative AI: Unveiling the Cognitive ..."
+#     motivo: "dos proyectos distintos (revisado por <quién>, 2026-11-25)"
+pares: []

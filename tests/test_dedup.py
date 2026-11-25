@@ -79,6 +79,57 @@ def test_dos_dois_reales_nunca_se_fusionan():
     assert sorted(out["pub_key"]) == ["10.1109/wi.2016.0091", "10.1109/wi.2016.90", "t:determining word emotion associations from tweets by multi label classification"]  # fmt: skip
 
 
+def test_palabras_distintivas_impiden_fusion_difusa():
+    paper = "Application of Graph Neural Networks for Representing and Analyzing Internet Topology via the BGP Protocol"
+    assert not dedup.similar(
+        paper,
+        "Poster: Application of Graph Neural Networks for Representing and Analyzing the Internet Topology via the BGP Protocol",
+    )
+    assert dedup.similar(
+        paper,
+        "Application of Graph Neural Networks for Representing and Analyzing the Internet Topology via the BGP Protocol",
+    )
+
+
+def test_no_fusionar_deshace_una_fusion_sin_que_una_tercera_la_rehaga(monkeypatch):
+    a = "Adolescent Cognition in the Era of Generative AI: Unveiling the Cognitive Consequences of Human–LLM Interaction in High-School Students"
+    b = "Adolescent Language and Cognition in the Era of Generative AI: Unveiling the Cognitive Consequences of Human¿LLM Interaction in High-School Students"
+    filas = ({"titulo": a}, {"titulo": b, "codigo": "X123456"}, {"titulo": b})
+    assert _proyectos(*filas)["clave"].n_unique() == 1
+    monkeypatch.setattr(dedup.config, "no_fusionar", lambda: {"pares": [{"a": a.upper(), "b": b}]})
+    out = _proyectos(*filas)
+    assert out["clave"].to_list() == ["t:" + dedup.norm_text(a), "X123456", "X123456"]
+    assert _reglas(out) == {"titulo_sin_codigo"}
+    # también en las tablas por persona
+    area = {"nombre": "Knowledge Graphs and Semantic Web"}
+    assert _aplicar("area", area, {"nombre": "Knowledge Graph and Semantic Web"}).height == 1
+    monkeypatch.setattr(
+        dedup.config,
+        "no_fusionar",
+        lambda: {"pares": [{"a": "knowledge graph and semantic web", "b": "Knowledge Graphs and Semantic Web"}]},
+    )
+    assert _aplicar("area", area, {"nombre": "Knowledge Graph and Semantic Web"}).height == 2
+
+
+def test_no_fusionar_no_separa_el_mismo_doi(monkeypatch):
+    monkeypatch.setattr(
+        dedup.config, "no_fusionar", lambda: {"pares": [{"a": "Titulo uno de la obra", "b": "Otro titulo distinto"}]}
+    )
+    out = _pubs(
+        {"persona": "a", "spider": "x", "titulo": "Titulo uno de la obra", "anio": 2020, "doi": "10.1007/978-3-642-34109-0_15"},
+        {"persona": "a", "spider": "y", "titulo": "Otro titulo distinto", "anio": 2020, "doi": "10.1007/978-3-642-34109-0-15"},
+    )  # fmt: skip
+    assert out.height == 1 and _reglas(out) == {"doi_canonico"}
+
+
+def test_distintivas_toleran_plural():
+    assert dedup.similar("Immune Response to Viral Infection in Mice", "Immune Responses to Viral Infection in Mice")
+
+
+def test_no_fusionar_del_repo_es_valido():
+    dedup.no_fusionar()  # lanza ValueError si un par está incompleto o sus dos textos son iguales
+
+
 def test_titulo_difuso_une_y_registra_similitud():
     out = _pubs(
         {"persona": "a", "spider": "x", "titulo": "A Particle Filter Framework for Failure Prognosis", "anio": 2005, "doi": None},
