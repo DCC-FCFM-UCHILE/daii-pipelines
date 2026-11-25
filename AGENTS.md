@@ -6,7 +6,7 @@ Guía para agentes (y humanos) que trabajan en este repo. Léela entera antes de
 
 Pipeline de datos para el dashboard de la DAII (FCFM, U. de Chile). Usa **scrapers custom en código**, no
 extracción con LLM en cada corrida: las páginas cambian poco y un parser determinista es barato, testeable y auditable.
-El modelo conceptual está en `docs/modelo_datos.md`.
+El modelo conceptual está en [docs/modelo_datos.md](docs/modelo_datos.md).
 
 ## Comandos
 
@@ -42,7 +42,8 @@ config/academicos.yaml  ──semillas──▶  src/daii/bronze/      Scrapy (+
   original), `pages.jsonl` (índice), `stats.json` (stats Scrapy) y `quality.json`.
 - **silver** usa, por spider, el **último run `ok`** de quality (`warn` y `fail` no se publican). Si un scraper se
   rompe, el dashboard sigue mostrando los últimos datos buenos; el email dice qué run se está usando.
-- **gold** se reconstruye completo cada vez desde silver (idempotente). No editar la SQLite a mano. El esquema lo
+- **gold** se construye desde una versión de silver. Se reutiliza el snapshot de gold de un build publicado si su esquema sigue vigente.
+  No editar la SQLite a mano. El esquema lo
   crean las migraciones de Alembic (`src/daii/gold/migrations/`): al cambiar `gold/models.py`, correr
   `make migration MSG="..."`, revisar el archivo generado y commitearlo (un test exige que coincidan).
 - **Trazabilidad:** toda fila de gold tiene filas en `evidencia` que apuntan a `itembronze`, cuyo id es la línea `n`
@@ -104,11 +105,13 @@ Reglas:
 
 ### Test obligatorio por spider
 
-- Guardar la(s) página(s) en `tests/fixtures/` (HTML o PDF tal como se descargan).
+- Guardar las páginas en `tests/fixtures/` (HTML o PDF). Conservar el original si puede versionarse. Para páginas
+  con datos sensibles, usar una copia anonimizada o una fixture sintética que reproduzca la estructura del parser.
 - `tests/spiders/test_<spider>.py`: construir la respuesta con `fixture_response(...)` y validar con
   `run_parse(...)` (ver `tests/spiders/test_ucurriculum.py`). Verificar valores concretos (un título, un año,
   un DOI) y cantidades mínimas, no solo que "algo" salió.
-- Cuando un sitio cambie: descargar la página nueva sobre el fixture, ajustar el parser y correr el test.
+- Cuando un sitio cambie, actualizar la fixture con el mismo criterio de anonimización, ajustar el parser y correr
+  el test.
 
 ## Observabilidad
 
@@ -151,17 +154,40 @@ logger.bind(evento="pagina_fallida", persona=slug, url=url).error(f"página prop
 - `data/` no se versiona.
 - No scrapear Google Scholar (bloquea y sus términos lo prohíben). Respetar `robots.txt`.
 
+## Skills del repositorio
+
+Codex descubre las seis skills de Ponytail en [`.agents/skills/`](.agents/skills), disponibles desde cada worktree
+que contenga estos archivos. La copia parte de [Ponytail v5.3.3](https://github.com/DietrichGebert/ponytail/releases/tag/v5.3.3)
+y conserva su [licencia MIT](.agents/skills/LICENSE-ponytail). Invocar `$ponytail` para implementar,
+`$ponytail-review` para revisar un cambio y `$ponytail-audit` para una auditoría. `$ponytail-help` lista las demás.
+La ayuda y la invocación están adaptadas a las skills locales de Codex. Las reglas de este archivo siguen aplicando.
+
 ## Flujo de cambios y revisión
 
-Usamos pre-commit para ejecutar Ruff, ty y los checks estándar de `pre-commit-hooks`.
-
-1. Trabajar en una rama, nunca directo en `main`.
-2. Revisar el código con el revisor **ponytail** (`/ponytail-review`) mediante **handoffs independientes y sin
-   contexto previo**: un revisor por conjunto de módulos (núcleo bronze, spiders de plataforma, spiders de sitios,
-   quality/silver/gold/flows). Cada revisor recibe solo la lista de archivos; así no hereda los supuestos de quien
-   escribió el código.
-3. Aplicar las observaciones (o justificar por qué no) y volver a correr `pre-commit` y `pytest`.
-4. Antes de mergear, revisar el diff final otra vez con ponytail.
-5. Abrir el PR y subir la revisión (hallazgos y cómo se resolvieron) como comentario del PR.
-6. El CI debe pasar siempre. Tras subir cambios o actualizar un PR, sigue sin esperar a que termine.
-   Si el usuario pide explícitamente mergear, espera a que el CI del último commit termine y pase antes de mergear.
+1. **Aislar el trabajo.** Usar un worktree por tarea y una rama propia. Si el entorno ya entregó un worktree para
+   la tarea, reutilizarlo y crear una rama allí si está en detached HEAD. Para crear uno nuevo desde la base acordada,
+   por ejemplo `origin/main` después de `git fetch origin`, usar
+   `git worktree add -b feat/mi-cambio ../daii-mi-cambio origin/main`. Ejecutar los comandos desde ese worktree.
+   Para corridas locales, usar su directorio `data/` o un `DAII_DATA` propio del worktree.
+2. **Implementar por rondas.** Dividir el alcance en cambios coherentes. Para un bug o un comportamiento nuevo con
+   lógica, aplicar TDD ligero: escribir o ajustar un caso de pytest, confirmar que falla por el motivo esperado,
+   implementar lo mínimo y volver a correrlo. Usar fixtures y pruebas sin red. Para cambios triviales de texto o
+   formato basta la comprobación correspondiente. Mantener los tests obligatorios de spiders y deduplicación.
+3. **Commitear por funcionalidad y hacer push.** Juntar cada cambio con sus tests, fixtures o documentación
+   asociados en un commit verificable. Usar Conventional Commits en los commits y el título del PR.
+   Antes de subir, correr `uv run pre-commit run --all-files` y `make test`. Subir la rama de trabajo al remoto.
+   En cada commit intermedio, agregar `[skip ci]` en una línea del cuerpo, separada del título por una línea en blanco.
+   El push de una rama sin PR ya queda fuera del CI de este repo. Con un PR abierto, GitHub usa el marcador del
+   último commit para omitir el CI del PR. [Documentación de GitHub](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/skip-workflow-runs).
+4. **Revisar con Ponytail.** Revisar el diff de la rama subida contra su base con `$ponytail-review`. Hacer handoffs
+   independientes y sin contexto previo por grupo de módulos afectado (núcleo bronze, spiders de plataforma,
+   spiders de sitios, quality/silver/gold/flows). Entregar al revisor la base, el commit y los archivos a revisar.
+   Si la revisión independiente no está disponible, revisar el diff y dejar constancia en el PR.
+5. **Resolver hallazgos.** Corregir o justificar cada hallazgo. Validar de nuevo, commitear las correcciones y
+   subirlas. Revisar el diff resultante y repetir si quedan hallazgos pendientes.
+6. **Abrir el PR.** Cuando el cambio esté listo para integrar, subir un último commit sin marcador de omisión.
+   Usar la [plantilla de GitHub](.github/pull_request_template.md) e incluir el resultado de la revisión y las
+   comprobaciones ejecutadas. Si ya existe un PR en borrador, marcarlo como listo para revisión.
+7. **Esperar el CI cuando el cambio esté listo para integrar.** Durante las rondas intermedias, continuar el
+   trabajo sin esperar el CI. Antes de un merge solicitado, confirmar que el CI del último commit pasó, revisar
+   el diff final y quitar cualquier marcador de omisión del mensaje de squash para que corra el CI de `main`.
