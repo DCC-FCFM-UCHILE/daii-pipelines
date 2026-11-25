@@ -11,6 +11,7 @@ from daii.bronze.items import TipoActividad
 from daii.config import academicos, catalogos
 from daii.flows.pipeline import all_spiders
 from daii.gold.load import catalogo
+from daii.silver.dedup import REGLAS_FUSION
 from daii.silver.transform import INSTRUMENTO, NIVEL_FORMACION, ROL_TESIS, TIPO_PUB
 
 
@@ -23,6 +24,7 @@ from daii.silver.transform import INSTRUMENTO, NIVEL_FORMACION, ROL_TESIS, TIPO_
         ("direcciontesis.rol", {k for k, _ in ROL_TESIS} | {"otro"}),
         ("actividad.tipo", set(get_args(TipoActividad))),
         ("academico.unidad", {a["unidad"] for a in academicos() if a.get("unidad")}),
+        ("fusion.regla", set(REGLAS_FUSION)),
     ],
 )
 def test_vocabularios_cerrados_tienen_nombre(campo, codigos):

@@ -213,6 +213,35 @@ class Evidencia(SQLModel, table=True):
     campo: str = Field(default="", primary_key=True)
 
 
+class Fusion(SQLModel, table=True):
+    """Auditoría del deduplicador: por qué dos ítems quedaron en la misma fila (silver/dedup.py).
+
+    Una arista por unión hecha por una heurística; las uniones por clave idéntica (mismo DOI, filas iguales) no la
+    dejan. Revisar primero las de menor `similitud`.
+    """
+
+    tabla: str = Field(primary_key=True)  # __tablename__ de la fila resultante
+    fila_id: str = Field(primary_key=True)  # json_array(PK), igual que Evidencia.fila_id
+    item_a: str = Field(primary_key=True, foreign_key="itembronze.id")
+    item_b: str = Field(primary_key=True, foreign_key="itembronze.id")
+    regla: str = Field(index=True)  # código de dedup.REGLAS_FUSION (nombre en catalogo `fusion.regla`)
+    similitud: float | None = None  # ratio difuso cuando la regla lo usa
+
+
+class CandidatoFusion(SQLModel, table=True):
+    """Uniones que el deduplicador no hizo por dudosas: siguen siendo dos filas hasta que alguien decida.
+
+    Se deciden en config/fusiones_revisadas.yaml (`fusionar` → pasa a `fusion` con regla `revisada`; `separar`).
+    """
+
+    __tablename__ = "candidato_fusion"
+    tabla: str = Field(primary_key=True)  # tipo silver; coincide con __tablename__ en las tablas con uniones difusas
+    item_a: str = Field(primary_key=True, foreign_key="itembronze.id")
+    item_b: str = Field(primary_key=True, foreign_key="itembronze.id")
+    similitud: float
+    diferencia: str  # palabras que un texto agrega sobre el otro ("language and")
+
+
 class Catalogo(SQLModel, table=True):
     """Nombre legible de cada código de las categorías fijas (config/catalogos.yaml): lo que se muestra."""
 

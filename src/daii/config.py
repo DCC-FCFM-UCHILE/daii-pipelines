@@ -23,6 +23,11 @@ def catalogos() -> dict[str, dict[str, str]]:
     return yaml.safe_load((ROOT / "config" / "catalogos.yaml").read_text())
 
 
+def fusiones_revisadas() -> dict | None:
+    """Decisiones a mano sobre fusiones (config/fusiones_revisadas.yaml). Sin caché, como `catalogos`."""
+    return yaml.safe_load((ROOT / "config" / "fusiones_revisadas.yaml").read_text())
+
+
 @cache
 def whitelist() -> list[str]:
     return yaml.safe_load((ROOT / "config" / "whitelist.yaml").read_text())["dominios"]

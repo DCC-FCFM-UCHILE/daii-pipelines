@@ -6,14 +6,15 @@ import streamlit as st
 
 from daii.config import academicos
 from daii.explorar import datos, ui
-from daii.silver.transform import PRIORIDAD, TITULO_MIN_PALABRAS, _prio
+from daii.silver.dedup import TITULO_MIN_PALABRAS
+from daii.silver.transform import PRIORIDAD, _prio
 
 FLUJO = """
 flowchart LR
     B["Bronze<br/>último run ok de cada spider"] --> S1
     subgraph Silver["Silver, por persona"]
         S1["Filas idénticas entre fuentes<br/>se dejan una vez"]
-        S2["Publicaciones: clave DOI,<br/>DOI heredado o título;<br/>cada campo de la fuente<br/>más prioritaria"]
+        S2["Deduplicador: mismo<br/>registro escrito distinto<br/>→ una fila; cada campo<br/>de la más prioritaria"]
     end
     S1 --> S2
     subgraph Gold["Gold, entre personas"]
@@ -30,35 +31,45 @@ flowchart LR
 IDENTIDAD = [
     (
         "Publicación",
-        "DOI → DOI que otra fuente asocia al mismo título (si es único y el título tiene "
-        f"{TITULO_MIN_PALABRAS}+ palabras) → título normalizado (+ año si es corto)",
-        "Silver por persona; gold entre personas",
-        "Campo a campo por prioridad. Citas: máximo. WOS/Scopus: si alguna fuente lo dice",
+        "DOI (sin puntuación) → mismo título con un solo DOI real (suma las filas sin DOI y el preprint arXiv) → "
+        f"título casi igual (≥ 0.95) con año ±1 (±2 si es arXiv); títulos de menos de {TITULO_MIN_PALABRAS} palabras: "
+        "misma persona y año",
+        "Silver, entre personas",
+        "Campo a campo por prioridad; el tipo prefiere la versión publicada. Citas: máximo. "
+        "WOS/Scopus: si alguna lo dice",
     ),
-    ("Proyecto", "Código → título normalizado", "Gold", "Fila de la fuente más prioritaria"),
-    ("Tesis", "Título normalizado + año (sin título: estudiante + año)", "Gold", "Fila de la fuente más prioritaria"),
-    ("Curso", "Código → nombre normalizado", "Gold", "Primera fila"),
+    (
+        "Proyecto",
+        "Código canónico → mismo título con códigos compatibles",
+        "Silver (clave) y gold",
+        "Fila de la fuente más prioritaria",
+    ),
+    (
+        "Tesis",
+        "Título (o casi igual) con año ±1; sin título: el mismo estudiante",
+        "Silver (clave) y gold",
+        "Fila de la fuente más prioritaria",
+    ),
+    ("Curso", "Código → nombre normalizado", "Silver", "Primera fila"),
     ("Producto", "Nombre normalizado", "Gold", "Fila de la fuente más prioritaria"),
     ("Académico", "Slug de config/academicos.yaml", "Gold", "Nombre, unidad y ORCID de config; resto por prioridad"),
     (
-        "Formación, afiliación, área, distinción, actividad, dictación, métrica",
-        "Ninguna: solo se quitan filas idénticas",
-        "Silver",
-        "Se muestran todas las versiones",
+        "Formación, afiliación, área, distinción, actividad, dictación, perfil, link, página",
+        "Regla propia por tabla (README, sección Deduplicación)",
+        "Silver, por persona",
+        "Campo a campo por prioridad; en dictación los roles se unen",
     ),
 ]
 
 LIMITES = """
 - **Spiders sin prioridad propia** (marcados abajo) van después de todas las demás fuentes: si chocan entre ellos, gana
   el que llegó primero.
-- **Formación, afiliaciones, distinciones y actividades** no se concilian: el mismo grado escrito distinto por dos
-  fuentes aparece dos veces.
-- **Dictaciones:** se deduplica antes de normalizar el semestre, así que "Primer Semestre" y "Otoño" quedan como dos
-  filas.
+- **Similitud difusa:** puede unir dos obras de título casi idéntico sin DOI que las distinga. Cada unión queda en
+  **Fusiones** para revisarla.
 - **Publicación compartida por varias personas:** título y tipo salen de la primera persona, no de la fuente más
   confiable.
 - **Validación humana** (`verificado` en `docs/modelo_datos.md`) todavía no existe: no hay forma de fijar a mano qué
-  fuente gana.
+  fuente gana ni de deshacer una fusión.
 """
 
 

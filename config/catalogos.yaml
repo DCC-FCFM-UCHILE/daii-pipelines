@@ -119,6 +119,27 @@ perfilexterno.plataforma:
   sitio web personal: Sitio web personal
   personal web page: Sitio web personal
 
+fusion.regla:
+  doi_canonico: Mismo DOI escrito distinto
+  arxiv_titulo: Preprint arXiv de la misma obra (mismo título)
+  titulo_sin_doi: Mismo título; una fuente no trae DOI
+  titulo_corto_mismo_anio: Título corto igual, misma persona y año
+  titulo_difuso: Título casi igual
+  codigo_canonico: Mismo código escrito distinto
+  codigo_sufijo: Mismo título y código con prefijo distinto
+  titulo_sin_codigo: Mismo título; una fuente no trae código
+  titulo_anio_cercano: Mismo título con año a ±1
+  estudiante_sin_titulo: Mismo estudiante; una fuente no trae título
+  misma_afiliacion: Misma afiliación (organización, rol y fechas compatibles)
+  misma_formacion: Mismo nivel, año e institución
+  misma_area: Misma área
+  misma_distincion: Misma distinción (nombre, año y otorgante compatibles)
+  misma_actividad: Misma actividad (título, fecha y rol compatibles)
+  mismo_perfil: Mismo perfil (URL o identificador)
+  misma_dictacion: Mismo curso, año y semestre
+  misma_url: Misma URL
+  revisada: Revisada a mano (config/fusiones_revisadas.yaml)
+
 itembronze.spider:
   orcid: ORCID
   openalex: OpenAlex

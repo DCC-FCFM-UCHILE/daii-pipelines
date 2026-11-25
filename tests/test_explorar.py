@@ -77,7 +77,9 @@ def _pagina(nombre: str, modo: str, persona: str | None = None) -> None:
 
 
 @pytest.mark.parametrize("modo", ["DAII", "Pipeline"])
-@pytest.mark.parametrize("nombre", ["academicos", "agregados", "modelo", "conciliacion", "runs", "versiones", "logs"])
+@pytest.mark.parametrize(
+    "nombre", ["academicos", "agregados", "modelo", "conciliacion", "fusiones", "runs", "versiones", "logs"]
+)
 def test_paginas_sin_errores(data, nombre, modo):
     at = AppTest.from_function(_pagina, args=(nombre, modo), default_timeout=30).run()
     assert not at.exception
@@ -88,6 +90,42 @@ def test_ficha_y_rastro_por_capas(data):
     assert not at.exception
     assert at.title[0].value == "Aidan Hogan"
     assert any(t.label.startswith("Áreas") for t in at.tabs)
+
+
+def test_fusiones_muestra_lo_que_unio_el_deduplicador(data, tmp_path):
+    directory = tmp_path / "bronze" / "orcid" / "20261124T120000Z"
+    directory.mkdir(parents=True)
+    (directory / "quality.json").write_text(json.dumps({"status": "ok", "problems": [], "counts": {"area": 2}}))
+    base = {"tipo": "area", "persona": "aidan-hogan", "spider": "orcid", "url": "https://orcid.org/x"}
+    nombres = ["Knowledge Graphs", "Knowledge graphs."]  # mismo nombre normalizado: una fila, una fusión
+    (directory / "items.jsonl").write_text("".join(json.dumps(base | {"nombre": n}) + "\n" for n in nombres))
+    versions.publish(versions.prepare())
+    st.cache_data.clear()
+    at = AppTest.from_function(_pagina, args=("fusiones", "Pipeline"), default_timeout=30).run()
+    assert not at.exception
+    detalle = at.dataframe[1].value
+    assert detalle["regla"].to_list() == ["Misma área"]
+    assert detalle[["registro_a", "registro_b"]].values.tolist() == [nombres]
+
+
+def test_fusiones_muestra_candidatos_dudosos(data, tmp_path):
+    directory = tmp_path / "bronze" / "orcid" / "20261124T120000Z"
+    directory.mkdir(parents=True)
+    (directory / "quality.json").write_text(json.dumps({"status": "ok", "problems": [], "counts": {"area": 2}}))
+    base = {"tipo": "area", "persona": "aidan-hogan", "spider": "orcid", "url": "https://orcid.org/x"}
+    nombres = [  # uno agrega "Chile": no se fusionan solos, quedan como candidato
+        "Knowledge Graphs and Semantic Web Technologies for Scientific Data Integration",
+        "Knowledge Graphs and Semantic Web Technologies for Scientific Data Integration Chile",
+    ]
+    (directory / "items.jsonl").write_text("".join(json.dumps(base | {"nombre": n}) + "\n" for n in nombres))
+    versions.publish(versions.prepare())
+    st.cache_data.clear()
+    at = AppTest.from_function(_pagina, args=("fusiones", "Pipeline"), default_timeout=30).run()
+    assert not at.exception
+    candidatos = at.dataframe[0].value
+    assert candidatos["diferencia"].to_list() == ["chile"]
+    assert candidatos[["registro_a", "registro_b"]].values.tolist() == [nombres]
+    assert candidatos[["texto_a", "texto_b"]].values.tolist() == [nombres]
 
 
 def test_diff_entre_versiones(data):
@@ -104,7 +142,7 @@ def test_estados_vacios(tmp_path, monkeypatch):
     monkeypatch.setattr(datos, "SILVER", tmp_path / "silver")
     monkeypatch.setattr(log, "DATA", tmp_path)
     st.cache_data.clear()
-    for nombre in ("academicos", "agregados", "modelo", "conciliacion", "runs", "versiones", "logs"):
+    for nombre in ("academicos", "agregados", "modelo", "conciliacion", "fusiones", "runs", "versiones", "logs"):
         at = AppTest.from_function(_pagina, args=(nombre, "Pipeline"), default_timeout=30).run()
         assert not at.exception, nombre
         assert at.info, f"{nombre} debe explicar qué falta"

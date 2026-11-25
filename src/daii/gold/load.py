@@ -90,13 +90,35 @@ def _evidencia(
     return out
 
 
-def _por_persona(tipo: str, model: type[SQLModel], silver: Path | None, mapping: dict) -> tuple[list, list]:
-    """Tabla por persona sin fusión entre valores: id correlativo y la evidencia de la fila."""
+def _fusiones(model: type[SQLModel], df: pl.DataFrame, pk: list[str]) -> list[dict]:
+    """Aristas del deduplicador (columna `fusiones` de silver) hacia la fila gold que resultó (tabla `fusion`)."""
+    if df.is_empty() or "fusiones" not in df.columns:
+        return []
+    aristas = df.select(*pk, "fusiones").explode("fusiones").drop_nulls("fusiones").unnest("fusiones")
+    tabla = str(model.__tablename__)
+    out = {}  # una entidad compartida repite sus aristas en la fila de cada persona
+    for r in aristas.to_dicts():
+        f = dict(tabla=tabla, fila_id=_fila(*(r[c] for c in pk)), item_a=r["item_a"], item_b=r["item_b"])
+        out[tuple(f.values())] = f | {"regla": r["regla"], "similitud": r["similitud"]}
+    return list(out.values())
+
+
+def _origen(df: pl.DataFrame, mapping: dict) -> tuple[pl.DataFrame, dict[str, tuple[str, str]]]:
+    """Filas fusionadas en silver traen `origen` (campo → item_id): campos para `_evidencia()`."""
+    if not isinstance(origen := df.schema.get("origen"), pl.Struct):  # sin fusiones en el build: null
+        return df, {}
+    fuentes = {f.name for f in origen.fields}
+    campos = {dst: (src, f"_o_{src}") for dst, src in mapping.items() if src in fuentes and dst != "academico_id"}
+    return df.with_columns(pl.col("origen").struct.field(src).alias(o) for src, o in campos.values()), campos
+
+
+def _por_persona(tipo: str, model: type[SQLModel], silver: Path | None, mapping: dict) -> tuple[list, list, list]:
+    """Tabla por persona: id correlativo, la evidencia de la fila (y de cada campo si se fusionó) y sus fusiones."""
     df = _read(tipo, silver)
     if df.is_empty():
-        return [], []
-    df = df.with_row_index("id", offset=1)
-    return _cols(df, id="id", **mapping), _evidencia(model, df, ["id"])
+        return [], [], []
+    df, campos = _origen(df.with_row_index("id", offset=1), mapping)
+    return _cols(df, id="id", **mapping), _evidencia(model, df, ["id"], campos), _fusiones(model, df, ["id"])
 
 
 def _academicos(silver: Path | None = None) -> tuple[list[dict], list[dict]]:
@@ -126,10 +148,10 @@ def _academicos(silver: Path | None = None) -> tuple[list[dict], list[dict]]:
 
 def _shared(
     df: pl.DataFrame, key: pl.Expr, models: tuple[type[SQLModel], type[SQLModel]], entity: dict, link: dict
-) -> tuple[list[dict], list[dict], list[dict]]:
-    """Separa una tabla silver por persona en (entidad compartida, puente persona↔entidad, evidencia de ambas)."""
+) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+    """Separa una tabla silver por persona en (entidad compartida, puente, evidencia de ambas, fusiones)."""
     if df.is_empty():
-        return [], [], []
+        return [], [], [], []
     df = df.with_columns(_key=key, _prio=prio_expr()).sort("_prio", maintain_order=True)
     # la entidad es la fila de la fuente más prioritaria (cada campo sale de ese ítem) con los ítems de todas sus filas
     todos = df.group_by("_key").agg(pl.col("item_ids").explode())
@@ -152,6 +174,7 @@ def _shared(
             ["_key", "persona"],  # PK de los puentes: (entidad, académico)
             {c: (src, "item_id") for c, src in link.items() if src != "_key"},
         ),
+        _fusiones(ent_model, df, ["_key"]),
     )
 
 
@@ -171,6 +194,15 @@ def _items(silver: Path | None, usados: set[str]) -> list[dict]:
     )
     # el bulk insert toma las columnas de la primera fila: la de config lleva todas
     return [dict.fromkeys(rows[0] if rows else ["id"]) | {"id": CONFIG_ITEM, "spider": "config"}, *rows]
+
+
+def _candidatos(silver: Path | None, usados: set[str]) -> list[dict]:
+    """Uniones dudosas que silver no hizo (candidato.parquet), entre ítems publicados."""
+    f = (silver or SILVER) / "candidato.parquet"
+    if not f.exists():
+        return []
+    df = pl.read_parquet(f).filter(pl.col("item_a").is_in(list(usados)) & pl.col("item_b").is_in(list(usados)))
+    return df.unique(["tabla", "item_a", "item_b"], maintain_order=True).to_dicts()
 
 
 def build(
@@ -243,9 +275,11 @@ def build(
         ),
         m.PaginaRelacionada: ("pagina", dict(academico_id="persona", url="url", titulo="titulo", texto="texto")),
     }
+    fus: list[dict] = []
     for model, (tipo, mapping) in por_persona.items():
-        tables[model], e = _por_persona(tipo, model, silver, mapping)
+        tables[model], e, f = _por_persona(tipo, model, silver, mapping)
         ev += e
+        fus += f
 
     pubs = _read("publicacion", silver)
     if not pubs.is_empty():
@@ -292,15 +326,13 @@ def build(
             pubs, publicacion_id="pub_key", academico_id="persona", confianza="confianza"
         )
         ev += _evidencia(m.PublicacionAcademico, pubs, ["pub_key", "persona"])
+        fus += _fusiones(m.Publicacion, pubs, ["pub_key"])
 
     proy = _read("proyecto", silver)
     if not proy.is_empty():
-        key = pl.coalesce(
-            pl.col("codigo"), pl.lit("t:") + pl.col("titulo").map_elements(norm_text, return_dtype=pl.String)
-        )
-        tables[m.Proyecto], tables[m.ParticipacionProyecto], e = _shared(
+        tables[m.Proyecto], tables[m.ParticipacionProyecto], e, f = _shared(
             proy,
-            key,
+            pl.col("clave"),  # silver/dedup.py: el mismo proyecto entre fuentes y personas
             (m.Proyecto, m.ParticipacionProyecto),
             dict(
                 titulo="titulo",
@@ -314,23 +346,13 @@ def build(
             dict(proyecto_id="_key", rol="rol"),
         )
         ev += e
+        fus += f
 
     tesis = _read("tesis", silver)
     if not tesis.is_empty():
-        # Sin título, "nivel|año" no distingue a nadie: entonces entra el estudiante. Con título NO, porque una
-        # fuente puede traer estudiante y otra no (ucurriculum vs sitio personal) y la misma tesis se duplicaría.
-        key = pl.concat_str(
-            pl.col("titulo").map_elements(norm_text, return_dtype=pl.String),
-            pl.when(pl.col("titulo").is_null()).then(
-                pl.col("estudiante").map_elements(norm_text, return_dtype=pl.String)
-            ),
-            pl.col("anio").cast(pl.String),
-            separator="|",
-            ignore_nulls=True,
-        )
-        tables[m.Tesis], tables[m.DireccionTesis], e = _shared(
+        tables[m.Tesis], tables[m.DireccionTesis], e, f = _shared(
             tesis,
-            key.map_elements(_hid, return_dtype=pl.String),
+            pl.col("clave").map_elements(_hid, return_dtype=pl.String),  # silver/dedup.py
             (m.Tesis, m.DireccionTesis),
             dict(
                 titulo="titulo",
@@ -344,15 +366,11 @@ def build(
             dict(tesis_id="_key", rol="rol_norm"),
         )
         ev += e
+        fus += f
 
     dict_ = _read("dictacion", silver)
     if not dict_.is_empty():
-        dict_ = dict_.with_columns(
-            curso_id=pl.coalesce(
-                "codigo_curso",
-                pl.col("nombre_curso").map_elements(lambda s: "n:" + norm_text(s), return_dtype=pl.String),
-            )
-        ).with_row_index("id", offset=1)
+        dict_ = dict_.with_row_index("id", offset=1)  # curso_id viene de silver
         cursos = dict_.with_columns(pl.col("item_ids").explode().over("curso_id", mapping_strategy="join")).unique(
             "curso_id", keep="first", maintain_order=True
         )
@@ -373,11 +391,14 @@ def build(
             rol="rol",
             institucion="institucion",
         )
-        ev += _evidencia(m.Dictacion, dict_, ["id"])
+        mapping = dict(anio="anio", semestre="semestre", rol="rol", institucion="institucion")
+        dict_, campos = _origen(dict_, mapping)
+        ev += _evidencia(m.Dictacion, dict_, ["id"], campos)
+        fus += _fusiones(m.Dictacion, dict_, ["id"])
 
     prod = _read("producto", silver)
     if not prod.is_empty():
-        tables[m.Producto], tables[m.ProductoAcademico], e = _shared(
+        tables[m.Producto], tables[m.ProductoAcademico], e, f = _shared(
             prod,
             pl.col("nombre").map_elements(norm_text, return_dtype=pl.String),
             (m.Producto, m.ProductoAcademico),
@@ -385,10 +406,17 @@ def build(
             dict(producto_id="_key", rol="rol"),
         )
         ev += e
+        fus += f
 
-    tables[m.ItemBronze] = _items(silver, {e["item_id"] for e in ev})
+    usados = {e["item_id"] for e in ev}
+    # las claves compartidas se calculan en silver con todas las personas: aristas hacia ítems de alguien que ya no
+    # está en config (o que no respaldan ninguna fila publicada) no se publican
+    fus = [f for f in fus if f["item_a"] in usados and f["item_b"] in usados]
+    tables[m.ItemBronze] = _items(silver, usados)
     tables[m.Catalogo] = catalogo()
     tables[m.Evidencia] = ev
+    tables[m.Fusion] = fus
+    tables[m.CandidatoFusion] = _candidatos(silver, usados)
     tables[m.ScrapeRun] = run_rows if run_rows is not None else run_manifest()
 
     counts = {}
